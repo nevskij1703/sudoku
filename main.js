@@ -17,6 +17,10 @@
   // Сохраняем выбор сложности/режима между показами экрана
   let selectedDifficulty = 'medium';
   let selectedMode = 'classic';
+  // Параметры только что завершённого уровня — для «Следующий уровень»
+  // в win-модалке (запускаем такой же ещё раз без захода на главный экран).
+  let lastCompletedDifficulty = null;
+  let lastCompletedMode = null;
 
   function init() {
     // ===== 1. Storage =====
@@ -37,6 +41,8 @@
 
     // ===== 3. Game callbacks =====
     window.Game.on('win', function (data) {
+      lastCompletedDifficulty = data.difficulty;
+      lastCompletedMode = data.mode || 'classic';
       window.UI.setText('win-difficulty', difficultyLabel(data.difficulty));
       window.UI.setText('win-mistakes', String(data.mistakes));
       window.UI.setText('win-hints', String(data.hintsUsed));
@@ -121,7 +127,24 @@
     // ===== 8. Модалки win / gameover =====
     document.getElementById('btn-win-next').addEventListener('click', function () {
       window.UI.hideModal('win');
-      backToHome();
+      // Запускаем свежий puzzle с теми же difficulty+mode что у только что пройденного.
+      // Если данных нет (что не должно случаться) — fallback на текущий выбор в UI.
+      const diff = lastCompletedDifficulty || selectedDifficulty;
+      const mode = lastCompletedMode || selectedMode;
+      // Синхронизируем UI-выбор, чтобы на главном экране он отражал актуальное состояние
+      selectedDifficulty = diff;
+      selectedMode = mode;
+      const completed = window.Storage.getCompletedLevels();
+      const shouldShow = window.AdManager.shouldShowInterstitial(completed);
+      const launch = function () {
+        window.Game.startNewLevel(diff, mode);
+        window.UI.showScreen('game');
+      };
+      if (shouldShow) {
+        window.AdManager.showInterstitialAd().then(launch);
+      } else {
+        launch();
+      }
     });
     document.getElementById('btn-win-home').addEventListener('click', function () {
       window.UI.hideModal('win');

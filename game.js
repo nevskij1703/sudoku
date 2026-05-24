@@ -335,6 +335,7 @@ window.Game = (function () {
     window.Storage.incrementCompleted(active.difficulty);
     const data = {
       difficulty: active.difficulty,
+      mode: active.mode,
       elapsedMs: elapsed,
       mistakes: mistakesCount,
       hintsUsed: active.hintsUsed
