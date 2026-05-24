@@ -95,9 +95,6 @@
         <div class="brand-sub">Классик</div>
       </div>
       <div class="home-top-actions">
-        <button id="btn-home-info" class="icon-btn" aria-label="Как играть">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
         <button id="btn-home-settings" class="icon-btn" aria-label="Настройки">
           <svg class="icon"><use href="#icon-settings"/></svg>
         </button>
@@ -125,21 +122,24 @@
 
     <h2 class="section-title">Режим</h2>
     <div class="mode-grid">
-      <button class="mode-tile selected" data-mode="classic">
+      <div class="mode-tile selected" data-mode="classic" role="button" tabindex="0">
+        <button class="mode-info-btn" data-mode-info="classic" aria-label="Правила режима «Классика»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
         <div class="mode-emoji">▦</div>
         <div class="mode-label">Классика</div>
         <div class="mode-sub">9×9, стандартные правила</div>
-      </button>
-      <button class="mode-tile locked" data-mode="diagonal" disabled>
+      </div>
+      <div class="mode-tile locked" data-mode="diagonal" aria-disabled="true">
         <div class="mode-emoji">⟋</div>
         <div class="mode-label">Диагональ</div>
         <div class="mode-sub">скоро</div>
-      </button>
-      <button class="mode-tile locked" data-mode="killer" disabled>
+      </div>
+      <div class="mode-tile locked" data-mode="killer" aria-disabled="true">
         <div class="mode-emoji">∑</div>
         <div class="mode-label">Киллер</div>
         <div class="mode-sub">скоро</div>
-      </button>
+      </div>
     </div>
 
     <button id="btn-start-level" class="btn btn-primary big">Начать</button>

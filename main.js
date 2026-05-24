@@ -57,8 +57,14 @@
 
     // ===== 4. Главный экран (выбор сложности + статистика на одном экране) =====
     document.getElementById('btn-home-settings').addEventListener('click', openSettings);
-    document.getElementById('btn-home-info').addEventListener('click', function () {
-      window.UI.showModal('info');
+
+    // Info-кнопки в карточках режимов: открывают info-модалку (пока единую,
+    // в будущем могут вести в variant-specific объяснения).
+    document.querySelectorAll('.mode-info-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();              // не дёргаем выбор mode-tile
+        window.UI.showModal('info');
+      });
     });
 
     document.querySelectorAll('.diff-tile').forEach(function (tile) {

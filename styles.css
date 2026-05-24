@@ -71,13 +71,12 @@ input { font: inherit; color: inherit; }
 .icon-btn {
   width: 40px; height: 40px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 12px;
   font-size: 20px; color: var(--text);
-  background: var(--bg-soft);
-  box-shadow: var(--shadow);
+  background: transparent;
+  box-shadow: none;
   flex-shrink: 0;
 }
-.icon-btn:active { transform: scale(0.94); }
+.icon-btn:active { transform: scale(0.86); color: var(--accent); }
 .icon { width: 22px; height: 22px; display: block; }
 
 /* ============ Кнопки ============ */
@@ -112,11 +111,11 @@ input { font: inherit; color: inherit; }
   gap: 4px;
 }
 .home-top {
-  display: flex; justify-content: space-between; align-items: flex-start;
+  display: flex; justify-content: space-between; align-items: center;
   margin-top: 4px;
   gap: 12px;
 }
-.home-top-actions { display: flex; gap: 8px; }
+.home-top-actions { display: flex; gap: 6px; align-items: center; }
 .title-block { padding: 16px 0; }
 .brand {
   font-size: 40px; font-weight: 900; letter-spacing: 4px; color: var(--text);
@@ -129,7 +128,8 @@ input { font: inherit; color: inherit; }
   border-radius: 18px;
   padding: 14px 16px;
   box-shadow: var(--shadow);
-  margin: 18px 0 0;
+  margin-top: auto;     /* прижимаем к низу экрана */
+  margin-bottom: 0;
 }
 .stats-line {
   display: flex; justify-content: space-between; align-items: center;
@@ -167,6 +167,7 @@ input { font: inherit; color: inherit; }
 
 .mode-grid { display: flex; gap: 10px; }
 .mode-tile {
+  position: relative;
   flex: 1 1 0;
   background: var(--bg-soft);
   border-radius: 18px;
@@ -175,10 +176,27 @@ input { font: inherit; color: inherit; }
   border: 2px solid transparent;
   text-align: center;
   transition: transform 0.08s ease;
+  cursor: pointer;
 }
 .mode-tile.selected { border-color: var(--accent); background: var(--accent-soft); }
 .mode-tile.locked { opacity: 0.4; cursor: not-allowed; }
 .mode-tile:active:not(.locked) { transform: scale(0.96); }
+
+/* Info-кнопка в левом верхнем углу каждой mode-tile.
+   У каждого режима будут свои правила, и единый info-modal с правилами Sudoku
+   развернётся в variant-specific позже. */
+.mode-info-btn {
+  position: absolute;
+  top: 6px; left: 6px;
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  background: transparent;
+  border-radius: 50%;
+  z-index: 2;
+}
+.mode-info-btn:active { color: var(--accent); transform: scale(0.88); }
+.mode-info-btn .icon { width: 18px; height: 18px; }
 .mode-emoji { font-size: 28px; }
 .mode-label { font-weight: 600; font-size: 14px; margin-top: 4px; }
 .mode-sub { font-size: 11px; color: var(--text-dim); }
@@ -216,7 +234,7 @@ input { font: inherit; color: inherit; }
 }
 .game-subtitle {
   font-size: 12px; color: var(--text-dim);
-  margin-top: 4px;
+  margin-top: 10px;
   text-transform: uppercase; letter-spacing: 1.2px;
 }
 .game-head-actions { display: flex; gap: 6px; }
@@ -319,7 +337,12 @@ input { font: inherit; color: inherit; }
   min-height: 64px;
 }
 .num-btn:active { transform: scale(0.94); }
-.num-btn.depleted { opacity: 0.30; }
+.num-btn.depleted {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faded);
+  font-weight: 500;
+}
 
 .tools-row {
   display: grid;
