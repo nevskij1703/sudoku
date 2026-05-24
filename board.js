@@ -64,6 +64,22 @@ window.Board = (function () {
     const variant = state.variant || Core.ClassicVariant;
     const selDigit = sel != null ? state.board[sel] : 0;
     const useHighlight = settings && settings.highlighter !== false;
+
+    // Сначала сбрасываем все Kropki-классы (могут остаться от предыдущего mode).
+    for (let i = 0; i < 81; i++) {
+      cells[i].classList.remove(
+        'dot-right-consec', 'dot-right-double',
+        'dot-bottom-consec', 'dot-bottom-double'
+      );
+    }
+    // Применяем dots если есть
+    if (state.dots && state.dots.length) {
+      for (let k = 0; k < state.dots.length; k++) {
+        const d = state.dots[k];
+        const cls = 'dot-' + d.side + '-' + d.type;
+        cells[d.idx1].classList.add(cls);
+      }
+    }
     // Peers выбранной ячейки определяет variant — для Diagonal это включает
     // диагональ, для Center — центральные клетки, для Windoku — внутреннюю зону.
     const peers = (sel != null && useHighlight) ? new Set(variant.peersForCell(sel)) : null;

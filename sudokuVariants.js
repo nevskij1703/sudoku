@@ -129,14 +129,120 @@ window.SudokuVariants = (function () {
     units: windokuUnits
   });
 
+  // ===== Kropki (Точки) =====
+  //
+  // На границах между некоторыми соседними клетками рисуются кружочки:
+  //   ○ (пустой)     — цифры в соседних клетках отличаются на 1 (consecutive)
+  //   ● (закрашенный) — одна цифра вдвое больше другой (double)
+  // Если относится и то и другое (например 1 и 2: |1-2|=1 И 2=2·1) — выигрывает
+  // double (●). Если ни то ни другое — точки нет.
+  //
+  // В positive-only варианте (наш v1) все relations показаны, поэтому puzzle
+  // решается просто по правилам классики + видимым подсказкам. В будущем можно
+  // подключить negative-constraint (отсутствие точки = соседние цифры НЕ
+  // consecutive И НЕ ×2) — это сделает режим значительно сложнее.
+  //
+  // computeKropkiDots(solution) → массив { idx1, idx2, type: 'consec'|'double' }
+  // makeKropki(dots) → variant, котоый помимо classic constraints учитывает dots
+  //                    через extraPreCheck/extraConstraintsOk (см. sudokuCore.js).
+
+  function relationOf(a, b) {
+    if (a === 0 || b === 0) return null;
+    if (a === 2 * b || b === 2 * a) return 'double';
+    if (Math.abs(a - b) === 1)      return 'consec';
+    return null;
+  }
+
+  function computeKropkiDots(grid) {
+    const dots = [];
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        const i = r * 9 + c;
+        // Право
+        if (c < 8) {
+          const j = i + 1;
+          const t = relationOf(grid[i], grid[j]);
+          if (t) dots.push({ idx1: i, idx2: j, type: t, side: 'right' });
+        }
+        // Низ
+        if (r < 8) {
+          const j = i + 9;
+          const t = relationOf(grid[i], grid[j]);
+          if (t) dots.push({ idx1: i, idx2: j, type: t, side: 'bottom' });
+        }
+      }
+    }
+    return dots;
+  }
+
+  function makeKropki(dots) {
+    const cellDots = new Array(81);
+    for (let i = 0; i < 81; i++) cellDots[i] = [];
+    for (let k = 0; k < dots.length; k++) {
+      const d = dots[k];
+      cellDots[d.idx1].push(d);
+      cellDots[d.idx2].push(d);
+    }
+    function checkRel(a, b, type) {
+      if (a === 0 || b === 0) return true;     // не оба placed → ok пока
+      if (type === 'consec') return Math.abs(a - b) === 1;
+      if (type === 'double') return a === 2 * b || b === 2 * a;
+      return true;
+    }
+    const base = Classic;
+    return {
+      name: 'kropki',
+      size: 9, boxRows: 3, boxCols: 3, cellCount: 81,
+      ALL_MASK: 0x1FF,
+      digits: base.digits,
+      unitsForCell: base.unitsForCell,
+      peersForCell: base.peersForCell,
+      allUnits: base.allUnits,
+      rowsAndCols: base.rowsAndCols,
+      isLegal: function (g, i, d) {
+        if (!base.isLegal(g, i, d)) return false;
+        const ds = cellDots[i];
+        for (let k = 0; k < ds.length; k++) {
+          const dot = ds[k];
+          const other = (dot.idx1 === i) ? g[dot.idx2] : g[dot.idx1];
+          if (other !== 0 && !checkRel(d, other, dot.type)) return false;
+        }
+        return true;
+      },
+      // Hook'и для generic solver — он сам зовёт extraPreCheck при placement
+      // и extraConstraintsOk на полностью-заполненной сетке.
+      extraPreCheck: function (g, idx, d) {
+        const ds = cellDots[idx];
+        for (let k = 0; k < ds.length; k++) {
+          const dot = ds[k];
+          const other = (dot.idx1 === idx) ? g[dot.idx2] : g[dot.idx1];
+          if (other !== 0 && !checkRel(d, other, dot.type)) return false;
+        }
+        return true;
+      },
+      extraConstraintsOk: function (g) {
+        for (let k = 0; k < dots.length; k++) {
+          const dot = dots[k];
+          if (!checkRel(g[dot.idx1], g[dot.idx2], dot.type)) return false;
+        }
+        return true;
+      },
+      seedGrid: null,
+      _dots: dots
+    };
+  }
+
   // Карта mode-key → variant. Используется в Game.startNewLevel
   // и в auto-resume при load active.
+  // Для Kropki dots зависят от конкретного solution, поэтому byMode возвращает
+  // «базовый» classic variant, а Game.startNewLevel сам делает computeKropkiDots
+  // + makeKropki после того как solution сгенерирован.
   function byMode(modeKey) {
     switch (modeKey) {
       case 'diagonal': return Diagonal;
       case 'center':   return Center;
       case 'windoku':  return Windoku;
-      // case 'kropki':  return Kropki;   ← добавим позже
+      case 'kropki':   return Classic;            // см. Game.startNewLevel kropki-path
       // case 'sugur':   return Sugur;
       // case 'chain':   return Chain;
       // case 'mini':    return Mini;
@@ -152,6 +258,10 @@ window.SudokuVariants = (function () {
     Windoku: Windoku,
     extendClassic: extendClassic,
     byMode: byMode,
+    // Kropki API
+    computeKropkiDots: computeKropkiDots,
+    makeKropki: makeKropki,
+    relationOf: relationOf,
     // Доп. справка: метаданные клеток для UI (рендерим тонировку и т.п.)
     META: {
       diagonal: {

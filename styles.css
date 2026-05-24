@@ -335,6 +335,35 @@ input { font: inherit; color: inherit; }
 .cell.on-main-diag.on-anti-diag { background: #d6e0fb; } /* центр пересечения диагоналей */
 .cell.center-cell          { background: #e0f5ee; }
 .cell.windoku-zone         { background: #fff2dc; }
+
+/* Kropki — точки на границах между соседними клетками.
+   После ::after = «правая» точка, ::before = «нижняя».
+   Заполненная — значит цифры отличаются в 2 раза, пустая — на 1. */
+.cell.dot-right-consec::after,
+.cell.dot-right-double::after {
+  content: ''; position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  top: 50%; right: -5px;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+.cell.dot-right-consec::after { background: #fff; border: 1.6px solid #444; }
+.cell.dot-right-double::after { background: #444; border: 1.6px solid #444; }
+
+.cell.dot-bottom-consec::before,
+.cell.dot-bottom-double::before {
+  content: ''; position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  left: 50%; bottom: -5px;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+.cell.dot-bottom-consec::before { background: #fff; border: 1.6px solid #444; }
+.cell.dot-bottom-double::before { background: #444; border: 1.6px solid #444; }
 .cell.error { color: var(--error); background: var(--error-bg); }
 .cell.hint  { color: var(--hint); font-weight: 700; }
 

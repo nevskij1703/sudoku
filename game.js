@@ -110,7 +110,8 @@ window.Game = (function () {
       givens:    active.givens,
       hintCells: active.hintCells || new Array(81).fill(false),
       selectedIdx: selectedIdx,
-      variant:   activeVariant()
+      variant:   activeVariant(),
+      dots:      active.dots || null
     }, settings);
     window.NumberPad.updateCounts({ board: active.board });
     // Источник правды для счётчика подсказок — Storage.getHints() (глобально,
@@ -124,17 +125,29 @@ window.Game = (function () {
 
   function startNewLevel(difficulty, mode) {
     mode = mode || 'classic';
-    const variant = (window.SudokuVariants && window.SudokuVariants.byMode)
-                    ? window.SudokuVariants.byMode(mode)
-                    : Core.ClassicVariant;
+    const SV = window.SudokuVariants;
     const t0 = Date.now();
-    const gen = Gen.generate(difficulty, { variant: variant });
+
+    // Для Kropki сначала генерируем classic-puzzle, потом считаем dots из solution.
+    // В positive-only варианте все relations показаны, поэтому unique-classic
+    // автоматически даёт unique-kropki (kropki только добавляет подсказки).
+    let gen, dots = null;
+    if (mode === 'kropki' && SV && SV.computeKropkiDots) {
+      gen = Gen.generate(difficulty, { variant: SV.Classic });
+      dots = SV.computeKropkiDots(gen.solution);
+    } else {
+      const variant = (SV && SV.byMode) ? SV.byMode(mode) : Core.ClassicVariant;
+      gen = Gen.generate(difficulty, { variant: variant });
+    }
+
     console.log('[game] generated in', Date.now() - t0, 'ms, score=', Math.round(gen.score),
-                'label=', gen.difficulty, 'mode=', mode, 'techniques=', gen.techniques);
+                'label=', gen.difficulty, 'mode=', mode,
+                'dots=', dots ? dots.length : 0, 'techniques=', gen.techniques);
 
     active = {
       difficulty: difficulty,
       mode: mode,
+      dots: dots,
       puzzle:    gen.puzzle,
       solution:  gen.solution,
       givens:    gen.givens,
