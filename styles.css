@@ -186,25 +186,32 @@ input { font: inherit; color: inherit; }
 
 /* ============ Game ============ */
 #screen-game {
-  /* Дополнительный отступ сверху — на телефонах там часто камера/датчики,
-     лучше держаться подальше. Снизу — sсайф-зона для кнопок (тулбары, жесты). */
-  padding-top:    max(env(safe-area-inset-top), 28px);
-  padding-bottom: max(env(safe-area-inset-bottom), 28px);
+  /* Сейф-зоны: 56px (×2 от прежних 28). Сверху — для камеры/датчиков,
+     снизу — для жестов / навигационной полоски Android. */
+  padding-top:    max(env(safe-area-inset-top), 56px);
+  padding-bottom: max(env(safe-area-inset-bottom), 56px);
 }
 .game-head {
+  position: relative;
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   gap: 10px;
+  min-height: 44px;
 }
+/* Заголовок абсолютно по центру header'а — независимо от ширины кнопок
+   по бокам. pointer-events: none чтобы не перехватывал клики. */
 .game-head-title {
-  flex: 1; text-align: center;
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
   display: flex; flex-direction: column; align-items: center;
   line-height: 1.05;
+  pointer-events: none;
 }
-/* .brand используется и на главном экране, и на game-экране (с модификатором). */
 .brand.brand-game {
-  font-size: 24px;
-  letter-spacing: 3px;
+  font-size: 36px;
+  letter-spacing: 4px;
   line-height: 1;
 }
 .game-subtitle {
@@ -215,9 +222,10 @@ input { font: inherit; color: inherit; }
 .game-head-actions { display: flex; gap: 6px; }
 
 .hearts-row {
-  display: flex; gap: 4px; font-size: 20px;
+  display: flex; gap: 10px; font-size: 40px;
   justify-content: center;
-  margin: 4px 0 8px;
+  margin: 12px 0 14px;
+  line-height: 1;
 }
 .heart { color: var(--error); }
 .heart.lost { color: var(--text-faded); }
@@ -301,14 +309,14 @@ input { font: inherit; color: inherit; }
 .num-btn {
   position: relative;
   background: var(--bg-soft);
-  border-radius: 10px;
-  padding: 14px 0;
-  font-size: 22px;
+  border-radius: 12px;
+  padding: 18px 0;
+  font-size: 28px;
   font-weight: 700;
   color: var(--accent-strong);
   box-shadow: var(--shadow);
   display: flex; align-items: center; justify-content: center;
-  min-height: 56px;
+  min-height: 64px;
 }
 .num-btn:active { transform: scale(0.94); }
 .num-btn.depleted { opacity: 0.30; }
