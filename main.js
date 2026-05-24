@@ -193,8 +193,18 @@
     }
 
     // ===== 12. Стартовый экран =====
+    //
+    // Auto-resume: если в storage есть активный уровень — продолжаем его без
+    // показа главного меню. Активный уровень пишется при каждом действии
+    // (Game.persist()) и не теряется при закрытии приложения / перезагрузке
+    // страницы. Сбросить активный уровень можно только через подтверждение
+    // выхода в меню (модалка confirm-exit) или dev-panel.
     updateHomeStats();
-    window.UI.showScreen('home');
+    if (window.Storage.getActive() && window.Game.resumeActive()) {
+      window.UI.showScreen('game');
+    } else {
+      window.UI.showScreen('home');
+    }
   }
 
   function backToHome() {

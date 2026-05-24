@@ -248,8 +248,21 @@ window.SudokuGenerator = (function () {
         givensTargetRange: givensRange
       }, rng, deadline);
 
-      const rating = rateDifficulty(puzzle, variant);
-      if (!rating.solvable) continue;
+      // Финальный verify (защита-сетка). makePuzzle уже проверяет uniqueness
+      // на каждом удалении, но проверяем явно ещё раз — и заодно сверяем
+      // решение из backtrack-солвера с заранее известным `solution`.
+      const verifyRes = verifyPuzzle(puzzle, solution, variant);
+      if (!verifyRes.ok) {
+        console.warn('[generator] verify rejected:', verifyRes.reason);
+        continue;
+      }
+
+      // Для easy/medium требуем что puzzle решается человеческими техниками
+      // (humanSolve.solved). Hard разрешает чисто-логичные но более глубокие
+      // решения; если humanSolve не справился, score=Infinity → label='hard'.
+      if (!verifyRes.humanSolvable && targetDifficulty !== 'hard') {
+        continue;
+      }
 
       const givens = puzzle.map(v => v !== 0);
 
@@ -257,17 +270,18 @@ window.SudokuGenerator = (function () {
         puzzle: puzzle,
         solution: solution,
         givens: givens,
-        difficulty: rating.label,
-        score: rating.score,
-        techniques: rating.techniques,
+        difficulty: verifyRes.difficulty,
+        score: verifyRes.score,
+        techniques: verifyRes.techniques,
         elapsedMs: Date.now() - startedAt,
-        attempts: attempts
+        attempts: attempts,
+        verified: true
       };
 
-      if (rating.label === targetDifficulty) return candidate;
+      if (verifyRes.difficulty === targetDifficulty) return candidate;
 
       // Fallback: запомним «ближайший» вариант, если не получится найти точное совпадение
-      if (!bestFallback || difficultyDistance(rating.label, targetDifficulty) <
+      if (!bestFallback || difficultyDistance(verifyRes.difficulty, targetDifficulty) <
                           difficultyDistance(bestFallback.difficulty, targetDifficulty)) {
         bestFallback = candidate;
       }
@@ -307,6 +321,46 @@ window.SudokuGenerator = (function () {
     return Math.abs(order[a] - order[b]);
   }
 
+  // ===== verifyPuzzle: проверка решаемости и единственности решения =====
+  //
+  // Используется как defensive safety-net в generate() — гарантирует:
+  //   1. Существует хотя бы одно решение (countSolutions ≥ 1).
+  //   2. Решение единственное (countSolutions === 1).
+  //   3. Backtrack-решение совпадает с заранее известным solution (если передан).
+  //   4. Возвращает оценку сложности и флаг humanSolvable.
+  //
+  // Дополнительно доступен публично как SudokuGenerator.verifyPuzzle(puzzle).
+  function verifyPuzzle(puzzle, solution, variant) {
+    if (!variant) variant = Core.ClassicVariant;
+
+    // 1. Уникальность через countSolutions с early-exit на 2.
+    const cnt = Core.countSolutions(puzzle, 2, variant);
+    if (cnt === 0) return { ok: false, reason: 'no_solution' };
+    if (cnt > 1)  return { ok: false, reason: 'multiple_solutions' };
+
+    // 2. Backtrack-решение (на всякий случай, для сверки).
+    const bt = Core.solve(puzzle, variant);
+    if (!bt) return { ok: false, reason: 'unsolvable' };
+
+    // 3. Сверка с переданным solution.
+    if (solution) {
+      for (let i = 0; i < 81; i++) {
+        if (bt[i] !== solution[i]) return { ok: false, reason: 'solution_mismatch' };
+      }
+    }
+
+    // 4. Оценка сложности и решаемость человеком.
+    const rating = rateDifficulty(puzzle, variant);
+    return {
+      ok: true,
+      unique: true,
+      humanSolvable: !!rating.humanSolvable,
+      difficulty: rating.label,
+      score: rating.score,
+      techniques: rating.techniques
+    };
+  }
+
   // Seeded RNG (mulberry32) — для deterministic генерации
   function makeSeededRng(seed) {
     let s = seed >>> 0;
@@ -336,6 +390,7 @@ window.SudokuGenerator = (function () {
   return {
     generate: generate,
     rateDifficulty: rateDifficulty,
+    verifyPuzzle: verifyPuzzle,
     randomSolved: randomSolved,
     makeSeededRng: makeSeededRng,
     batchStats: batchStats

@@ -555,7 +555,50 @@ input { font: inherit; color: inherit; }
   display: flex; align-items: center; justify-content: center;
 }
 .dev-panel.collapsed .dev-panel-header span { display: none; }
-.dev-panel.collapsed .dev-body { display: none; }
+.dev-panel.collapsed .dev-body,
+.dev-panel.collapsed .dev-tabs,
+.dev-panel.collapsed .dev-tab-content,
+.dev-panel.collapsed pre { display: none; }
+
+.dev-tabs {
+  display: flex; gap: 2px;
+  margin: 4px 0 6px;
+  background: rgba(0,0,0,0.25);
+  padding: 2px;
+  border-radius: 6px;
+}
+.dev-tab {
+  flex: 1 1 0;
+  padding: 4px 6px;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  border-radius: 4px;
+  font-size: 11px;
+}
+.dev-tab.active {
+  background: rgba(255,255,255,0.16);
+  color: white;
+}
+.dev-tab-content.hidden { display: none; }
+.dev-tab-content label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  margin: 4px 0;
+}
+.dev-tab-content label input,
+.dev-tab-content label select {
+  width: 100%;
+  padding: 4px;
+  background: rgba(255,255,255,0.08);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.dev-row { display: flex; gap: 6px; }
+.dev-row-item { flex: 1 1 0; }
 .dev-panel button {
   display: block; width: 100%;
   padding: 6px 8px; margin: 2px 0;
