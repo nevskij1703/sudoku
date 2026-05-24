@@ -14,6 +14,16 @@
 (function () {
   document.addEventListener('DOMContentLoaded', init);
 
+  // URL политики конфиденциальности на Cloud.Mail.ru. Указывает на
+  // актуальный Store_Info/PRIVACY_POLICY.pdf, залитый на облако
+  // (привязано к почте terekh-spb@mail.ru). При обновлении .pdf файл
+  // перезаливается на тот же URL — ссылка не меняется.
+  //
+  // Эта константа должна быть в синхроне с `privacyUrl` в
+  // Store_Info/STORE_LISTING.md. Пайплайн `prepare-release-candidate`
+  // проверяет это (шаг 4.5d/e/f).
+  const PRIVACY_URL = 'https://cloud.mail.ru/public/WA8V/yWzV4VV7n';
+
   // Сохраняем выбор сложности/режима между показами экрана
   let selectedDifficulty = 'medium';
   let selectedMode = 'classic';
@@ -21,6 +31,13 @@
   // в win-модалке (запускаем такой же ещё раз без захода на главный экран).
   let lastCompletedDifficulty = null;
   let lastCompletedMode = null;
+
+  // Sessional флаг для модалки «Нравится игра?». Сбрасывается при перезапуске
+  // приложения, поэтому юзер, нажавший «Может позже» в одной сессии, увидит
+  // её снова в следующей — даёт ещё одну возможность спросить про оценку.
+  // Если уже нажимал «Оценить» (Storage.rateGiven === true) — больше не
+  // показываем НИКОГДА. См. shouldShowRateModal().
+  let rateModalShownThisSession = false;
 
   function init() {
     // ===== 1. Storage =====
@@ -35,7 +52,17 @@
     window.NumberPad.mount({
       onNumber: function (d) { window.Game.handleNumber(d); },
       onPencilToggle: function (active) { window.Game.setPencilMode(active); },
-      onHint:   function ()  { window.Game.handleHint(); },
+      onHint:   function ()  {
+        // Клик по кнопке «Подсказка». Если глобальных подсказок > 0 —
+        // обычное поведение. Если 0 — кнопка превращена в «+1 ▶» бэйдж
+        // (см. numberPad.js setHintsLeft), и тот же клик уходит в
+        // rewarded-ad branch: +1 подсказка после успешного просмотра.
+        if (window.Storage.getHints() > 0) {
+          window.Game.handleHint();
+        } else {
+          requestHintRefill();
+        }
+      },
       onUndo:   function ()  { window.Game.handleUndo(); }
     });
 
@@ -91,17 +118,9 @@
     });
 
     document.getElementById('btn-start-level').addEventListener('click', function () {
-      const completed = window.Storage.getCompletedLevels();
-      const shouldShow = window.AdManager.shouldShowInterstitial(completed);
-      const launch = function () {
-        window.Game.startNewLevel(selectedDifficulty, selectedMode);
-        window.UI.showScreen('game');
-      };
-      if (shouldShow) {
-        window.AdManager.showInterstitialAd().then(launch);
-      } else {
-        launch();
-      }
+      // Старт с главного меню — без rate-modal (он только между уровнями
+      // после win). Обычная cadence-логика interstitial.
+      proceedToNextLevel(selectedDifficulty, selectedMode);
     });
 
     // ===== 6. Игровой экран =====
@@ -134,22 +153,56 @@
       // Синхронизируем UI-выбор, чтобы на главном экране он отражал актуальное состояние
       selectedDifficulty = diff;
       selectedMode = mode;
-      const completed = window.Storage.getCompletedLevels();
-      const shouldShow = window.AdManager.shouldShowInterstitial(completed);
-      const launch = function () {
-        window.Game.startNewLevel(diff, mode);
-        window.UI.showScreen('game');
-      };
-      if (shouldShow) {
-        window.AdManager.showInterstitialAd().then(launch);
+      // Ветвление: показываем rate-modal (только один раз за сессию и только
+      // если юзер ещё не оценивал), либо сразу переходим на следующий уровень.
+      // Когда rate-modal показалась — она сама решит что делать дальше
+      // (см. обработчики btn-rate-now / btn-rate-later ниже).
+      if (shouldShowRateModal()) {
+        rateModalShownThisSession = true;
+        // Запоминаем параметры следующего уровня в замыкании. После решения
+        // юзера обработчики btn-rate-* запустят startNewLevel(diff, mode).
+        window.UI.showModal('rate');
       } else {
-        launch();
+        proceedToNextLevel(diff, mode);
       }
     });
     document.getElementById('btn-win-home').addEventListener('click', function () {
       window.UI.hideModal('win');
       window.UI.showScreen('home');
       updateHomeStats();
+    });
+
+    // ===== 8b. Модалка Rate Us (между уровнями) =====
+    //
+    // «Оценить» — запускаем нативный RuStore Review SDK (или fallback на
+    // deep-link, если bridge'а нет — см. rustoreReview.js). Помечаем
+    // rateGiven=true чтобы больше никогда не показывать. Interstitial при
+    // этом ПРОПУСКАЕМ — юзер сделал доброе дело, не теребим его рекламой.
+    document.getElementById('btn-rate-now').addEventListener('click', function () {
+      window.Storage.setRateGiven(true);
+      window.UI.hideModal('rate');
+      const diff = lastCompletedDifficulty || selectedDifficulty;
+      const mode = lastCompletedMode || selectedMode;
+      // Fire-and-forget: SDK сам нарисует свой диалог поверх; на устройстве
+      // без RuStore — откроется browser tab с deep-link.
+      window.RuStoreReviewClient.launch().then(function (r) {
+        console.log('[rate] RuStore review result:', r);
+      }).catch(function (e) {
+        console.warn('[rate] RuStore review threw:', e);
+      });
+      // Без interstitial — сразу следующий уровень.
+      window.Game.startNewLevel(diff, mode);
+      window.UI.showScreen('game');
+    });
+
+    // «Может позже» — закрываем модалку и идём дальше по обычной cadence
+    // interstitial-логике. Sessional флаг уже взведён выше (rateModalShownThisSession),
+    // больше в этой сессии rate-modal не появится.
+    document.getElementById('btn-rate-later').addEventListener('click', function () {
+      window.UI.hideModal('rate');
+      const diff = lastCompletedDifficulty || selectedDifficulty;
+      const mode = lastCompletedMode || selectedMode;
+      proceedToNextLevel(diff, mode);
     });
 
     document.getElementById('btn-gameover-ad').addEventListener('click', function () {
@@ -179,6 +232,22 @@
       window.RuStoreReviewClient.launch().then(function (r) {
         if (r.shown) window.Storage.setRateGiven(true);
       });
+    });
+
+    // Политика конфиденциальности — внешняя ссылка на PDF в облаке.
+    // URL единственная константа PRIVACY_URL ниже; меняется при обновлении
+    // PDF на Cloud.Mail.ru. Пайплайн `prepare-release-candidate` проверяет
+    // что URL не содержит TODO/placeholder перед release-сборкой.
+    //
+    // В Capacitor WebView target='_blank' → Intent.ACTION_VIEW, открывается
+    // в системном браузере (или приложении Mail.ru Cloud если установлено).
+    // В browser dev — обычная новая вкладка.
+    document.getElementById('btn-privacy-policy').addEventListener('click', function () {
+      try {
+        window.open(PRIVACY_URL, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        console.warn('[settings] privacy open failed', e);
+      }
     });
     wireSettingsToggle('setting-sound', 'sound');
     wireSettingsToggle('setting-vibration', 'vibration');
@@ -271,6 +340,63 @@
       patch[settingKey] = el.checked;
       window.Storage.setSettings(patch);
       if (onChange) onChange();
+    });
+  }
+
+  // Условие показа модалки «Нравится игра?» между уровнями.
+  // 1. Не показываем если юзер уже оценивал — флаг rateGiven persisted в Storage.
+  // 2. Не показываем повторно в текущей сессии (sessional in-memory флаг).
+  //    После «Может позже» юзер увидит её снова при следующем запуске
+  //    приложения — даём ещё одну попытку, но не назойливо.
+  // 3. Показываем только когда юзер уже прошёл достаточно уровней чтобы
+  //    сформировать впечатление: completedLevels >= 3. Согласовано с
+  //    01_GlitterSort / 02_Words (L3 trigger).
+  function shouldShowRateModal() {
+    if (window.Storage.getRateGiven()) return false;
+    if (rateModalShownThisSession) return false;
+    if (window.Storage.getCompletedLevels() < 3) return false;
+    return true;
+  }
+
+  // Универсальный переход на следующий уровень с учётом cadence-логики
+  // interstitial-рекламы. Вызывается из:
+  //   • btn-start-level (старт с главного меню)
+  //   • btn-win-next когда rate-modal не показалась
+  //   • btn-rate-later после клика «Может позже»
+  // Если AdManager.shouldShowInterstitial() → true, сначала показываем
+  // interstitial, потом грузим уровень. Иначе — сразу.
+  function proceedToNextLevel(diff, mode) {
+    const completed = window.Storage.getCompletedLevels();
+    const shouldShow = window.AdManager.shouldShowInterstitial(completed);
+    const launch = function () {
+      window.Game.startNewLevel(diff, mode);
+      window.UI.showScreen('game');
+    };
+    if (shouldShow) {
+      window.AdManager.showInterstitialAd().then(launch);
+    } else {
+      launch();
+    }
+  }
+
+  // Запрос на восстановление подсказки за rewarded ad. Вызывается из
+  // onHint callback в NumberPad когда Storage.getHints() === 0. Если юзер
+  // досмотрел рекламу до конца (result.watched === true), Game.applyHintReward()
+  // увеличивает Storage.hints на 1 и перерисовывает UI. Если не досмотрел
+  // (закрыл рекламу, нет fill, нет сети) — ничего не происходит.
+  //
+  // Защита от двойного клика: AdManager уже умеет игнорить параллельные
+  // вызовы (см. busy в showRewardedAd), плюс UI блокирует клик пока показ
+  // рекламы идёт. Так что здесь дополнительный mutex не нужен.
+  function requestHintRefill() {
+    window.AdManager.showRewardedAd({ kind: 'hint' }).then(function (result) {
+      if (result && result.watched) {
+        window.Game.applyHintReward();
+      } else {
+        console.log('[hint-refill] rewarded ad not watched, no reward granted');
+      }
+    }).catch(function (e) {
+      console.warn('[hint-refill] showRewardedAd threw:', e);
     });
   }
 })();

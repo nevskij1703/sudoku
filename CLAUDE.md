@@ -37,18 +37,47 @@ config → migrations → storage → sudokuCore → sudokuTechniques → sudoku
 Yandex Mobile Ads (только в APK через `-YandexAdsBridge`). В браузере — mock-оверлей.
 
 **Точки вызова:**
-- Interstitial: `main.js` → `#btn-start-level` (перед новым уровнем, если cadence-условия выполнены).
-- Rewarded: `main.js` → `#btn-gameover-ad` (+1 сердце по запросу пользователя).
+- Interstitial: `main.js` → `proceedToNextLevel(diff, mode)` (общая функция для `#btn-start-level`, `#btn-win-next` после rate-modal, `#btn-rate-later`).
+- Rewarded #1: `main.js` → `#btn-gameover-ad` (+1 сердце по запросу пользователя).
+- Rewarded #2: `main.js` → `requestHintRefill()` через `onHint` callback NumberPad при `Storage.getHints() === 0` (+1 подсказка после просмотра).
 
-**Unit-IDs** в [config.js](config.js) → `GAME_CONFIG.ADS.{interstitial,rewarded}.unitId`. На текущем этапе — placeholder'ы `R-M-XXXXXXXX-1/-2`. Заполнить перед первой публикацией реальными ID из [Yandex Partner Mobile Ads](https://partner.yandex.ru/mobile-ads).
+**Unit-IDs** в [config.js](config.js) → `GAME_CONFIG.ADS.{interstitial,rewarded}.unitId`:
+- Interstitial: `R-M-19325500-1`
+- Rewarded: `R-M-19325500-2`
+
+Источник: [Yandex Partner Mobile Ads](https://partner.yandex.ru/mobile-ads).
 
 См. [docs/ADS.md](docs/ADS.md) для деталей.
 
-## RuStore in-app review
+## RuStore in-app review (с rate-modal между уровнями)
 
-Подключается через html2apk `-RuStoreReviewSdk`. Вызывается из настроек кнопкой «Оценить приложение» → `RuStoreReviewClient.launch()`. Если SDK недоступен — fallback на deep-link `https://www.rustore.ru/catalog/app/com.terekh.sudoku`.
+Подключается через html2apk `-RuStoreReviewSdk`. JS-обёртка: [rustoreReview.js](rustoreReview.js).
 
-После показа диалога (result='shown') пишем `Storage.setRateGiven(true)`.
+**Два места показа:**
+
+1. **Модалка `#modal-rate` («Нравится игра?») между уровнями.** Показывается:
+   - один раз когда `completedLevels >= 3` (триггер «после 3-го пройденного уровня»),
+   - **И** `Storage.getRateGiven() === false` (юзер ещё не оценивал),
+   - **И** `rateModalShownThisSession === false` (in-memory флаг, сбрасывается при перезапуске app).
+
+   Кнопка «Оценить» → `Storage.setRateGiven(true)` + `RuStoreReviewClient.launch()` + сразу следующий уровень **БЕЗ** interstitial. Кнопка «Может позже» → `proceedToNextLevel()` (cadence-логика interstitial). Sessional флаг взводится в обоих случаях.
+
+2. **Кнопка «Оценить приложение» в модалке Settings.** Доступна всегда. Вызывает `RuStoreReviewClient.launch()` напрямую, после успешного показа (`result='shown'`) пишет `Storage.setRateGiven(true)`.
+
+**Fallback policy** (внутри `rustoreReview.js`):
+- Bridge нет (browser dev / APK без `-RuStoreReviewSdk`) → `window.open(deep-link)` сразу.
+- SDK вернул `'unavailable'` → fallback на deep-link.
+- SDK вернул `'failed'` (`RuStoreReviewExists` / `Limit` / `Unauthorized` / `InvalidReviewInfo`) → silent.
+
+## Подсказки и rewarded-ad refill
+
+Глобальный счётчик `Storage.hints` — переносится между уровнями (в отличие от сердечек). Стартовый запас `GAME_CONFIG.BALANCE.hintsPerLevel` (5).
+
+- `Game.handleHint()` уменьшает `Storage.hints` на 1 (и инкрементит `active.hintsUsed` для статистики модалки win).
+- `Game.startNewLevel()` сбрасывает `active.hintsUsed = 0`, но **не трогает** `Storage.hints`.
+- При `Storage.getHints() === 0` — кнопка «Подсказка» в `numberPad.js` показывает бэйдж **«+1 ▶»** (золотисто-оранжевый, пульсирующий). Клик в этом состоянии перенаправляется из `onHint` в `requestHintRefill()` → `AdManager.showRewardedAd({kind:'hint'})` → если `watched`, `Game.applyHintReward()` (+1 в Storage.hints).
+
+См. также migration 2 в [migrations.js](migrations.js) и [docs/SAVES.md](docs/SAVES.md).
 
 ## Dev panel
 
@@ -76,8 +105,8 @@ SudokuCore.countSolutions(grid, max=2) → integer
 
 ## Игровая логика
 
-- **Hearts**: 3 на уровень, при ошибке -1, при 0 — модалка game-over. Сердца НЕ переносятся между уровнями.
-- **Hints**: 5 на уровень, при использовании ставится правильная цифра в выбранную ячейку, ячейка помечается `hintCells[i] = true` и больше не редактируется. Подсказки НЕ переносятся.
+- **Hearts**: 3 на уровень, при ошибке -1, при 0 — модалка game-over. Сердца НЕ переносятся между уровнями (восстанавливаются на 3 при каждом `startNewLevel`).
+- **Hints**: глобальный счётчик в `Storage.hints` — **ПЕРЕНОСИТСЯ между уровнями**. Стартовый запас 5 (из `BALANCE.hintsPerLevel`), не выдаётся повторно на новом уровне. При использовании ставится правильная цифра, ячейка помечается `hintCells[i] = true`. При исчерпании — бэйдж «+1 ▶» предлагает rewarded-ad refill. См. раздел «Подсказки и rewarded-ad refill» выше.
 - **Mistakes**: при неверной цифре — красная подсветка ячейки, цифра остаётся (юзер сам стирает). При следующей попытке поставить туда же другую цифру — повторно проверяется.
 - **Notes (карандаш)**: 9-битная маска в `notes[i]`. Не показываются если в ячейке стоит цифра в `board[i]`.
 - **Auto-clean notes**: при установке правильной цифры — соответствующая заметка убирается из всех ячеек-пиров. Управляется `settings.autoNotesClean`.

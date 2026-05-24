@@ -13,13 +13,13 @@ window.GAME_CONFIG = {
   // Сейчас стоят placeholder'ы — в браузере и dev APK уйдём в mock backend (см. ads.js).
   ADS: {
     interstitial: {
-      unitId: 'R-M-XXXXXXXX-1',
+      unitId: 'R-M-19325500-1',
       cooldownMs: 90 * 1000,          // не чаще раза в 90 секунд
       skipFirstNLevels: 2,            // не показывать пока юзер не прошёл 2 уровня
       cadenceLevels: 2                // показывать после каждого N-го пройденного уровня
     },
     rewarded: {
-      unitId: 'R-M-XXXXXXXX-2'
+      unitId: 'R-M-19325500-2'
     }
   },
 

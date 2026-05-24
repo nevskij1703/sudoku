@@ -1,12 +1,12 @@
 # Сейв и миграции (Судоку Классик)
 
-## Структура (schema v1)
+## Структура (schema v2)
 
 LocalStorage-ключ: `sudoku_save`. Единый JSON:
 
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
 
   // Прогресс (для отображения на главной)
   "completedLevels": 0,
@@ -26,10 +26,16 @@ LocalStorage-ключ: `sudoku_save`. Единый JSON:
   //   "mistakes":  [81 booleans, красные ячейки],
   //   "hintCells": [81 booleans, ячейки заполненные подсказкой],
   //   "hearts":    3,
-  //   "hintsUsed": 0,
+  //   "hintsUsed": 0,           // per-level статистика для модалки win (НЕ перенос)
   //   "elapsedMs": 0,
   //   "score":     <число — score из rateDifficulty>
   // }
+
+  // Глобальный счётчик подсказок (ПЕРЕНОСИТСЯ между уровнями).
+  // Стартовый запас GAME_CONFIG.BALANCE.hintsPerLevel (5).
+  // Уменьшается при handleHint(), увеличивается при applyHintReward()
+  // после rewarded ad. См. migration 2.
+  "hints": 5,
 
   // Настройки
   "settings": {
@@ -44,6 +50,13 @@ LocalStorage-ключ: `sudoku_save`. Единый JSON:
   "rateGiven": false
 }
 ```
+
+## Changelog миграций
+
+| schemaVersion | Что изменилось |
+|---------------|----------------|
+| 1 | Начальная схема (single-key, нет legacy multi-key). |
+| 2 | Добавлено поле `hints` (глобальный счётчик подсказок, переносится между уровнями). Раньше подсказки сбрасывались до 5 на каждом новом уровне. Migration[2] устанавливает `hints: 5` для юзеров, у которых был сейв v1 без этого поля. |
 
 **Заметки:**
 - `puzzle`, `solution`, `givens`, `board`, `notes`, `mistakes`, `hintCells` — плоские массивы длины 81. `idx = row * 9 + col`.
@@ -66,6 +79,7 @@ API `window.Storage.*`:
 | `getCompletedLevels()` / `getCompletedByDifficulty(?d)` | Прогресс. |
 | `incrementCompleted(difficulty)` | После победы — увеличить счётчики. |
 | `getActive()` / `setActive(state)` / `clearActive()` / `updateActive(patch)` | Активный уровень. |
+| `getHints()` / `setHints(n)` / `addHints(delta)` | Глобальный счётчик подсказок (переносится между уровнями). Clamped в `[0, ∞)`. |
 | `getSettings()` / `setSettings(patch)` | Настройки. |
 | `getMockAds()` / `setMockAds(v)` | Dev-only override бэкенда рекламы. |
 | `getRateGiven()` / `setRateGiven(v)` | Чтобы не теребить юзера повторно RuStore-обзором. |

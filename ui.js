@@ -47,12 +47,20 @@ window.UI = (function () {
   function setHearts(remaining, max) {
     const wrap = document.getElementById('game-hearts');
     if (!wrap) return;
+    // Каждое сердечко — это <svg><use href="#icon-heart"/></svg> (svg-sprite
+    // в index.html, всегда доступен). Класс .lost для потерянных.
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const XLINK = 'http://www.w3.org/1999/xlink';
     wrap.innerHTML = '';
     for (let i = 0; i < max; i++) {
-      const span = document.createElement('span');
-      span.className = 'heart' + (i >= remaining ? ' lost' : '');
-      span.textContent = '♥';
-      wrap.appendChild(span);
+      const svg = document.createElementNS(SVG_NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('class', 'heart' + (i >= remaining ? ' lost' : ''));
+      const use = document.createElementNS(SVG_NS, 'use');
+      use.setAttribute('href', '#icon-heart');
+      use.setAttributeNS(XLINK, 'xlink:href', '#icon-heart'); // legacy WebView
+      svg.appendChild(use);
+      wrap.appendChild(svg);
     }
   }
 

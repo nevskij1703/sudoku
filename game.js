@@ -104,7 +104,10 @@ window.Game = (function () {
       selectedIdx: selectedIdx
     }, settings);
     window.NumberPad.updateCounts({ board: active.board });
-    window.NumberPad.setHintsLeft(CFG.BALANCE.hintsPerLevel - active.hintsUsed);
+    // Источник правды для счётчика подсказок — Storage.getHints() (глобально,
+    // переносится между уровнями). active.hintsUsed остаётся как per-level
+    // статистика для модалки win, в UI не отображается.
+    window.NumberPad.setHintsLeft(window.Storage.getHints());
     window.UI.setHearts(active.hearts, CFG.BALANCE.heartsPerLevel);
   }
 
@@ -268,8 +271,11 @@ window.Game = (function () {
 
   function handleHint() {
     if (!active || selectedIdx == null) return;
-    const remaining = CFG.BALANCE.hintsPerLevel - active.hintsUsed;
-    if (remaining <= 0) return;
+    // Глобальный счётчик подсказок — Storage.hints. Если 0, ловится в main.js
+    // (rewarded-ad-refill branch); сюда мы попадаем только при getHints() > 0.
+    // Дублируем проверку defensive — если кто-то вызвал handleHint() напрямую
+    // через консоль, не уходим в минусы.
+    if (window.Storage.getHints() <= 0) return;
     const idx = selectedIdx;
     if (active.givens[idx]) return;
     if (active.board[idx] === active.solution[idx]) return;  // уже правильная
@@ -280,7 +286,8 @@ window.Game = (function () {
     active.mistakes[idx] = false;
     if (!active.hintCells) active.hintCells = new Array(81).fill(false);
     active.hintCells[idx] = true;
-    active.hintsUsed++;
+    active.hintsUsed++;                              // per-level статистика
+    window.Storage.addHints(-1);                     // глобальный остаток
     window.AudioFX.hint();
 
     // Auto-clean заметок после подсказки
@@ -351,12 +358,25 @@ window.Game = (function () {
   }
 
   function applyAdReward(reward) {
+    // Reward после rewarded ad в gameover-модалке → +1 сердце.
+    // Для других кайндов наград есть отдельные методы (например applyHintReward).
     if (!active) return;
     active.hearts++;
     persist();
     startTimer();
     renderAll();
     emit('change');
+  }
+
+  function applyHintReward() {
+    // Reward после rewarded ad на кнопке «Подсказка» при hints=0.
+    // Глобальный счётчик хранится в Storage, не в active — поэтому можно
+    // вызывать как во время уровня (active != null), так и теоретически вне его.
+    window.Storage.addHints(1);
+    if (active) {
+      renderAll();
+      emit('change');
+    }
   }
 
   function getActive() { return active; }
@@ -374,6 +394,7 @@ window.Game = (function () {
     handleUndo: handleUndo,
     setPencilMode: setPencilMode,
     applyAdReward: applyAdReward,
+    applyHintReward: applyHintReward,
     getActive: getActive,
     getSelected: getSelected,
     // dev-helpers

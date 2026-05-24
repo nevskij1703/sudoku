@@ -3,6 +3,20 @@
  * Подход: мобильный portrait first. Светлая тема. Без анимаций тяжелее transform/opacity.
  * ============================================================ */
 
+/* ===== Inter Variable — встроенный шрифт (latin + cyrillic) =====
+   Файл — assets/fonts/InterVariable.woff2 (~340 KB). Variable font, поэтому
+   один файл закрывает все weights 100..900 и обоих стилей. Без сети, без CDN.
+   font-display: swap — пока шрифт грузится, рендерим системным fallback,
+   потом плавно подменяем (исключает FOIT). */
+@font-face {
+  font-family: 'Inter';
+  src: url('assets/fonts/InterVariable.woff2') format('woff2-variations'),
+       url('assets/fonts/InterVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg:           #f3f5fb;
   --bg-soft:      #ffffff;
@@ -34,7 +48,9 @@ html, body {
   width: 100%; min-height: 100vh; min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  /* Inter — наш встроенный шрифт. Остальные — fallback на случай если
+     файл не загрузился (offline стартап / битый ассет). */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 16px;
   overflow-x: hidden;
   -webkit-user-select: none;
@@ -161,7 +177,11 @@ input { font: inherit; color: inherit; }
   background: var(--accent-soft);
 }
 .diff-tile:active { transform: scale(0.96); }
-.diff-emoji { font-size: 32px; line-height: 1; }
+.diff-emoji { font-size: 32px; line-height: 1; height: 36px; display: flex; align-items: center; justify-content: center; }
+.diff-emoji svg { width: 36px; height: 36px; }
+.diff-easy   svg { color: #2fa974; }
+.diff-medium svg { color: #4a8b3e; }
+.diff-hard   svg { color: #e0581c; }
 .diff-label { font-weight: 700; font-size: 16px; margin-top: 6px; }
 .diff-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
@@ -197,7 +217,12 @@ input { font: inherit; color: inherit; }
 }
 .mode-info-btn:active { color: var(--accent); transform: scale(0.88); }
 .mode-info-btn .icon { width: 18px; height: 18px; }
-.mode-emoji { font-size: 28px; }
+.mode-emoji {
+  height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text);
+}
+.mode-emoji svg { width: 30px; height: 30px; }
 .mode-label { font-weight: 600; font-size: 14px; margin-top: 4px; }
 .mode-sub { font-size: 11px; color: var(--text-dim); }
 
@@ -240,13 +265,17 @@ input { font: inherit; color: inherit; }
 .game-head-actions { display: flex; gap: 6px; }
 
 .hearts-row {
-  display: flex; gap: 10px; font-size: 40px;
+  display: flex; gap: 10px;
   justify-content: center;
   margin: 12px 0 14px;
-  line-height: 1;
 }
-.heart { color: var(--error); }
-.heart.lost { color: var(--text-faded); }
+/* SVG-сердечко вместо unicode-эмодзи — одинаковый вид на всех платформах */
+.heart {
+  width: 40px; height: 40px;
+  color: var(--error);
+  display: block;
+}
+.heart.lost { color: var(--text-faded); opacity: 0.55; }
 
 /* ===== Board ===== */
 .board-wrap {
@@ -358,8 +387,8 @@ input { font: inherit; color: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
 .tool-btn:active { transform: scale(0.94); }
-.tool-btn.active { background: var(--accent-soft); }
-.tool-glyph { font-size: 22px; }
+.tool-btn.active { background: var(--accent-soft); color: var(--accent); }
+.tool-glyph { width: 24px; height: 24px; display: block; }
 .tool-label { font-size: 11px; color: var(--text-dim); }
 .tool-badge {
   position: absolute; top: 4px; right: 8px;
@@ -370,6 +399,32 @@ input { font: inherit; color: inherit; }
   border-radius: 50%;
 }
 .tool-btn.depleted .tool-badge { background: var(--text-faded); }
+
+/* Refill-бэйдж: показывается на кнопке «Подсказка» когда подсказок 0.
+   Вместо обычной цифры — приглашение посмотреть rewarded ad: «+1 ▶».
+   Цвет золотистый/оранжевый чтобы привлекал внимание. Шире обычного
+   бэйджа потому что внутри текст + иконка. */
+.tool-badge.refill-ad {
+  width: auto; min-width: 18px; height: 18px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
+  box-shadow: 0 2px 6px rgba(255, 140, 0, 0.45);
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 10px; font-weight: 800;
+  animation: refill-pulse 1.6s ease-in-out infinite;
+}
+.tool-badge.refill-ad .badge-play {
+  font-size: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  margin-left: 1px;
+}
+@keyframes refill-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 2px 6px rgba(255, 140, 0, 0.45); }
+  50%      { transform: scale(1.08); box-shadow: 0 3px 10px rgba(255, 140, 0, 0.65); }
+}
 
 /* ============ Modals ============ */
 .modal {
@@ -414,7 +469,12 @@ input { font: inherit; color: inherit; }
 }
 .modal-close-corner:active { transform: scale(0.88); color: var(--text); }
 .modal-close-corner .icon { width: 20px; height: 20px; }
-.modal-emoji { font-size: 48px; line-height: 1; }
+.modal-emoji { font-size: 48px; line-height: 1; display: flex; justify-content: center; }
+.modal-emoji svg { width: 56px; height: 56px; }
+.modal-emoji-trophy svg { color: #e1a430; }
+.modal-emoji-broken svg { color: var(--error); }
+.btn-icon { width: 18px; height: 18px; display: inline-block; vertical-align: -3px; }
+.btn-icon-inline { width: 18px; height: 18px; display: inline-block; vertical-align: -3px; color: var(--error); }
 .modal-title { font-size: 24px; font-weight: 800; margin: 10px 0 12px; }
 .modal-text { color: var(--text-dim); font-size: 14px; margin: 8px 0 18px; }
 .modal-rows {
@@ -431,6 +491,18 @@ input { font: inherit; color: inherit; }
 .modal-row span:first-child { color: var(--text-dim); }
 .modal-actions {
   display: flex; flex-direction: column; gap: 8px;
+}
+
+/* Строка золотых звёзд для modal-rate (между уровнями).
+   Размер крупнее обычного текста, чтобы создавать визуальный акцент;
+   тень даёт эффект «глянцевости». */
+.stars-row {
+  font-size: 36px;
+  letter-spacing: 4px;
+  color: #ffb347;
+  text-shadow: 0 1px 4px rgba(255, 140, 0, 0.35);
+  margin: 4px 0 16px;
+  line-height: 1;
 }
 
 /* ============ Info modal (правила) ============ */

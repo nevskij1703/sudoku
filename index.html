@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
 
@@ -33,6 +33,69 @@
       <symbol id="icon-close" viewBox="0 0 24 24">
         <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </symbol>
+
+      <!-- ===== Pictograms (заменяют эмодзи — единый стиль на всех платформах) ===== -->
+      <symbol id="icon-heart" viewBox="0 0 24 24">
+        <path d="M12 21s-7-4.35-7-10.5C5 7.46 7.46 5 10.5 5c1.74 0 3.41.81 4.5 2.09C16.09 5.81 17.76 5 19.5 5h0c2 0 4.5 1.96 4.5 5C24.5 13.5 12 21 12 21z" transform="scale(0.95) translate(0.5,0.5)" fill="currentColor"/>
+        <!-- Чистый, плотный силуэт без вырезов -->
+        <path d="M12 21s-7.5-4.6-7.5-10.5C4.5 7.2 7 4.7 10 4.7c1.5 0 2.6.7 2 1.5C12 6.2 12 6.2 12 6.2s0 0 0-0c-.6-.8.5-1.5 2-1.5 3 0 5.5 2.5 5.5 5.8C19.5 16.4 12 21 12 21z" fill="currentColor"/>
+      </symbol>
+      <symbol id="icon-heart-broken" viewBox="0 0 24 24">
+        <path d="M12 21s-7.5-4.6-7.5-10.5C4.5 7.2 7 4.7 10 4.7c1.5 0 2.6.7 2.5 1.6L11 9l3 2.5-2 3 0 6.5z" fill="currentColor"/>
+        <path d="M12 21s7.5-4.6 7.5-10.5C19.5 7.2 17 4.7 14 4.7c-1.5 0-2.6.7-2.5 1.6L13 9l-3 2.5 2 3 0 6.5z" fill="currentColor" opacity="0.55"/>
+      </symbol>
+      <symbol id="icon-sprout" viewBox="0 0 24 24">
+        <path d="M12 22 V 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M12 14 C 8 14 4.5 11 4.5 7.5 C 8.5 7.5 12 10.5 12 14 Z" fill="currentColor"/>
+        <path d="M12 14 C 16 14 19.5 11 19.5 7.5 C 15.5 7.5 12 10.5 12 14 Z" fill="currentColor" opacity="0.65"/>
+      </symbol>
+      <symbol id="icon-leaf" viewBox="0 0 24 24">
+        <path d="M20 4 C 20 4 11.5 4 7.5 8 C 3.5 12 4 18 5 20 C 7 21 13 21 17 17 C 21 13 20 4 20 4 Z" fill="currentColor"/>
+        <path d="M5 20 L 14 11" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.7"/>
+      </symbol>
+      <symbol id="icon-fire" viewBox="0 0 24 24">
+        <path d="M12 2.5 C 12 6 8 7.5 8 11.5 C 8 9.5 7 8.5 7 8.5 C 5 11 4.5 13.5 4.5 15 C 4.5 18.6 7.9 21.5 12 21.5 C 16.1 21.5 19.5 18.6 19.5 15 C 19.5 11.5 17 9 16 7 C 15.5 8.5 15 9 14 9 C 14 6 12 4.5 12 2.5 Z" fill="currentColor"/>
+        <path d="M12 21.5 C 9.7 21.5 8 19.7 8 17.5 C 8 15.5 9.5 14.5 10.5 13 C 10.5 14.5 11.5 15 12.5 14 C 13.5 15 14 16 14 17.5 C 14 19.7 12.3 21.5 12 21.5 Z" fill="#fff" opacity="0.55"/>
+      </symbol>
+      <symbol id="icon-pencil" viewBox="0 0 24 24">
+        <path d="M16 4 L 20 8 L 8 20 L 3.5 20.5 L 4 16 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="13" y1="7" x2="17" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-lightbulb" viewBox="0 0 24 24">
+        <path d="M9 18 H 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+        <path d="M10.5 21 H 13.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+        <path d="M12 3 C 8.5 3 6 5.5 6 9 C 6 11.3 7.3 13.3 9 14.7 V 18 H 15 V 14.7 C 16.7 13.3 18 11.3 18 9 C 18 5.5 15.5 3 12 3 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-undo" viewBox="0 0 24 24">
+        <path d="M9 14 L 3.5 9 L 9 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3.5 9 H 14 C 17.6 9 20.5 11.7 20.5 15.5 C 20.5 19.3 17.6 21 14 21 H 9.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="icon-trophy" viewBox="0 0 24 24">
+        <path d="M7 3 H 17 V 8.5 C 17 11.5 14.8 13.5 12 13.5 C 9.2 13.5 7 11.5 7 8.5 V 3 Z" fill="currentColor"/>
+        <path d="M4 4 H 7 V 8.5 C 7 8.5 5.5 8.5 4.5 7.5 C 3.5 6.5 4 4 4 4 Z" fill="currentColor"/>
+        <path d="M20 4 H 17 V 8.5 C 17 8.5 18.5 8.5 19.5 7.5 C 20.5 6.5 20 4 20 4 Z" fill="currentColor"/>
+        <path d="M9 17 H 15 L 16 21 H 8 Z" fill="currentColor"/>
+        <line x1="11" y1="13.5" x2="11" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="13" y1="13.5" x2="13" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-play" viewBox="0 0 24 24">
+        <path d="M7 4 L 20 12 L 7 20 Z" fill="currentColor"/>
+      </symbol>
+      <symbol id="icon-grid" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="9"  y1="3" x2="9"  y2="21" stroke="currentColor" stroke-width="1.4"/>
+        <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.4"/>
+        <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.4"/>
+        <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.4"/>
+      </symbol>
+      <symbol id="icon-diagonal" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="21" y1="3" x2="3" y2="21" stroke="currentColor" stroke-width="1.8" opacity="0.5"/>
+      </symbol>
+      <symbol id="icon-sigma" viewBox="0 0 24 24">
+        <path d="M5 4 H 19 L 11 12 L 19 20 H 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
       </symbol>
 
       <!-- Rules pictograms -->
@@ -104,17 +167,17 @@
     <h2 class="section-title">Сложность</h2>
     <div class="difficulty-grid">
       <button class="diff-tile" data-difficulty="easy">
-        <div class="diff-emoji">🌱</div>
+        <div class="diff-emoji diff-easy"><svg viewBox="0 0 24 24"><use href="#icon-sprout"/></svg></div>
         <div class="diff-label">Простой</div>
         <div class="diff-sub">38–45 цифр открыто</div>
       </button>
       <button class="diff-tile selected" data-difficulty="medium">
-        <div class="diff-emoji">🌿</div>
+        <div class="diff-emoji diff-medium"><svg viewBox="0 0 24 24"><use href="#icon-leaf"/></svg></div>
         <div class="diff-label">Средний</div>
         <div class="diff-sub">30–35 цифр открыто</div>
       </button>
       <button class="diff-tile" data-difficulty="hard">
-        <div class="diff-emoji">🔥</div>
+        <div class="diff-emoji diff-hard"><svg viewBox="0 0 24 24"><use href="#icon-fire"/></svg></div>
         <div class="diff-label">Сложный</div>
         <div class="diff-sub">26–30 цифр открыто</div>
       </button>
@@ -126,17 +189,17 @@
         <button class="mode-info-btn" data-mode-info="classic" aria-label="Правила режима «Классика»">
           <svg class="icon"><use href="#icon-info"/></svg>
         </button>
-        <div class="mode-emoji">▦</div>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></div>
         <div class="mode-label">Классика</div>
         <div class="mode-sub">9×9, стандартные правила</div>
       </div>
       <div class="mode-tile locked" data-mode="diagonal" aria-disabled="true">
-        <div class="mode-emoji">⟋</div>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-diagonal"/></svg></div>
         <div class="mode-label">Диагональ</div>
         <div class="mode-sub">скоро</div>
       </div>
       <div class="mode-tile locked" data-mode="killer" aria-disabled="true">
-        <div class="mode-emoji">∑</div>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-sigma"/></svg></div>
         <div class="mode-label">Киллер</div>
         <div class="mode-sub">скоро</div>
       </div>
@@ -177,7 +240,9 @@
     </header>
 
     <div id="game-hearts" class="hearts-row" aria-label="Сердечки">
-      <span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span>
+      <svg class="heart" viewBox="0 0 24 24"><use href="#icon-heart"/></svg>
+      <svg class="heart" viewBox="0 0 24 24"><use href="#icon-heart"/></svg>
+      <svg class="heart" viewBox="0 0 24 24"><use href="#icon-heart"/></svg>
     </div>
 
     <div class="board-wrap">
@@ -198,15 +263,15 @@
       </div>
       <div class="tools-row">
         <button id="btn-undo" class="tool-btn" aria-label="Отменить">
-          <span class="tool-glyph">↶</span>
+          <svg class="tool-glyph" viewBox="0 0 24 24"><use href="#icon-undo"/></svg>
           <span class="tool-label">Отмена</span>
         </button>
         <button id="btn-pencil" class="tool-btn" aria-label="Карандаш">
-          <span class="tool-glyph">✏</span>
+          <svg class="tool-glyph" viewBox="0 0 24 24"><use href="#icon-pencil"/></svg>
           <span class="tool-label">Заметка</span>
         </button>
         <button id="btn-hint" class="tool-btn" aria-label="Подсказка">
-          <span class="tool-glyph">💡</span>
+          <svg class="tool-glyph" viewBox="0 0 24 24"><use href="#icon-lightbulb"/></svg>
           <span class="tool-label">Подсказка</span>
           <span id="hint-count" class="tool-badge">5</span>
         </button>
@@ -219,7 +284,7 @@
   <!-- Победа -->
   <div id="modal-win" class="modal hidden" data-modal-id="win">
     <div class="modal-box">
-      <div class="modal-emoji">🎉</div>
+      <div class="modal-emoji modal-emoji-trophy"><svg viewBox="0 0 24 24"><use href="#icon-trophy"/></svg></div>
       <h2 class="modal-title">Уровень пройден!</h2>
       <div class="modal-rows">
         <div class="modal-row"><span>Сложность:</span><span id="win-difficulty">—</span></div>
@@ -233,15 +298,37 @@
     </div>
   </div>
 
+  <!-- Rate Us (между уровнями, после win). Показывается одной из:
+       - первый раз после 3-го пройденного уровня (если ещё не оценивал);
+       - один раз за сессию (после клика «Может позже» больше не показывается
+         до перезапуска приложения).
+       При «Оценить» открывается нативный RuStore Review SDK (если bridge есть)
+       или fallback на deep-link rustore.ru/catalog/app. Interstitial при «Оценить»
+       не показывается; при «Может позже» — показывается по обычной cadence-логике. -->
+  <div id="modal-rate" class="modal hidden" data-modal-id="rate">
+    <div class="modal-box">
+      <div class="modal-emoji">⭐</div>
+      <h2 class="modal-title">Нравится игра?</h2>
+      <div class="stars-row">★★★★★</div>
+      <p class="modal-text">Если игра вам по душе — оцените её на 5 звёзд. Это очень помогает разработчику и поддерживает выход новых режимов.</p>
+      <div class="modal-actions">
+        <button id="btn-rate-now" class="btn btn-primary big">Оценить</button>
+        <button id="btn-rate-later" class="btn btn-secondary">Может позже</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Game over (кончились сердца) -->
   <div id="modal-gameover" class="modal hidden" data-modal-id="gameover">
     <div class="modal-box">
-      <div class="modal-emoji">💔</div>
+      <div class="modal-emoji modal-emoji-broken"><svg viewBox="0 0 24 24"><use href="#icon-heart-broken"/></svg></div>
       <h2 class="modal-title">Сердца кончились</h2>
       <p class="modal-text">Восстановите одно сердечко за просмотр короткой рекламы или начните новый уровень.</p>
       <div class="modal-actions">
         <button id="btn-gameover-ad" class="btn btn-primary big">
-          <span class="btn-icon">▶</span> Восстановить за рекламу (+1 ♥)
+          <svg class="btn-icon" viewBox="0 0 24 24"><use href="#icon-play"/></svg>
+          Восстановить за рекламу
+          <svg class="btn-icon-inline" viewBox="0 0 24 24"><use href="#icon-heart"/></svg>
         </button>
         <button id="btn-gameover-restart" class="btn btn-secondary">Новый уровень</button>
         <button id="btn-gameover-home" class="btn btn-link">В главное меню</button>
@@ -279,7 +366,7 @@
         <div class="rule">
           <div class="rule-num">3</div>
           <div class="rule-img"><svg viewBox="0 0 60 60"><use href="#rule-pencil"/></svg></div>
-          <div class="rule-text">Используй карандаш ✏ для заметок, если сомневаешься.</div>
+          <div class="rule-text">Используй карандаш для заметок, если сомневаешься.</div>
         </div>
       </div>
       <button class="modal-close-btn" data-close-modal="info" aria-label="Закрыть">
@@ -314,24 +401,25 @@
         <svg class="icon"><use href="#icon-close"/></svg>
       </button>
       <button id="btn-rate" class="btn btn-link">Оценить приложение</button>
+      <button id="btn-privacy-policy" class="btn btn-link">Политика конфиденциальности</button>
     </div>
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=3"></script>
-  <script src="migrations.js?v=3"></script>
-  <script src="storage.js?v=3"></script>
-  <script src="sudokuCore.js?v=3"></script>
-  <script src="sudokuTechniques.js?v=3"></script>
-  <script src="sudokuGenerator.js?v=3"></script>
-  <script src="ads.js?v=3"></script>
-  <script src="rustoreReview.js?v=3"></script>
-  <script src="audio.js?v=3"></script>
-  <script src="ui.js?v=3"></script>
-  <script src="board.js?v=3"></script>
-  <script src="numberPad.js?v=3"></script>
-  <script src="game.js?v=3"></script>
-  <script src="devPanel.js?v=3"></script>
-  <script src="main.js?v=3"></script>
+  <script src="config.js?v=4"></script>
+  <script src="migrations.js?v=4"></script>
+  <script src="storage.js?v=4"></script>
+  <script src="sudokuCore.js?v=4"></script>
+  <script src="sudokuTechniques.js?v=4"></script>
+  <script src="sudokuGenerator.js?v=4"></script>
+  <script src="ads.js?v=4"></script>
+  <script src="rustoreReview.js?v=4"></script>
+  <script src="audio.js?v=4"></script>
+  <script src="ui.js?v=4"></script>
+  <script src="board.js?v=4"></script>
+  <script src="numberPad.js?v=4"></script>
+  <script src="game.js?v=4"></script>
+  <script src="devPanel.js?v=4"></script>
+  <script src="main.js?v=4"></script>
 </body>
 </html>

@@ -22,6 +22,11 @@ window.Storage = (function () {
       // Активный уровень (для resume)
       active: null,
 
+      // Глобальный счётчик подсказок. Переносится между уровнями, в отличие
+      // от сердечек (per-level). Уменьшается при использовании подсказки,
+      // увеличивается на +1 после просмотра rewarded ad. См. migrations[2].
+      hints: window.GAME_CONFIG.BALANCE.hintsPerLevel,
+
       // Настройки
       settings: {
         sound: window.GAME_CONFIG.enableSound,
@@ -158,6 +163,25 @@ window.Storage = (function () {
     persist();
   }
 
+  // === Подсказки (глобальные, переносятся между уровнями) ===
+
+  function getHints() {
+    const v = load().hints;
+    return (typeof v === 'number' && v >= 0) ? v : 0;
+  }
+
+  function setHints(n) {
+    const s = load();
+    s.hints = Math.max(0, n | 0);
+    persist();
+  }
+
+  function addHints(delta) {
+    const s = load();
+    s.hints = Math.max(0, ((s.hints | 0) + (delta | 0)));
+    persist();
+  }
+
   // === Mock ads / rate / служебное ===
 
   function getMockAds()  { return !!load().mockAds; }
@@ -200,6 +224,10 @@ window.Storage = (function () {
     setActive: setActive,
     clearActive: clearActive,
     updateActive: updateActive,
+    // Подсказки
+    getHints: getHints,
+    setHints: setHints,
+    addHints: addHints,
     // Настройки
     getSettings: getSettings,
     setSettings: setSettings,

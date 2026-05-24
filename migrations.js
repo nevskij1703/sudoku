@@ -16,8 +16,26 @@ window.Migrations = (function () {
       // Просто гарантируем, что обязательные поля присутствуют — defaults
       // мерджит storage.js, так что здесь оставляем state как есть.
       return state;
+    },
+    2: function (state) {
+      // v1 → v2: добавлен глобальный счётчик подсказок `hints`.
+      // Раньше подсказки сбрасывались до CFG.BALANCE.hintsPerLevel (5)
+      // на каждый новый уровень — то есть жили только внутри active.
+      // Теперь они переносятся между уровнями (`Storage.hints`), а
+      // active.hintsUsed остаётся per-level статистикой для модалки win.
+      //
+      // Если у юзера уже был сейв v1 без поля `hints` — даём ему
+      // стартовый запас (BALANCE.hintsPerLevel). Для новых юзеров
+      // дефолт берётся из DEFAULTS() storage.js.
+      if (typeof state.hints !== 'number') {
+        state.hints = (window.GAME_CONFIG && window.GAME_CONFIG.BALANCE
+                        && typeof window.GAME_CONFIG.BALANCE.hintsPerLevel === 'number')
+                      ? window.GAME_CONFIG.BALANCE.hintsPerLevel
+                      : 5;
+      }
+      return state;
     }
-    // 2: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 3: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {

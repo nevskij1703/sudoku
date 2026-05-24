@@ -72,9 +72,27 @@ window.NumberPad = (function () {
 
   function setHintsLeft(n) {
     const badge = document.getElementById('hint-count');
-    if (badge) badge.textContent = String(Math.max(0, n));
     const btn = document.getElementById('btn-hint');
-    if (btn) btn.classList.toggle('depleted', n <= 0);
+    const remaining = Math.max(0, n | 0);
+    if (badge) {
+      if (remaining === 0) {
+        // Подсказки кончились — превращаем бэйдж в «+1 ▶», который
+        // приглашает посмотреть rewarded ad. Клик по кнопке в этом
+        // состоянии ловится в main.js: вместо Game.handleHint() уходим
+        // в requestHintRefill() (AdManager.showRewardedAd).
+        badge.textContent = '';
+        badge.innerHTML = '+1<span class="badge-play">▶</span>';
+        badge.classList.add('refill-ad');
+      } else {
+        badge.textContent = String(remaining);
+        badge.classList.remove('refill-ad');
+      }
+    }
+    // Класс .depleted раньше делал кнопку полупрозрачной при 0. Теперь
+    // при 0 кнопка остаётся «активной» (юзер может нажать → реклама),
+    // .depleted применяем только если refill SDK тоже недоступен —
+    // но эту тонкость решаем в main.js, тут оставляем кнопку кликабельной.
+    if (btn) btn.classList.remove('depleted');
   }
 
   function setUndoEnabled(enabled) {
