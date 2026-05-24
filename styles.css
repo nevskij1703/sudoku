@@ -185,18 +185,29 @@ input { font: inherit; color: inherit; }
 .diff-label { font-weight: 700; font-size: 16px; margin-top: 6px; }
 .diff-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
-.mode-grid { display: flex; gap: 10px; }
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+@media (max-width: 500px) {
+  .mode-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 360px) {
+  .mode-grid { grid-template-columns: repeat(2, 1fr); }
+}
 .mode-tile {
   position: relative;
-  flex: 1 1 0;
   background: var(--bg-soft);
-  border-radius: 18px;
-  padding: 16px 8px;
+  border-radius: 16px;
+  padding: 14px 6px 10px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
   text-align: center;
   transition: transform 0.08s ease;
   cursor: pointer;
+  min-height: 110px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
 }
 .mode-tile.selected { border-color: var(--accent); background: var(--accent-soft); }
 .mode-tile.locked { opacity: 0.4; cursor: not-allowed; }
@@ -316,6 +327,14 @@ input { font: inherit; color: inherit; }
 .cell.row-last { border-bottom: none; }
 
 .cell.given { color: var(--given); font-weight: 500; }
+
+/* Variant-специфичные тонировки. Применяются ДО подсветки peer/selected/error
+   (которые их перебивают). Лёгкий цвет — игрок видит где работают доп. правила. */
+.cell.on-main-diag,
+.cell.on-anti-diag         { background: #eef3ff; }
+.cell.on-main-diag.on-anti-diag { background: #d6e0fb; } /* центр пересечения диагоналей */
+.cell.center-cell          { background: #e0f5ee; }
+.cell.windoku-zone         { background: #fff2dc; }
 .cell.error { color: var(--error); background: var(--error-bg); }
 .cell.hint  { color: var(--hint); font-weight: 700; }
 
@@ -506,19 +525,30 @@ input { font: inherit; color: inherit; }
 }
 
 /* ============ Info modal (правила) ============ */
+.info-mode-name {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
 .rules-list {
-  display: flex; flex-direction: column; gap: 14px;
-  margin: 16px 0 8px;
+  display: flex; flex-direction: column; gap: 10px;
+  margin: 12px 0 8px;
   text-align: left;
 }
 .rule {
   display: grid;
-  grid-template-columns: 32px 64px 1fr;
+  grid-template-columns: 32px 1fr;
   gap: 12px;
   align-items: center;
   background: var(--bg);
   border-radius: 14px;
   padding: 12px;
+}
+.rule.with-img {
+  grid-template-columns: 32px 64px 1fr;
 }
 .rule-num {
   width: 28px; height: 28px;

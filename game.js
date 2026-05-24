@@ -25,6 +25,14 @@ window.Game = (function () {
 
   // ===== State =====
   let active = null;            // см. структуру в storage.js → DEFAULTS().active
+
+  // Возвращает variant активного режима (или Classic если active нет)
+  function activeVariant() {
+    if (!active) return Core.ClassicVariant;
+    return (window.SudokuVariants && window.SudokuVariants.byMode)
+           ? window.SudokuVariants.byMode(active.mode || 'classic')
+           : Core.ClassicVariant;
+  }
   let selectedIdx = null;
   let undoStack = [];           // массив снапшотов {board, notes, mistakes, hearts, hintsUsed}
   let timerInterval = null;
@@ -101,7 +109,8 @@ window.Game = (function () {
       mistakes:  active.mistakes,
       givens:    active.givens,
       hintCells: active.hintCells || new Array(81).fill(false),
-      selectedIdx: selectedIdx
+      selectedIdx: selectedIdx,
+      variant:   activeVariant()
     }, settings);
     window.NumberPad.updateCounts({ board: active.board });
     // Источник правды для счётчика подсказок — Storage.getHints() (глобально,
@@ -115,10 +124,13 @@ window.Game = (function () {
 
   function startNewLevel(difficulty, mode) {
     mode = mode || 'classic';
+    const variant = (window.SudokuVariants && window.SudokuVariants.byMode)
+                    ? window.SudokuVariants.byMode(mode)
+                    : Core.ClassicVariant;
     const t0 = Date.now();
-    const gen = Gen.generate(difficulty);
+    const gen = Gen.generate(difficulty, { variant: variant });
     console.log('[game] generated in', Date.now() - t0, 'ms, score=', Math.round(gen.score),
-                'label=', gen.difficulty, 'techniques=', gen.techniques);
+                'label=', gen.difficulty, 'mode=', mode, 'techniques=', gen.techniques);
 
     active = {
       difficulty: difficulty,
@@ -222,7 +234,7 @@ window.Game = (function () {
         // Auto-clean заметок
         if (window.Storage.getSettings().autoNotesClean) {
           const bit = 1 << (d - 1);
-          const peers = Core.ClassicVariant.peersForCell(idx);
+          const peers = activeVariant().peersForCell(idx);
           for (let k = 0; k < peers.length; k++) {
             if (active.notes[peers[k]] & bit) active.notes[peers[k]] &= ~bit;
           }
@@ -293,7 +305,7 @@ window.Game = (function () {
     // Auto-clean заметок после подсказки
     if (window.Storage.getSettings().autoNotesClean) {
       const bit = 1 << (active.solution[idx] - 1);
-      const peers = Core.ClassicVariant.peersForCell(idx);
+      const peers = activeVariant().peersForCell(idx);
       for (let k = 0; k < peers.length; k++) {
         if (active.notes[peers[k]] & bit) active.notes[peers[k]] &= ~bit;
       }

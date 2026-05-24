@@ -141,46 +141,56 @@ window.SudokuGenerator = (function () {
     return out;
   }
 
-  function randomSolved(rng) {
-    let g = Core.ClassicVariant.seedGrid();
-    g = relabel(g, rng);
-    // Внутри каждого бэнда — несколько случайных swap'ов строк
-    for (let band = 0; band < 3; band++) {
-      for (let k = 0; k < 6; k++) {
-        const a = band * 3 + Math.floor(rng() * 3);
-        const b = band * 3 + Math.floor(rng() * 3);
-        g = swapRows(g, a, b);
+  // Полная случайная сетка-решение. Для classic — быстрый seed-transform.
+  // Для остальных variants (Diagonal/Center/Windoku/Kropki/Sugur) seed-transform
+  // не сохраняет constraints — используем randomized backtracking от пустой сетки.
+  function randomSolved(rng, variant) {
+    variant = variant || Core.ClassicVariant;
+    const useSeedTransform = (variant === Core.ClassicVariant) ||
+                             (variant.name === 'classic') ||
+                             (variant.canSeedTransform === true);
+    if (useSeedTransform) {
+      let g = Core.ClassicVariant.seedGrid();
+      g = relabel(g, rng);
+      for (let band = 0; band < 3; band++) {
+        for (let k = 0; k < 6; k++) {
+          const a = band * 3 + Math.floor(rng() * 3);
+          const b = band * 3 + Math.floor(rng() * 3);
+          g = swapRows(g, a, b);
+        }
       }
-    }
-    for (let stack = 0; stack < 3; stack++) {
-      for (let k = 0; k < 6; k++) {
-        const a = stack * 3 + Math.floor(rng() * 3);
-        const b = stack * 3 + Math.floor(rng() * 3);
-        g = swapCols(g, a, b);
+      for (let stack = 0; stack < 3; stack++) {
+        for (let k = 0; k < 6; k++) {
+          const a = stack * 3 + Math.floor(rng() * 3);
+          const b = stack * 3 + Math.floor(rng() * 3);
+          g = swapCols(g, a, b);
+        }
       }
+      for (let k = 0; k < 4; k++) {
+        g = swapBands(g, Math.floor(rng() * 3), Math.floor(rng() * 3));
+        g = swapStacks(g, Math.floor(rng() * 3), Math.floor(rng() * 3));
+      }
+      if (rng() < 0.5) g = transpose(g);
+      return g;
     }
-    // Несколько swap'ов целых бэндов и стэков
-    for (let k = 0; k < 4; k++) {
-      g = swapBands(g, Math.floor(rng() * 3), Math.floor(rng() * 3));
-      g = swapStacks(g, Math.floor(rng() * 3), Math.floor(rng() * 3));
-    }
-    if (rng() < 0.5) g = transpose(g);
-    return g;
+    // Backtracking путь — для variants без сохраняющих constraints преобразований.
+    const N = variant.cellCount || 81;
+    const empty = new Array(N).fill(0);
+    return Core.solve(empty, variant, rng);
   }
 
   // ===== Удаление клеток с проверкой уникальности =====
 
-  function symmetryPartner(i, mode) {
+  function symmetryPartner(i, mode, variant) {
     if (mode === 'none') return -1;
+    const size = (variant && variant.size) || 9;
+    const r = Math.floor(i / size);
+    const c = i % size;
     if (mode === 'rotational') {
-      // 180° поворот: (r, c) → (8-r, 8-c)
-      const p = Core.rc(i);
-      return Core.idx(8 - p.r, 8 - p.c);
+      return (size - 1 - r) * size + (size - 1 - c);
     }
     if (mode === 'mirror') {
-      // Горизонтальное отражение: (r, c) → (r, 8-c)
-      const p = Core.rc(i);
-      return Core.idx(p.r, 8 - p.c);
+      return r * size + (size - 1 - c);
     }
     return -1;
   }
@@ -188,30 +198,29 @@ window.SudokuGenerator = (function () {
   function makePuzzle(solution, opts, rng, deadline) {
     const symmetry = opts.symmetry || 'rotational';
     const givensTarget = opts.givensTargetRange || [26, 30];
+    const variant = opts.variant || Core.ClassicVariant;
     const minGivens = givensTarget[0];
+    const N = variant.cellCount || solution.length || 81;
 
     const puzzle = solution.slice();
-    // Список индексов в случайном порядке
-    const order = shuffleArray(Array.from({ length: 81 }, (_, i) => i), rng);
+    const order = shuffleArray(Array.from({ length: N }, (_, i) => i), rng);
 
     for (let k = 0; k < order.length; k++) {
       if (Date.now() > deadline) break;
       const i = order[k];
       if (puzzle[i] === 0) continue;
 
-      const partner = symmetryPartner(i, symmetry);
+      const partner = symmetryPartner(i, symmetry, variant);
       const cells = (partner !== -1 && partner !== i) ? [i, partner] : [i];
 
-      // Не уходим ниже минимума givens
       const currentGivens = countGivens(puzzle);
       if (currentGivens - cells.length < minGivens) continue;
 
       const backup = cells.map(c => puzzle[c]);
       for (const c of cells) puzzle[c] = 0;
 
-      const cnt = Core.countSolutions(puzzle, 2);
+      const cnt = Core.countSolutions(puzzle, 2, variant);
       if (cnt !== 1) {
-        // Восстанавливаем
         for (let m = 0; m < cells.length; m++) puzzle[cells[m]] = backup[m];
       }
 
@@ -242,10 +251,11 @@ window.SudokuGenerator = (function () {
 
     while (attempts < maxRetries && Date.now() < deadline) {
       attempts++;
-      const solution = randomSolved(rng);
+      const solution = randomSolved(rng, variant);
       const puzzle = makePuzzle(solution, {
         symmetry: symmetry,
-        givensTargetRange: givensRange
+        givensTargetRange: givensRange,
+        variant: variant
       }, rng, deadline);
 
       // Финальный verify (защита-сетка). makePuzzle уже проверяет uniqueness
@@ -296,13 +306,23 @@ window.SudokuGenerator = (function () {
       return bestFallback;
     }
 
-    // Совсем не получилось — возвращаем минимальный seed solution с дырками.
-    console.warn('[generator] full failure, returning trivial fallback');
-    const sol = randomSolved(rng);
+    // Совсем не получилось — возвращаем разреженный solution с гарантированной
+    // уникальностью (удаляем по одной клетке только если puzzle остаётся unique).
+    console.warn('[generator] full failure, returning safe-trivial fallback');
+    const sol = randomSolved(rng, variant);
     const triv = sol.slice();
-    // Удаляем 30 случайных ячеек без проверки уникальности
-    const idxs = shuffleArray(Array.from({ length: 81 }, (_, i) => i), rng);
-    for (let k = 0; k < 30; k++) triv[idxs[k]] = 0;
+    const N = variant.cellCount || 81;
+    const idxs = shuffleArray(Array.from({ length: N }, (_, i) => i), rng);
+    let removed = 0;
+    for (let k = 0; k < idxs.length && removed < 25; k++) {
+      const backup = triv[idxs[k]];
+      triv[idxs[k]] = 0;
+      if (Core.countSolutions(triv, 2, variant) !== 1) {
+        triv[idxs[k]] = backup;
+      } else {
+        removed++;
+      }
+    }
     return {
       puzzle: triv,
       solution: sol,

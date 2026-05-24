@@ -75,7 +75,7 @@ window.SudokuTechniques = (function () {
   // Каждая возвращает {progress: bool, eliminations: int}. При progress=true
   // мы перезапускаем циклом по возрастанию стоимости.
 
-  function nakedSingle(grid, cand /*, variant */) {
+  function nakedSingle(grid, cand, variant) {
     let progress = false, elim = 0;
     for (let i = 0; i < 81; i++) {
       if (grid[i] !== 0) continue;
@@ -84,7 +84,7 @@ window.SudokuTechniques = (function () {
         grid[i] = d;
         cand[i] = 0;
         const bit = 1 << (d - 1);
-        const peers = window.SudokuCore.ClassicVariant.peersForCell(i);
+        const peers = variant.peersForCell(i);
         for (let k = 0; k < peers.length; k++) {
           if (cand[peers[k]] & bit) {
             cand[peers[k]] &= ~bit;
@@ -114,7 +114,7 @@ window.SudokuTechniques = (function () {
           // Ставим цифру d в ячейку pos
           grid[pos] = d;
           cand[pos] = 0;
-          const peers = window.SudokuCore.ClassicVariant.peersForCell(pos);
+          const peers = variant.peersForCell(pos);
           for (let k = 0; k < peers.length; k++) {
             if (cand[peers[k]] & bit) {
               cand[peers[k]] &= ~bit;

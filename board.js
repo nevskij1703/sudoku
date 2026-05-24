@@ -61,11 +61,12 @@ window.Board = (function () {
   function render(state, settings) {
     if (!boardEl) return;
     const sel = state.selectedIdx;
-    const selRow = sel != null ? Core.rc(sel).r : -1;
-    const selCol = sel != null ? Core.rc(sel).c : -1;
-    const selBox = sel != null ? Core.boxOf(Core.rc(sel).r, Core.rc(sel).c) : -1;
+    const variant = state.variant || Core.ClassicVariant;
     const selDigit = sel != null ? state.board[sel] : 0;
     const useHighlight = settings && settings.highlighter !== false;
+    // Peers выбранной ячейки определяет variant — для Diagonal это включает
+    // диагональ, для Center — центральные клетки, для Windoku — внутреннюю зону.
+    const peers = (sel != null && useHighlight) ? new Set(variant.peersForCell(sel)) : null;
 
     for (let i = 0; i < 81; i++) {
       const cell = cells[i];
@@ -74,7 +75,6 @@ window.Board = (function () {
       const isHint = state.hintCells && state.hintCells[i];
       const isError = state.mistakes && state.mistakes[i];
 
-      // Контент: цифра или заметки
       if (value !== 0) {
         cell.textContent = String(value);
       } else if (state.notes[i] && state.notes[i] !== 0) {
@@ -83,14 +83,36 @@ window.Board = (function () {
         cell.textContent = '';
       }
 
-      // Базовые классы
       cell.classList.toggle('given', !!isGiven);
       cell.classList.toggle('hint', !!isHint && !isGiven);
       cell.classList.toggle('error', !!isError);
 
-      // Подсветка
-      const p = Core.rc(i);
-      const isPeer = useHighlight && sel != null && (p.r === selRow || p.c === selCol || Core.boxOf(p.r, p.c) === selBox);
+      // Тонировка ячеек по variant — чтобы юзер видел где именно работает
+      // дополнительное ограничение (диагональ / центр / зоны виндоку).
+      if (window.SudokuVariants) {
+        const META = window.SudokuVariants.META;
+        const vname = variant.name;
+        if (vname === 'diagonal' && META.diagonal) {
+          const d = META.diagonal.diagCells(i);
+          cell.classList.toggle('on-main-diag', d.main);
+          cell.classList.toggle('on-anti-diag', d.anti);
+        } else {
+          cell.classList.remove('on-main-diag', 'on-anti-diag');
+        }
+        if (vname === 'center' && META.center) {
+          cell.classList.toggle('center-cell', META.center.isCenterCell(i));
+        } else {
+          cell.classList.remove('center-cell');
+        }
+        if (vname === 'windoku' && META.windoku) {
+          const z = META.windoku.zoneOf(i);
+          cell.classList.toggle('windoku-zone', z >= 0);
+        } else {
+          cell.classList.remove('windoku-zone');
+        }
+      }
+
+      const isPeer = peers ? peers.has(i) : false;
       cell.classList.toggle('peer', !!isPeer);
 
       const isSameDigit = useHighlight && selDigit !== 0 && value === selDigit && i !== sel;

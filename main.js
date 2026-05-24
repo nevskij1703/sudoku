@@ -32,6 +32,76 @@
   let lastCompletedDifficulty = null;
   let lastCompletedMode = null;
 
+  // Текстовые правила для каждого режима. info-modal динамически берёт
+  // отсюда контент по data-mode-info нажатой кнопки. Картинок пока нет —
+  // добавим как только конкретные режимы будут визуально готовы.
+  const MODE_INFO = {
+    mini: {
+      name: 'Мини 4×4',
+      rules: [
+        'Поле 4×4 разбито на 4 блока 2×2 — режим для начинающих и быстрых партий.',
+        'Цифры 1–4 не должны повторяться по горизонтали, вертикали и в каждом блоке 2×2.',
+        'Идеально подходит, чтобы освоить логику Sudoku за пару минут.'
+      ]
+    },
+    classic: {
+      name: 'Классика',
+      rules: [
+        'Расставляй цифры от 1 до 9 в пустых клетках.',
+        'Цифры не должны повторяться по горизонтали, вертикали и в каждом блоке 3×3.',
+        'Используй карандаш для заметок, если сомневаешься.'
+      ]
+    },
+    diagonal: {
+      name: 'Диагональ',
+      rules: [
+        'Те же правила, что в Классике.',
+        'Дополнительно: на двух главных диагоналях (от угла к углу) цифры тоже не должны повторяться.',
+        'Места для манёвра меньше — нужно больше думать на каждом шаге.'
+      ]
+    },
+    kropki: {
+      name: 'Точки (Kropki)',
+      rules: [
+        'Те же правила, что в Классике.',
+        'Пустой кружочек между двумя соседними клетками: цифры в них отличаются ровно на 1.',
+        'Закрашенный кружочек: одна цифра вдвое больше другой.'
+      ]
+    },
+    center: {
+      name: 'Центр',
+      rules: [
+        'Те же правила, что в Классике.',
+        'Дополнительно: 9 центральных клеток каждого блока 3×3 образуют свой «уникальный» набор — там тоже не должно быть повторов.',
+        'Это даёт игроку дополнительный ориентир в середине доски.'
+      ]
+    },
+    windoku: {
+      name: 'Виндоку',
+      rules: [
+        'Те же правила, что в Классике.',
+        'Дополнительно: 4 внутренние зоны 3×3 (на пересечении строк 2–4 и 6–8 со столбцами 2–4 и 6–8) не должны содержать повторов.',
+        'Эти 4 зоны видны на доске лёгкой тонировкой.'
+      ]
+    },
+    sugur: {
+      name: 'Сугуру',
+      rules: [
+        'Поле 9×9 разбито на 9 ломаных «змеек» по 9 клеток вместо квадратов 3×3.',
+        'Цифры не должны повторяться по строкам, столбцам и в каждой змейке.',
+        'Змейки могут изгибаться только по сторонам и не пересекают друг друга.'
+      ]
+    },
+    chain: {
+      name: 'Цепочки',
+      rules: [
+        'Цифры расположены в кругах, соединённых линиями. Каждая линия — цепочка, в которой цифры должны быть уникальны.',
+        'В отличие от Сугуру, цепочки могут идти по диагонали и пересекаться друг с другом.',
+        'Самый необычный режим — другая геометрия поля и правила.'
+      ]
+    }
+  };
+
   // Sessional флаг для модалки «Нравится игра?». Сбрасывается при перезапуске
   // приложения, поэтому юзер, нажавший «Может позже» в одной сессии, увидит
   // её снова в следующей — даёт ещё одну возможность спросить про оценку.
@@ -91,12 +161,12 @@
     // ===== 4. Главный экран (выбор сложности + статистика на одном экране) =====
     document.getElementById('btn-home-settings').addEventListener('click', openSettings);
 
-    // Info-кнопки в карточках режимов: открывают info-модалку (пока единую,
-    // в будущем могут вести в variant-specific объяснения).
+    // Info-кнопки в карточках режимов: открывают info-модалку с правилами
+    // конкретного режима (data-mode-info → MODE_INFO).
     document.querySelectorAll('.mode-info-btn').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();              // не дёргаем выбор mode-tile
-        window.UI.showModal('info');
+        showInfoModal(btn.dataset.modeInfo);
       });
     });
 
@@ -321,6 +391,29 @@
     const byDiff = window.Storage.getCompletedByDifficulty();
     window.UI.setText('stat-completed', String(total));
     window.UI.setText('stat-by-diff', (byDiff.easy || 0) + ' / ' + (byDiff.medium || 0) + ' / ' + (byDiff.hard || 0));
+  }
+
+  function showInfoModal(modeKey) {
+    const info = MODE_INFO[modeKey] || MODE_INFO.classic;
+    document.getElementById('info-mode-name').textContent = info.name;
+    const list = document.getElementById('info-rules');
+    list.innerHTML = '';
+    for (let i = 0; i < info.rules.length; i++) {
+      const r = info.rules[i];
+      if (!r) continue;
+      const div = document.createElement('div');
+      div.className = 'rule';
+      const num = document.createElement('div');
+      num.className = 'rule-num';
+      num.textContent = String(i + 1);
+      const txt = document.createElement('div');
+      txt.className = 'rule-text';
+      txt.textContent = r;
+      div.appendChild(num);
+      div.appendChild(txt);
+      list.appendChild(div);
+    }
+    window.UI.showModal('info');
   }
 
   function openSettings() {

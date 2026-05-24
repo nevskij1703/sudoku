@@ -134,6 +134,10 @@ window.SudokuCore = (function () {
 
     return {
       name: 'classic',
+      // Геометрия. Используется обобщённым solver'ом / generator'ом.
+      size: 9, boxRows: 3, boxCols: 3, cellCount: 81,
+      ALL_MASK: 0x1FF,
+      digits: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       unitsForCell: unitsForCell,
       peersForCell: peersForCell,
       allUnits: allUnitsFor,
@@ -186,59 +190,99 @@ window.SudokuCore = (function () {
     return { row: row, col: col, box: box };
   }
 
-  function _solveImpl(g, maxSolutions, randomize, rng) {
-    // Принимает не-копию: работает по месту, при возврате восстанавливает.
-    const masks = buildMasks(g);
+  // ===== Generic backtracking solver через variant.allUnits() =====
+  //
+  // Стары код использовал hardcoded row/col/box и игнорировал variant. Для
+  // режимов Diagonal/Center/Windoku/Kropki/Sugur нам нужны доп. unit'ы (или
+  // совсем другая раскладка). Поэтому solver теперь:
+  //   1. Берёт `variant.allUnits()` — массив списков клеточных индексов.
+  //   2. Строит маску каждого unit'а (9-битный mask «какие цифры ещё свободны»).
+  //   3. Для каждой пустой ячейки candidates = AND масок всех unit'ов, в которые она входит.
+  //   4. Опционально применяет variant.extraConstraints(g) — для Kropki / Sugur
+  //      / Chain, где правила выходят за рамки «нет повторений внутри unit».
+  //
+  // Это чуть дороже чем row/col/box-specialised solver (для classic ~10% loss),
+  // но универсально и работает для всех вариантов.
+
+  function buildGenericMasks(g, variant) {
+    const units = variant.allUnits();
+    const ALL_LOC = variant.ALL_MASK || ALL;
+    const unitMask = new Array(units.length).fill(ALL_LOC);
+    const N = variant.cellCount || g.length;
+    // cellToUnits[i] = массив индексов unit'ов в которые входит i
+    const cellToUnits = new Array(N);
+    for (let i = 0; i < N; i++) cellToUnits[i] = [];
+    for (let u = 0; u < units.length; u++) {
+      const unit = units[u];
+      for (let k = 0; k < unit.length; k++) cellToUnits[unit[k]].push(u);
+    }
+    for (let i = 0; i < N; i++) {
+      const v = g[i];
+      if (v !== 0) {
+        const bit = 1 << (v - 1);
+        const us = cellToUnits[i];
+        for (let k = 0; k < us.length; k++) unitMask[us[k]] &= ~bit;
+      }
+    }
+    return { unitMask: unitMask, cellToUnits: cellToUnits };
+  }
+
+  function _solveImpl(g, maxSolutions, randomize, rng, variant) {
+    if (!variant) variant = ClassicVariant;
+    const N = variant.cellCount || g.length;
+    const masks = buildGenericMasks(g, variant);
     const solutions = [];
+    const hasExtra = typeof variant.extraConstraintsOk === 'function';
 
     function recurse() {
       if (solutions.length >= maxSolutions) return;
 
-      // MRV: ищем пустую ячейку с минимальным числом кандидатов.
-      let best = -1, bestCount = 10, bestMask = 0;
-      for (let i = 0; i < 81; i++) {
+      // MRV: ячейка с минимальным числом кандидатов.
+      let best = -1, bestCount = 99, bestMask = 0;
+      for (let i = 0; i < N; i++) {
         if (g[i] !== 0) continue;
-        const p = rc(i);
-        const mask = masks.row[p.r] & masks.col[p.c] & masks.box[boxOf(p.r, p.c)];
-        const cnt = bitCount(mask);
-        if (cnt === 0) return; // тупик
+        let m = ~0;
+        const us = masks.cellToUnits[i];
+        for (let k = 0; k < us.length; k++) m &= masks.unitMask[us[k]];
+        m &= (variant.ALL_MASK || ALL);
+        const cnt = bitCount(m);
+        if (cnt === 0) return;
         if (cnt < bestCount) {
-          best = i; bestCount = cnt; bestMask = mask;
+          best = i; bestCount = cnt; bestMask = m;
           if (cnt === 1) break;
         }
       }
       if (best === -1) {
-        // Сетка заполнена — это решение.
+        // Все клетки заполнены — проверяем extra-constraints (Kropki и др).
+        if (hasExtra && !variant.extraConstraintsOk(g)) return;
         solutions.push(g.slice());
         return;
       }
 
-      // Список цифр-кандидатов
       const digits = [];
-      for (let d = 0; d < 9; d++) {
+      for (let d = 0; d < (variant.size || 9); d++) {
         if ((bestMask >> d) & 1) digits.push(d + 1);
       }
       if (randomize) {
-        // Fisher-Yates с предоставленным rng()
         for (let i = digits.length - 1; i > 0; i--) {
           const j = Math.floor(rng() * (i + 1));
           const t = digits[i]; digits[i] = digits[j]; digits[j] = t;
         }
       }
 
-      const p = rc(best);
-      const bRow = p.r, bCol = p.c, bBox = boxOf(p.r, p.c);
+      const us = masks.cellToUnits[best];
       for (let k = 0; k < digits.length; k++) {
         const d = digits[k];
         const bit = 1 << (d - 1);
         g[best] = d;
-        masks.row[bRow] &= ~bit;
-        masks.col[bCol] &= ~bit;
-        masks.box[bBox] &= ~bit;
+        // Опциональный pre-check: extra-constraints для частично-заполненного g
+        if (hasExtra && variant.extraPreCheck && !variant.extraPreCheck(g, best, d)) {
+          g[best] = 0;
+          continue;
+        }
+        for (let u = 0; u < us.length; u++) masks.unitMask[us[u]] &= ~bit;
         recurse();
-        masks.row[bRow] |= bit;
-        masks.col[bCol] |= bit;
-        masks.box[bBox] |= bit;
+        for (let u = 0; u < us.length; u++) masks.unitMask[us[u]] |= bit;
         g[best] = 0;
         if (solutions.length >= maxSolutions) return;
       }
@@ -249,17 +293,15 @@ window.SudokuCore = (function () {
   }
 
   function solve(grid, variant, rng) {
-    // Variant игнорируется в этом солвере (он жёстко на row/col/box).
-    // Для DiagonalVariant позже сделаем отдельный солвер или generic.
     const g = cloneGrid(grid);
-    const sols = _solveImpl(g, 1, !!rng, rng || Math.random);
+    const sols = _solveImpl(g, 1, !!rng, rng || Math.random, variant);
     return sols.length ? sols[0] : null;
   }
 
   function countSolutions(grid, max, variant) {
     if (typeof max !== 'number') max = 2;
     const g = cloneGrid(grid);
-    const sols = _solveImpl(g, max, false, Math.random);
+    const sols = _solveImpl(g, max, false, Math.random, variant);
     return sols.length;
   }
 

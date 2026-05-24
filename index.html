@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
 
@@ -98,6 +98,69 @@
         <path d="M5 4 H 19 L 11 12 L 19 20 H 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
       </symbol>
 
+      <!-- Mode tiles icons -->
+      <symbol id="icon-mini" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <line x1="12" y1="4"  x2="12" y2="20" stroke="currentColor" stroke-width="2"/>
+        <line x1="4"  y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2"/>
+      </symbol>
+      <symbol id="icon-kropki" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+        <line x1="9"  y1="3" x2="9"  y2="21" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
+        <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
+        <!-- empty white dot -->
+        <circle cx="9"  cy="12" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.2"/>
+        <!-- filled dot -->
+        <circle cx="15" cy="9"  r="1.8" fill="currentColor"/>
+      </symbol>
+      <symbol id="icon-center" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+        <line x1="9"  y1="3" x2="9"  y2="21" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
+        <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
+        <!-- 9 centre cells highlighted -->
+        <circle cx="6"  cy="6"  r="1.7" fill="currentColor"/>
+        <circle cx="12" cy="6"  r="1.7" fill="currentColor"/>
+        <circle cx="18" cy="6"  r="1.7" fill="currentColor"/>
+        <circle cx="6"  cy="12" r="1.7" fill="currentColor"/>
+        <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
+        <circle cx="18" cy="12" r="1.7" fill="currentColor"/>
+        <circle cx="6"  cy="18" r="1.7" fill="currentColor"/>
+        <circle cx="12" cy="18" r="1.7" fill="currentColor"/>
+        <circle cx="18" cy="18" r="1.7" fill="currentColor"/>
+      </symbol>
+      <symbol id="icon-windoku" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+        <line x1="9"  y1="3" x2="9"  y2="21" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
+        <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
+        <!-- 4 inner highlighted zones -->
+        <rect x="4.3" y="4.3" width="3.5" height="3.5" fill="currentColor" opacity="0.45"/>
+        <rect x="16.2" y="4.3" width="3.5" height="3.5" fill="currentColor" opacity="0.45"/>
+        <rect x="4.3" y="16.2" width="3.5" height="3.5" fill="currentColor" opacity="0.45"/>
+        <rect x="16.2" y="16.2" width="3.5" height="3.5" fill="currentColor" opacity="0.45"/>
+      </symbol>
+      <symbol id="icon-snake" viewBox="0 0 24 24">
+        <!-- Змейка-цепочка по клеточкам -->
+        <path d="M3 5 H 11 V 12 H 5 V 19 H 13 V 5 H 21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="icon-chain" viewBox="0 0 24 24">
+        <!-- Круги-ячейки соединены линиями -->
+        <line x1="6" y1="6"  x2="12" y2="12" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="12" y1="12" x2="18" y2="6"  stroke="currentColor" stroke-width="1.6"/>
+        <line x1="12" y1="12" x2="18" y2="18" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="12" y1="12" x2="6"  y2="18" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="6"  cy="6"  r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="18" cy="6"  r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        <circle cx="6"  cy="18" r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="18" cy="18" r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
+      </symbol>
+
       <!-- Rules pictograms -->
       <symbol id="rule-fill" viewBox="0 0 60 60">
         <!-- 3x3 mini-grid with some digits filled in -->
@@ -185,23 +248,69 @@
 
     <h2 class="section-title">Режим</h2>
     <div class="mode-grid">
+      <div class="mode-tile locked" data-mode="mini" aria-disabled="true">
+        <button class="mode-info-btn" data-mode-info="mini" aria-label="Правила режима «Мини»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-mini"/></svg></div>
+        <div class="mode-label">Мини 4×4</div>
+        <div class="mode-sub">для начинающих</div>
+      </div>
       <div class="mode-tile selected" data-mode="classic" role="button" tabindex="0">
         <button class="mode-info-btn" data-mode-info="classic" aria-label="Правила режима «Классика»">
           <svg class="icon"><use href="#icon-info"/></svg>
         </button>
         <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></div>
         <div class="mode-label">Классика</div>
-        <div class="mode-sub">9×9, стандартные правила</div>
+        <div class="mode-sub">9×9, стандарт</div>
       </div>
-      <div class="mode-tile locked" data-mode="diagonal" aria-disabled="true">
+      <div class="mode-tile" data-mode="diagonal" role="button" tabindex="0">
+        <button class="mode-info-btn" data-mode-info="diagonal" aria-label="Правила режима «Диагональ»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
         <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-diagonal"/></svg></div>
         <div class="mode-label">Диагональ</div>
-        <div class="mode-sub">скоро</div>
+        <div class="mode-sub">+ диагонали</div>
       </div>
-      <div class="mode-tile locked" data-mode="killer" aria-disabled="true">
-        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-sigma"/></svg></div>
-        <div class="mode-label">Киллер</div>
-        <div class="mode-sub">скоро</div>
+      <div class="mode-tile locked" data-mode="kropki" aria-disabled="true">
+        <button class="mode-info-btn" data-mode-info="kropki" aria-label="Правила режима «Точки»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-kropki"/></svg></div>
+        <div class="mode-label">Точки</div>
+        <div class="mode-sub">подсказки на гранях</div>
+      </div>
+      <div class="mode-tile" data-mode="center" role="button" tabindex="0">
+        <button class="mode-info-btn" data-mode-info="center" aria-label="Правила режима «Центр»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-center"/></svg></div>
+        <div class="mode-label">Центр</div>
+        <div class="mode-sub">центры блоков</div>
+      </div>
+      <div class="mode-tile" data-mode="windoku" role="button" tabindex="0">
+        <button class="mode-info-btn" data-mode-info="windoku" aria-label="Правила режима «Виндоку»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-windoku"/></svg></div>
+        <div class="mode-label">Виндоку</div>
+        <div class="mode-sub">+ 4 внутр. зоны</div>
+      </div>
+      <div class="mode-tile locked" data-mode="sugur" aria-disabled="true">
+        <button class="mode-info-btn" data-mode-info="sugur" aria-label="Правила режима «Сугуру»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-snake"/></svg></div>
+        <div class="mode-label">Сугуру</div>
+        <div class="mode-sub">змейки вместо 3×3</div>
+      </div>
+      <div class="mode-tile locked" data-mode="chain" aria-disabled="true">
+        <button class="mode-info-btn" data-mode-info="chain" aria-label="Правила режима «Цепочки»">
+          <svg class="icon"><use href="#icon-info"/></svg>
+        </button>
+        <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-chain"/></svg></div>
+        <div class="mode-label">Цепочки</div>
+        <div class="mode-sub">круги и линии</div>
       </div>
     </div>
 
@@ -348,27 +457,13 @@
     </div>
   </div>
 
-  <!-- Инструкция (Info) -->
+  <!-- Инструкция (Info). Контент динамический — заполняется из main.js
+       по data-mode-info того mode-info-btn, на котором кликнули. -->
   <div id="modal-info" class="modal hidden" data-modal-id="info" data-close-outside="1">
     <div class="modal-box modal-box-wide">
       <h2 class="modal-title">Как играть</h2>
-      <div class="rules-list">
-        <div class="rule">
-          <div class="rule-num">1</div>
-          <div class="rule-img"><svg viewBox="0 0 60 60"><use href="#rule-fill"/></svg></div>
-          <div class="rule-text">Расставляй на клеточках цифры от 1 до 9.</div>
-        </div>
-        <div class="rule">
-          <div class="rule-num">2</div>
-          <div class="rule-img"><svg viewBox="0 0 60 60"><use href="#rule-unique"/></svg></div>
-          <div class="rule-text">Цифры не должны повторяться по горизонтали, вертикали или в рамках блока 3×3.</div>
-        </div>
-        <div class="rule">
-          <div class="rule-num">3</div>
-          <div class="rule-img"><svg viewBox="0 0 60 60"><use href="#rule-pencil"/></svg></div>
-          <div class="rule-text">Используй карандаш для заметок, если сомневаешься.</div>
-        </div>
-      </div>
+      <div id="info-mode-name" class="info-mode-name">Классика</div>
+      <div id="info-rules" class="rules-list"></div>
       <button class="modal-close-btn" data-close-modal="info" aria-label="Закрыть">
         <svg class="icon"><use href="#icon-close"/></svg>
       </button>
@@ -406,20 +501,21 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=4"></script>
-  <script src="migrations.js?v=4"></script>
-  <script src="storage.js?v=4"></script>
-  <script src="sudokuCore.js?v=4"></script>
-  <script src="sudokuTechniques.js?v=4"></script>
-  <script src="sudokuGenerator.js?v=4"></script>
-  <script src="ads.js?v=4"></script>
-  <script src="rustoreReview.js?v=4"></script>
-  <script src="audio.js?v=4"></script>
-  <script src="ui.js?v=4"></script>
-  <script src="board.js?v=4"></script>
-  <script src="numberPad.js?v=4"></script>
-  <script src="game.js?v=4"></script>
-  <script src="devPanel.js?v=4"></script>
-  <script src="main.js?v=4"></script>
+  <script src="config.js?v=7"></script>
+  <script src="migrations.js?v=7"></script>
+  <script src="storage.js?v=7"></script>
+  <script src="sudokuCore.js?v=7"></script>
+  <script src="sudokuVariants.js?v=7"></script>
+  <script src="sudokuTechniques.js?v=7"></script>
+  <script src="sudokuGenerator.js?v=7"></script>
+  <script src="ads.js?v=7"></script>
+  <script src="rustoreReview.js?v=7"></script>
+  <script src="audio.js?v=7"></script>
+  <script src="ui.js?v=7"></script>
+  <script src="board.js?v=7"></script>
+  <script src="numberPad.js?v=7"></script>
+  <script src="game.js?v=7"></script>
+  <script src="devPanel.js?v=7"></script>
+  <script src="main.js?v=7"></script>
 </body>
 </html>
