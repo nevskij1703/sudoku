@@ -1,0 +1,7 @@
+{
+  "_comment": "Состояние последнего опубликованного релиза. Skill prepare-release-candidate обновляет этот файл после подтверждения отправки в стор.",
+  "lastPublishedSchemaVersion": null,
+  "lastPublishedVersionCode": null,
+  "lastPublishedVersionName": null,
+  "lastPublishedAt": null
+}

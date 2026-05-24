@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#1a2540" />
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
+  <title>Судоку Классик</title>
+  <link rel="stylesheet" href="styles.css?v=1" />
+</head>
+<body>
+
+  <!-- ================= Главное меню ================= -->
+  <section id="screen-home" class="screen">
+    <div class="home-top">
+      <div class="title-block">
+        <div class="brand">SUDOKU</div>
+        <div class="brand-sub">Классик</div>
+      </div>
+      <button id="btn-home-settings" class="icon-btn" aria-label="Настройки">⚙</button>
+    </div>
+
+    <div class="stats-card">
+      <div class="stats-line">
+        <span>Пройдено уровней:</span>
+        <span id="stat-completed">0</span>
+      </div>
+      <div class="stats-line dim">
+        <span>Простой / Средний / Сложный</span>
+        <span id="stat-by-diff">0 / 0 / 0</span>
+      </div>
+    </div>
+
+    <div class="home-actions">
+      <button id="btn-continue" class="btn btn-primary big hidden">Продолжить</button>
+      <button id="btn-play" class="btn btn-primary big">Играть</button>
+    </div>
+  </section>
+
+  <!-- ================= Выбор сложности и режима ================= -->
+  <section id="screen-difficulty" class="screen">
+    <header class="screen-head">
+      <button id="btn-back-diff" class="icon-btn" aria-label="Назад">←</button>
+      <div class="screen-title">Новый уровень</div>
+      <div style="width:40px"></div>
+    </header>
+
+    <h2 class="section-title">Сложность</h2>
+    <div class="difficulty-grid">
+      <button class="diff-tile" data-difficulty="easy">
+        <div class="diff-emoji">🌱</div>
+        <div class="diff-label">Простой</div>
+        <div class="diff-sub">38–45 цифр открыто</div>
+      </button>
+      <button class="diff-tile selected" data-difficulty="medium">
+        <div class="diff-emoji">🌿</div>
+        <div class="diff-label">Средний</div>
+        <div class="diff-sub">30–35 цифр открыто</div>
+      </button>
+      <button class="diff-tile" data-difficulty="hard">
+        <div class="diff-emoji">🔥</div>
+        <div class="diff-label">Сложный</div>
+        <div class="diff-sub">26–30 цифр открыто</div>
+      </button>
+    </div>
+
+    <h2 class="section-title">Режим</h2>
+    <div class="mode-grid">
+      <button class="mode-tile selected" data-mode="classic">
+        <div class="mode-emoji">▦</div>
+        <div class="mode-label">Классика</div>
+        <div class="mode-sub">9×9, стандартные правила</div>
+      </button>
+      <button class="mode-tile locked" data-mode="diagonal" disabled>
+        <div class="mode-emoji">⟋</div>
+        <div class="mode-label">Диагональ</div>
+        <div class="mode-sub">скоро</div>
+      </button>
+      <button class="mode-tile locked" data-mode="killer" disabled>
+        <div class="mode-emoji">∑</div>
+        <div class="mode-label">Киллер</div>
+        <div class="mode-sub">скоро</div>
+      </button>
+    </div>
+
+    <button id="btn-start-level" class="btn btn-primary big">Начать</button>
+  </section>
+
+  <!-- ================= Игровой экран ================= -->
+  <section id="screen-game" class="screen">
+    <header class="game-head">
+      <button id="btn-game-back" class="icon-btn" aria-label="В меню">←</button>
+      <div class="game-head-center">
+        <div id="game-hearts" class="hearts-row" aria-label="Сердечки">
+          <span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span>
+        </div>
+        <div id="game-timer" class="timer">00:00</div>
+      </div>
+      <button id="btn-game-pause" class="icon-btn" aria-label="Пауза">⏸</button>
+    </header>
+
+    <div class="board-wrap">
+      <div id="board" class="board" role="grid" aria-label="Поле судоку"></div>
+    </div>
+
+    <div class="number-pad">
+      <div class="numpad-row">
+        <button class="num-btn" data-num="1"><span>1</span><span class="count" data-count="1"></span></button>
+        <button class="num-btn" data-num="2"><span>2</span><span class="count" data-count="2"></span></button>
+        <button class="num-btn" data-num="3"><span>3</span><span class="count" data-count="3"></span></button>
+        <button class="num-btn" data-num="4"><span>4</span><span class="count" data-count="4"></span></button>
+        <button class="num-btn" data-num="5"><span>5</span><span class="count" data-count="5"></span></button>
+        <button class="num-btn" data-num="6"><span>6</span><span class="count" data-count="6"></span></button>
+        <button class="num-btn" data-num="7"><span>7</span><span class="count" data-count="7"></span></button>
+        <button class="num-btn" data-num="8"><span>8</span><span class="count" data-count="8"></span></button>
+        <button class="num-btn" data-num="9"><span>9</span><span class="count" data-count="9"></span></button>
+      </div>
+      <div class="tools-row">
+        <button id="btn-undo" class="tool-btn" aria-label="Отменить">
+          <span class="tool-glyph">↶</span>
+          <span class="tool-label">Отмена</span>
+        </button>
+        <button id="btn-erase" class="tool-btn" aria-label="Ластик">
+          <span class="tool-glyph">⌫</span>
+          <span class="tool-label">Стереть</span>
+        </button>
+        <button id="btn-pencil" class="tool-btn" aria-label="Карандаш">
+          <span class="tool-glyph">✏</span>
+          <span class="tool-label">Заметка</span>
+        </button>
+        <button id="btn-hint" class="tool-btn" aria-label="Подсказка">
+          <span class="tool-glyph">💡</span>
+          <span class="tool-label">Подсказка</span>
+          <span id="hint-count" class="tool-badge">5</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Модалки ================= -->
+
+  <!-- Победа -->
+  <div id="modal-win" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-emoji">🎉</div>
+      <h2 class="modal-title">Уровень пройден!</h2>
+      <div class="modal-rows">
+        <div class="modal-row"><span>Сложность:</span><span id="win-difficulty">—</span></div>
+        <div class="modal-row"><span>Время:</span><span id="win-time">—</span></div>
+        <div class="modal-row"><span>Ошибок:</span><span id="win-mistakes">0</span></div>
+        <div class="modal-row"><span>Подсказок:</span><span id="win-hints">0</span></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-win-next" class="btn btn-primary big">Следующий уровень</button>
+        <button id="btn-win-home" class="btn btn-secondary">В главное меню</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game over (кончились сердца) -->
+  <div id="modal-gameover" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-emoji">💔</div>
+      <h2 class="modal-title">Сердца кончились</h2>
+      <p class="modal-text">Восстановите одно сердечко за просмотр короткой рекламы или начните новый уровень.</p>
+      <div class="modal-actions">
+        <button id="btn-gameover-ad" class="btn btn-primary big">
+          <span class="btn-icon">▶</span> Восстановить за рекламу (+1 ♥)
+        </button>
+        <button id="btn-gameover-restart" class="btn btn-secondary">Новый уровень</button>
+        <button id="btn-gameover-home" class="btn btn-link">В главное меню</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Пауза -->
+  <div id="modal-pause" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-emoji">⏸</div>
+      <h2 class="modal-title">Пауза</h2>
+      <div class="modal-actions">
+        <button id="btn-pause-resume" class="btn btn-primary big">Продолжить</button>
+        <button id="btn-pause-settings" class="btn btn-secondary">Настройки</button>
+        <button id="btn-pause-home" class="btn btn-link">В главное меню</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Настройки -->
+  <div id="modal-settings" class="modal hidden">
+    <div class="modal-box">
+      <h2 class="modal-title">Настройки</h2>
+      <div class="settings-list">
+        <label class="setting-row">
+          <span>Звук</span>
+          <input id="setting-sound" type="checkbox" />
+        </label>
+        <label class="setting-row">
+          <span>Вибрация</span>
+          <input id="setting-vibration" type="checkbox" />
+        </label>
+        <label class="setting-row">
+          <span>Подсветка строки/столбца/блока</span>
+          <input id="setting-highlighter" type="checkbox" />
+        </label>
+        <label class="setting-row">
+          <span>Авто-очистка заметок</span>
+          <input id="setting-auto-notes" type="checkbox" />
+        </label>
+      </div>
+      <button id="btn-settings-close" class="btn btn-primary big">Готово</button>
+      <button id="btn-rate" class="btn btn-link">Оценить приложение</button>
+    </div>
+  </div>
+
+  <!-- ================= Загрузка скриптов (порядок важен) ================= -->
+  <script src="config.js?v=1"></script>
+  <script src="migrations.js?v=1"></script>
+  <script src="storage.js?v=1"></script>
+  <script src="sudokuCore.js?v=1"></script>
+  <script src="sudokuTechniques.js?v=1"></script>
+  <script src="sudokuGenerator.js?v=1"></script>
+  <script src="ads.js?v=1"></script>
+  <script src="rustoreReview.js?v=1"></script>
+  <script src="audio.js?v=1"></script>
+  <script src="ui.js?v=1"></script>
+  <script src="board.js?v=1"></script>
+  <script src="numberPad.js?v=1"></script>
+  <script src="game.js?v=1"></script>
+  <script src="devPanel.js?v=1"></script>
+  <script src="main.js?v=1"></script>
+</body>
+</html>

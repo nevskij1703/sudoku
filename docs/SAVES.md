@@ -1,0 +1,104 @@
+# Сейв и миграции (Судоку Классик)
+
+## Структура (schema v1)
+
+LocalStorage-ключ: `sudoku_save`. Единый JSON:
+
+```jsonc
+{
+  "schemaVersion": 1,
+
+  // Прогресс (для отображения на главной)
+  "completedLevels": 0,
+  "completedByDifficulty": { "easy": 0, "medium": 0, "hard": 0 },
+
+  // Активный уровень (null если игрок в меню, объект если играется уровень)
+  "active": null,
+  // ↑ или:
+  // {
+  //   "difficulty": "easy" | "medium" | "hard",
+  //   "mode": "classic",
+  //   "puzzle":    [81 numbers, 0=пусто],
+  //   "solution":  [81 numbers],
+  //   "givens":    [81 booleans],
+  //   "board":     [81 numbers, текущее заполнение игрока],
+  //   "notes":     [81 numbers, маска заметок карандашом],
+  //   "mistakes":  [81 booleans, красные ячейки],
+  //   "hintCells": [81 booleans, ячейки заполненные подсказкой],
+  //   "hearts":    3,
+  //   "hintsUsed": 0,
+  //   "elapsedMs": 0,
+  //   "score":     <число — score из rateDifficulty>
+  // }
+
+  // Настройки
+  "settings": {
+    "sound": true,
+    "vibration": true,
+    "highlighter": true,
+    "autoNotesClean": true
+  },
+
+  // Служебное
+  "mockAds": false,
+  "rateGiven": false
+}
+```
+
+**Заметки:**
+- `puzzle`, `solution`, `givens`, `board`, `notes`, `mistakes`, `hintCells` — плоские массивы длины 81. `idx = row * 9 + col`.
+- `notes[i]` — 9-битная маска: бит k = карандашная заметка цифры (k+1) в ячейке i.
+- `score` — абсолютная сложность (см. `sudokuGenerator.js` → `rateDifficulty`).
+
+## Контракт
+
+- [migrations.js](../migrations.js) — реестр миграций. Каждая миграция — чистая функция `(state) => state`.
+- [storage.js](../storage.js) при `load()`:
+  1. Читает single-key `sudoku_save`.
+  2. Прогоняет через `Migrations.runMigrations()` (каскад от `schemaVersion` до текущего).
+  3. Мерджит с `DEFAULTS()` чтобы новые поля (например `settings.highlighter`) появлялись у старых юзеров.
+
+API `window.Storage.*`:
+
+| Метод | Что делает |
+|---|---|
+| `load()` | Lazy-load с миграциями. Возвращает state. |
+| `getCompletedLevels()` / `getCompletedByDifficulty(?d)` | Прогресс. |
+| `incrementCompleted(difficulty)` | После победы — увеличить счётчики. |
+| `getActive()` / `setActive(state)` / `clearActive()` / `updateActive(patch)` | Активный уровень. |
+| `getSettings()` / `setSettings(patch)` | Настройки. |
+| `getMockAds()` / `setMockAds(v)` | Dev-only override бэкенда рекламы. |
+| `getRateGiven()` / `setRateGiven(v)` | Чтобы не теребить юзера повторно RuStore-обзором. |
+| `resetAll()` | Полный сброс. |
+
+## Как добавить новую миграцию
+
+1. В коде поменялся формат сейва. Текущая `getCurrentSchemaVersion()` возвращает, например, 1.
+2. В [migrations.js](../migrations.js) добавь функцию `2: function(state) { /* v1 → v2 */ return state; }`.
+3. Обнови `DEFAULTS()` в [storage.js](../storage.js) — добавь новые поля.
+4. После публикации в РуСтор обнови `.claude/release-state.json` (`lastPublishedSchemaVersion: 2`).
+
+**Пример сценариев:**
+
+- **Добавляем новое поле в `settings`** (например `settings.theme = 'light'`):
+  - Добавь в `DEFAULTS()`. Миграция **не нужна** — мердж с дефолтами в `load()` сам подставит у старых юзеров.
+
+- **Меняем формат `active.notes` с `Set` на `bitmask`** (хотя у нас bitmask и сейчас):
+  - Добавь миграцию N+1, которая прокатает старый формат в новый.
+
+- **Переименовываем поле**:
+  - Миграция читает старое поле, пишет в новое, удаляет старое.
+
+## ⚠️ Правила
+
+- **Не меняй уже опубликованную миграцию** — у живых юзеров она уже отработала.
+- **Defensive**: используй `state.foo ?? defaultValue` для отсутствующих полей.
+- **Не зашивай `SCHEMA_VERSION` константу** — `getCurrentSchemaVersion()` авто-выводится из `max(keys(migrations))`.
+
+## Проверка перед релизом
+
+Skill `prepare-release-candidate` перед сборкой запускает **полный self-test**: пустой сейв прогоняется через **все** миграции в реестре, проверяется корректность результата. Если что-то падает — сборка релиза не запускается.
+
+## Опубликованный релиз
+
+`.claude/release-state.json` обновляется **автоматически** skill'ом `prepare-release-candidate` после того, как пользователь подтвердил, что отправляет собранный APK в стор. Если не подтвердил — файл не трогается.
