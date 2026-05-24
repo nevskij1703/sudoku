@@ -166,7 +166,23 @@ window.Storage = (function () {
   function getRateGiven()  { return !!load().rateGiven; }
   function setRateGiven(v) { const s = load(); s.rateGiven = !!v; persist(); }
 
-  // === Полный сброс ===
+  // === Сброс ===
+  //
+  // Прогресс игрока (completedLevels + completedByDifficulty) сохраняется на
+  // устройстве и НЕ сбрасывается при выходе из уровня, gameover, abandon и т.п.
+  // Единственные способы обнулить прогресс:
+  //   • Storage.resetProgress() — только counts.
+  //   • Storage.resetAll()      — полный factory reset.
+  // Оба вызываются исключительно из dev-panel (см. devPanel.js).
+  // На устройстве пользователя без dev-доступа единственный способ —
+  // переустановка приложения (или «Очистить данные» в настройках Android).
+
+  function resetProgress() {
+    const s = load();
+    s.completedLevels = 0;
+    s.completedByDifficulty = { easy: 0, medium: 0, hard: 0 };
+    persist();
+  }
 
   function resetAll() {
     cached = DEFAULTS();
@@ -190,6 +206,7 @@ window.Storage = (function () {
     // Служебное
     getMockAds: getMockAds,    setMockAds: setMockAds,
     getRateGiven: getRateGiven, setRateGiven: setRateGiven,
+    resetProgress: resetProgress,
     resetAll: resetAll
   };
 })();

@@ -52,7 +52,8 @@ window.DevPanel = (function () {
       + '  <button id="dev-stats">📈 Стат. по 50 уровням</button>'
       + '  <button id="dev-uniqueness">🔬 Uniqueness check 50</button>'
       + '  <button id="dev-toggle-ads">🎬 Toggle Mock Ads</button>'
-      + '  <button id="dev-reset">🗑 Сбросить localStorage</button>'
+      + '  <button id="dev-reset-progress">📉 Сбросить прогресс</button>'
+      + '  <button id="dev-reset">🗑 Полный сброс (factory)</button>'
       + '  <pre id="dev-output"></pre>'
       + '</div>';
   }
@@ -174,8 +175,22 @@ window.DevPanel = (function () {
       out('Mock Ads: ' + v + ' (применится после перезагрузки)');
     });
 
+    document.getElementById('dev-reset-progress').addEventListener('click', function () {
+      if (!confirm('Сбросить прогресс (счётчики пройденных уровней)? Активный уровень и настройки сохранятся.')) return;
+      window.Storage.resetProgress();
+      out('Прогресс сброшен (completedLevels=0)');
+      // Обновим главный экран если он сейчас открыт
+      if (document.getElementById('screen-home').classList.contains('active')) {
+        const total = window.Storage.getCompletedLevels();
+        const byDiff = window.Storage.getCompletedByDifficulty();
+        window.UI.setText('stat-completed', String(total));
+        window.UI.setText('stat-by-diff',
+          (byDiff.easy || 0) + ' / ' + (byDiff.medium || 0) + ' / ' + (byDiff.hard || 0));
+      }
+    });
+
     document.getElementById('dev-reset').addEventListener('click', function () {
-      if (!confirm('Сбросить весь сейв?')) return;
+      if (!confirm('Полный сброс (factory reset)? Будут стёрты прогресс, настройки и активный уровень.')) return;
       window.Storage.resetAll();
       out('localStorage сброшен');
       setTimeout(function () { location.reload(); }, 500);

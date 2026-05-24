@@ -30,6 +30,8 @@ config → migrations → storage → sudokuCore → sudokuTechniques → sudoku
 - **Никогда не меняй уже опубликованные миграции** — у живых юзеров они уже отработали.
 - Skill `prepare-release-candidate` сам проверит реестр перед сборкой.
 
+**Политика прогресса:** Прогресс (`completedLevels`, `completedByDifficulty`) **никогда не сбрасывается** автоматически. Сбросить можно только через dev-panel (`?dev=1`) или системную «Очистить данные» Android. См. `Storage.resetProgress()` / `Storage.resetAll()` и [docs/SAVES.md](docs/SAVES.md). Не добавляй других путей сброса в gameplay-код.
+
 ## Реклама
 
 Yandex Mobile Ads (только в APK через `-YandexAdsBridge`). В браузере — mock-оверлей.
