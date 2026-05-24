@@ -41,10 +41,15 @@ window.Game = (function () {
   function startTimer() {
     stopTimer();
     timerStartedAt = Date.now();
-    timerInterval = setInterval(function () {
-      const el = document.getElementById('game-timer');
-      if (el) el.textContent = window.UI.formatTime(getElapsedMs());
-    }, 1000);
+    // Таймер считает elapsedMs всегда (нужен для статистики), но визуальное
+    // отображение убрано из игрового экрана. Если когда-нибудь снова появится
+    // элемент #game-timer — он начнёт обновляться сам.
+    const tickEl = document.getElementById('game-timer');
+    if (tickEl) {
+      timerInterval = setInterval(function () {
+        tickEl.textContent = window.UI.formatTime(getElapsedMs());
+      }, 1000);
+    }
   }
 
   function stopTimer() {

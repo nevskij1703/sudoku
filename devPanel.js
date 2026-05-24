@@ -28,7 +28,83 @@ window.DevPanel = (function () {
     panel.innerHTML = renderHtml();
     document.body.appendChild(panel);
     wire();
+    enableDrag();
     refresh();
+  }
+
+  // Drag: на handle (header) — двигает всю панель. Работает и в collapsed,
+  // и в развёрнутом виде. Mouse + touch. Сохраняем позицию между ререндерами
+  // через style.left/top (вытесняя дефолтное top/right).
+  function enableDrag() {
+    const handle = panel.querySelector('.dev-panel-header');
+    if (!handle) return;
+    let startX = 0, startY = 0, baseX = 0, baseY = 0, dragging = false;
+    let downAt = 0, moved = false;
+
+    function getRect() { return panel.getBoundingClientRect(); }
+
+    function applyPos(x, y) {
+      const w = panel.offsetWidth, h = panel.offsetHeight;
+      const maxX = window.innerWidth  - w - 4;
+      const maxY = window.innerHeight - h - 4;
+      x = Math.max(4, Math.min(maxX, x));
+      y = Math.max(4, Math.min(maxY, y));
+      panel.style.left = x + 'px';
+      panel.style.top  = y + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    }
+
+    function onDown(clientX, clientY) {
+      const r = getRect();
+      baseX = r.left; baseY = r.top;
+      startX = clientX; startY = clientY;
+      dragging = true; moved = false;
+      downAt = Date.now();
+      panel.classList.add('dragging');
+    }
+    function onMove(clientX, clientY) {
+      if (!dragging) return;
+      const dx = clientX - startX, dy = clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      applyPos(baseX + dx, baseY + dy);
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      panel.classList.remove('dragging');
+    }
+
+    handle.addEventListener('mousedown', function (e) {
+      // Не дёргаем drag если клик на toggle-кнопку
+      if (e.target.closest('#dev-toggle')) return;
+      e.preventDefault();
+      onDown(e.clientX, e.clientY);
+    });
+    document.addEventListener('mousemove', function (e) { onMove(e.clientX, e.clientY); });
+    document.addEventListener('mouseup', onUp);
+
+    handle.addEventListener('touchstart', function (e) {
+      if (e.target.closest('#dev-toggle')) return;
+      const t = e.touches[0];
+      onDown(t.clientX, t.clientY);
+    }, { passive: true });
+    handle.addEventListener('touchmove', function (e) {
+      const t = e.touches[0];
+      onMove(t.clientX, t.clientY);
+      if (moved) e.preventDefault();
+    }, { passive: false });
+    handle.addEventListener('touchend', onUp);
+
+    // Когда панель свёрнута — нет внутреннего toggle. Сам collapsed-блок
+    // работает как handle, и одиночный клик (без drag) разворачивает её.
+    panel.addEventListener('click', function (e) {
+      if (!panel.classList.contains('collapsed')) return;
+      if (Date.now() - downAt > 300) return;     // долго удерживали — это drag
+      if (moved) return;
+      collapsed = false;
+      panel.classList.remove('collapsed');
+    });
   }
 
   function renderHtml() {

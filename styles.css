@@ -75,8 +75,10 @@ input { font: inherit; color: inherit; }
   font-size: 20px; color: var(--text);
   background: var(--bg-soft);
   box-shadow: var(--shadow);
+  flex-shrink: 0;
 }
 .icon-btn:active { transform: scale(0.94); }
+.icon { width: 22px; height: 22px; display: block; }
 
 /* ============ Кнопки ============ */
 .btn {
@@ -108,7 +110,9 @@ input { font: inherit; color: inherit; }
 .home-top {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-top: 12px;
+  gap: 12px;
 }
+.home-top-actions { display: flex; gap: 8px; }
 .title-block { padding: 16px 0; }
 .brand {
   font-size: 40px; font-weight: 900; letter-spacing: 4px; color: var(--text);
@@ -175,17 +179,39 @@ input { font: inherit; color: inherit; }
 #screen-difficulty #btn-start-level { margin-top: auto; }
 
 /* ============ Game ============ */
+#screen-game {
+  /* Дополнительный отступ сверху — на телефонах там часто камера/датчики,
+     лучше держаться подальше. Снизу — sсайф-зона для кнопок (тулбары, жесты). */
+  padding-top:    max(env(safe-area-inset-top), 28px);
+  padding-bottom: max(env(safe-area-inset-bottom), 28px);
+}
 .game-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  gap: 10px;
 }
-.game-head-center {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+.game-head-title {
+  flex: 1; text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  line-height: 1.05;
 }
-.hearts-row { display: flex; gap: 4px; font-size: 18px; }
+.game-title {
+  font-size: 22px; font-weight: 800; letter-spacing: 1px; color: var(--text);
+}
+.game-subtitle {
+  font-size: 12px; color: var(--text-dim);
+  margin-top: 4px;
+  text-transform: uppercase; letter-spacing: 1.2px;
+}
+.game-head-actions { display: flex; gap: 6px; }
+
+.hearts-row {
+  display: flex; gap: 4px; font-size: 20px;
+  justify-content: center;
+  margin: 4px 0 8px;
+}
 .heart { color: var(--error); }
 .heart.lost { color: var(--text-faded); }
-.timer { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 /* ===== Board ===== */
 .board-wrap {
@@ -225,7 +251,7 @@ input { font: inherit; color: inherit; }
 .cell.col-last { border-right: none; }
 .cell.row-last { border-bottom: none; }
 
-.cell.given { color: var(--given); font-weight: 800; }
+.cell.given { color: var(--given); font-weight: 500; }
 .cell.error { color: var(--error); background: var(--error-bg); }
 .cell.hint  { color: var(--hint); font-weight: 700; }
 
@@ -254,38 +280,33 @@ input { font: inherit; color: inherit; }
 .number-pad {
   margin-top: auto;
   padding-top: 8px;
+  /* Поднимаем тулбар над навигационной полоской / жестами */
+  padding-bottom: 12px;
 }
 .numpad-row {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
   gap: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .num-btn {
   position: relative;
   background: var(--bg-soft);
   border-radius: 10px;
-  padding: 12px 0 6px;
+  padding: 14px 0;
   font-size: 22px;
   font-weight: 700;
   color: var(--accent-strong);
   box-shadow: var(--shadow);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 56px;
 }
 .num-btn:active { transform: scale(0.94); }
 .num-btn.depleted { opacity: 0.30; }
-.num-btn .count {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-dim);
-  margin-top: 2px;
-  min-height: 12px;
-}
 
 .tools-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 .tool-btn {
@@ -328,7 +349,19 @@ input { font: inherit; color: inherit; }
   width: 100%; max-width: 380px;
   box-shadow: var(--shadow-lg);
   text-align: center;
+  position: relative;
 }
+.modal-box-wide { max-width: 440px; }
+.modal-close-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-dim);
+  margin: 18px auto 0;
+}
+.modal-close-btn:active { transform: scale(0.92); background: var(--accent-soft); }
+.modal-close-btn .icon { width: 22px; height: 22px; }
 .modal-emoji { font-size: 48px; line-height: 1; }
 .modal-title { font-size: 24px; font-weight: 800; margin: 10px 0 12px; }
 .modal-text { color: var(--text-dim); font-size: 14px; margin: 8px 0 18px; }
@@ -347,6 +380,37 @@ input { font: inherit; color: inherit; }
 .modal-actions {
   display: flex; flex-direction: column; gap: 8px;
 }
+
+/* ============ Info modal (правила) ============ */
+.rules-list {
+  display: flex; flex-direction: column; gap: 14px;
+  margin: 16px 0 8px;
+  text-align: left;
+}
+.rule {
+  display: grid;
+  grid-template-columns: 32px 64px 1fr;
+  gap: 12px;
+  align-items: center;
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 12px;
+}
+.rule-num {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+}
+.rule-img {
+  width: 60px; height: 60px;
+  display: flex; align-items: center; justify-content: center;
+}
+.rule-img svg { width: 60px; height: 60px; }
+.rule-text { font-size: 14px; color: var(--text); line-height: 1.35; }
 
 .settings-list {
   text-align: left;
@@ -423,8 +487,23 @@ input { font: inherit; color: inherit; }
   overflow-y: auto;
   font-size: 12px;
   box-shadow: var(--shadow-lg);
+  touch-action: none; /* для drag по touch */
 }
-.dev-panel.collapsed { padding: 0; width: 36px; height: 36px; overflow: hidden; }
+.dev-panel.collapsed {
+  padding: 0; width: 40px; height: 40px;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.dev-panel.dragging { opacity: 0.85; cursor: grabbing; }
+.dev-panel-header { cursor: grab; user-select: none; }
+.dev-panel-header:active { cursor: grabbing; }
+.dev-panel.collapsed .dev-panel-header {
+  margin: 0;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.dev-panel.collapsed .dev-panel-header span { display: none; }
+.dev-panel.collapsed .dev-body { display: none; }
 .dev-panel button {
   display: block; width: 100%;
   padding: 6px 8px; margin: 2px 0;

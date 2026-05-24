@@ -7,8 +7,9 @@
  *   3. Маунт Board и NumberPad.
  *   4. Развешивание обработчиков на кнопки, экраны, модалки.
  *   5. Подписка на события Game (win/gameover/heartLost).
- *   6. Если ?dev=1 — DevPanel.mount() (если файл не вырезан release-сборкой).
- *   7. Показать главный экран и обновить статистику.
+ *   6. Click-outside для модалок с data-close-outside="1".
+ *   7. Если ?dev=1 — DevPanel.mount() (если файл не вырезан release-сборкой).
+ *   8. Показать главный экран и обновить статистику.
  */
 (function () {
   document.addEventListener('DOMContentLoaded', init);
@@ -18,9 +19,9 @@
   let selectedMode = 'classic';
 
   function init() {
-    // ===== 1. Storage и базовая инициализация =====
+    // ===== 1. Storage =====
     window.Storage.load();
-    window.RuStoreReviewClient.configure(window.GAME_CONFIG_APP_ID || 'com.terekh.sudoku');
+    window.RuStoreReviewClient.configure('com.terekh.sudoku');
 
     // ===== 2. Маунт игровых компонентов =====
     window.Board.mount(document.getElementById('board'), function (idx) {
@@ -29,7 +30,6 @@
 
     window.NumberPad.mount({
       onNumber: function (d) { window.Game.handleNumber(d); },
-      onErase:  function ()  { window.Game.handleErase(); },
       onPencilToggle: function (active) { window.Game.setPencilMode(active); },
       onHint:   function ()  { window.Game.handleHint(); },
       onUndo:   function ()  { window.Game.handleUndo(); }
@@ -38,39 +38,30 @@
     // ===== 3. Game callbacks =====
     window.Game.on('win', function (data) {
       window.UI.setText('win-difficulty', difficultyLabel(data.difficulty));
-      window.UI.setText('win-time', window.UI.formatTime(data.elapsedMs));
       window.UI.setText('win-mistakes', String(data.mistakes));
       window.UI.setText('win-hints', String(data.hintsUsed));
       window.UI.showModal('win');
-      // Триггер RuStore review после первого win'а
-      if (!window.Storage.getRateGiven()) {
-        setTimeout(function () { /* отложим до явного запроса в settings */ }, 0);
-      }
     });
 
     window.Game.on('gameover', function () {
       window.UI.showModal('gameover');
     });
 
-    window.Game.on('heartLost', function (data) {
-      // Уже отрендерили в Game.renderAll() через UI.setHearts. Можно добавить shake-эффект если захочется.
+    window.Game.on('change', function () {
+      // Обновляем подзаголовок игрового экрана при каждом изменении состояния
+      const a = window.Game.getActive();
+      if (a) {
+        window.UI.setText('game-subtitle', difficultyLabel(a.difficulty));
+      }
     });
 
     // ===== 4. Главный экран =====
     document.getElementById('btn-play').addEventListener('click', function () {
       gotoDifficultyScreen();
     });
-
-    document.getElementById('btn-continue').addEventListener('click', function () {
-      if (window.Game.resumeActive()) {
-        window.UI.showScreen('game');
-      } else {
-        gotoDifficultyScreen();
-      }
-    });
-
-    document.getElementById('btn-home-settings').addEventListener('click', function () {
-      openSettings(/*fromGame=*/false);
+    document.getElementById('btn-home-settings').addEventListener('click', openSettings);
+    document.getElementById('btn-home-info').addEventListener('click', function () {
+      window.UI.showModal('info');
     });
 
     // ===== 5. Экран выбора сложности и режима =====
@@ -97,7 +88,6 @@
     });
 
     document.getElementById('btn-start-level').addEventListener('click', function () {
-      // Возможно покажем interstitial перед стартом
       const completed = window.Storage.getCompletedLevels();
       const shouldShow = window.AdManager.shouldShowInterstitial(completed);
       const launch = function () {
@@ -112,19 +102,26 @@
     });
 
     // ===== 6. Игровой экран =====
-    document.getElementById('btn-game-back').addEventListener('click', function () {
-      // Сейчас сохраняем active, чтобы юзер мог вернуться через «Продолжить»
-      window.Game._stopTimer();
+    document.getElementById('btn-game-home').addEventListener('click', function () {
+      window.UI.showModal('confirm-exit');
+    });
+    document.getElementById('btn-game-info').addEventListener('click', function () {
+      window.UI.showModal('info');
+    });
+    document.getElementById('btn-game-settings').addEventListener('click', openSettings);
+
+    // ===== 7. Подтверждение выхода =====
+    document.getElementById('btn-confirm-exit-yes').addEventListener('click', function () {
+      window.UI.hideModal('confirm-exit');
+      window.Game.abandon();
       window.UI.showScreen('home');
       updateHomeStats();
     });
-
-    document.getElementById('btn-game-pause').addEventListener('click', function () {
-      window.Game._stopTimer();
-      window.UI.showModal('pause');
+    document.getElementById('btn-confirm-exit-no').addEventListener('click', function () {
+      window.UI.hideModal('confirm-exit');
     });
 
-    // ===== 7. Модалки =====
+    // ===== 8. Модалки win / gameover =====
     document.getElementById('btn-win-next').addEventListener('click', function () {
       window.UI.hideModal('win');
       gotoDifficultyScreen();
@@ -141,7 +138,6 @@
         if (result.watched) {
           window.Game.applyAdReward(result.reward);
         } else {
-          // Реклама не доиграла. Показываем сообщение и оставляем модалку открытой.
           window.UI.showModal('gameover');
         }
       });
@@ -158,35 +154,36 @@
       updateHomeStats();
     });
 
-    document.getElementById('btn-pause-resume').addEventListener('click', function () {
-      window.UI.hideModal('pause');
-      window.Game._startTimer();
-    });
-    document.getElementById('btn-pause-settings').addEventListener('click', function () {
-      openSettings(/*fromGame=*/true);
-    });
-    document.getElementById('btn-pause-home').addEventListener('click', function () {
-      window.UI.hideModal('pause');
-      window.UI.showScreen('home');
-      updateHomeStats();
-    });
-
-    document.getElementById('btn-settings-close').addEventListener('click', function () {
-      window.UI.hideModal('settings');
-    });
+    // ===== 9. Settings modal =====
     document.getElementById('btn-rate').addEventListener('click', function () {
       window.RuStoreReviewClient.launch().then(function (r) {
         if (r.shown) window.Storage.setRateGiven(true);
       });
     });
-
-    // ===== 8. Settings toggles =====
     wireSettingsToggle('setting-sound', 'sound');
     wireSettingsToggle('setting-vibration', 'vibration');
     wireSettingsToggle('setting-highlighter', 'highlighter', function () { window.Game._renderAll && window.Game._renderAll(); });
     wireSettingsToggle('setting-auto-notes', 'autoNotesClean');
 
-    // ===== 9. Dev panel =====
+    // ===== 10. Универсальные кнопки закрытия модалок + click-outside =====
+    document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const id = btn.dataset.closeModal;
+        if (id) window.UI.hideModal(id);
+      });
+    });
+
+    document.querySelectorAll('.modal[data-close-outside="1"]').forEach(function (modal) {
+      modal.addEventListener('click', function (e) {
+        // Закрываем только когда клик пришёл по самому фону, а не по содержимому
+        if (e.target === modal) {
+          const id = modal.dataset.modalId;
+          if (id) window.UI.hideModal(id);
+        }
+      });
+    });
+
+    // ===== 11. Dev panel =====
     const params = new URLSearchParams(window.location.search);
     const devEnabled = (params.get('dev') === '1') && !window.__BUILD_RELEASE__;
     if (devEnabled) {
@@ -198,17 +195,12 @@
       }
     }
 
-    // ===== 10. Стартовый экран =====
+    // ===== 12. Стартовый экран =====
     updateHomeStats();
     window.UI.showScreen('home');
-
-    // Кнопка Continue видна только если есть active save
-    const active = window.Storage.getActive();
-    document.getElementById('btn-continue').classList.toggle('hidden', !active);
   }
 
   function gotoDifficultyScreen() {
-    // Восстанавливаем визуальное выделение в плитках
     document.querySelectorAll('.diff-tile').forEach(function (t) {
       t.classList.toggle('selected', t.dataset.difficulty === selectedDifficulty);
     });
@@ -227,11 +219,9 @@
     const byDiff = window.Storage.getCompletedByDifficulty();
     window.UI.setText('stat-completed', String(total));
     window.UI.setText('stat-by-diff', (byDiff.easy || 0) + ' / ' + (byDiff.medium || 0) + ' / ' + (byDiff.hard || 0));
-    const active = window.Storage.getActive();
-    document.getElementById('btn-continue').classList.toggle('hidden', !active);
   }
 
-  function openSettings(fromGame) {
+  function openSettings() {
     const s = window.Storage.getSettings();
     document.getElementById('setting-sound').checked       = !!s.sound;
     document.getElementById('setting-vibration').checked   = !!s.vibration;
