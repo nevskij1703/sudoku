@@ -5,7 +5,7 @@
  * Модалки: 'win' | 'gameover' | 'pause' | 'settings' (показываются поверх экранов).
  */
 window.UI = (function () {
-  const SCREEN_IDS  = ['home', 'difficulty', 'game'];
+  const SCREEN_IDS  = ['home', 'game'];
   const MODAL_IDS   = ['win', 'gameover', 'pause', 'settings'];
 
   function showScreen(name) {

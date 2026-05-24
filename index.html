@@ -87,11 +87,11 @@
     </defs>
   </svg>
 
-  <!-- ================= Главное меню ================= -->
+  <!-- ================= Главный экран — выбор + статистика ================= -->
   <section id="screen-home" class="screen">
     <header class="home-top">
       <div class="title-block">
-        <div class="brand">SUDOKU</div>
+        <div class="brand">СУДОКУ</div>
         <div class="brand-sub">Классик</div>
       </div>
       <div class="home-top-actions">
@@ -102,32 +102,6 @@
           <svg class="icon"><use href="#icon-settings"/></svg>
         </button>
       </div>
-    </header>
-
-    <div class="stats-card">
-      <div class="stats-line">
-        <span>Пройдено уровней:</span>
-        <span id="stat-completed">0</span>
-      </div>
-      <div class="stats-line dim">
-        <span>Простой / Средний / Сложный</span>
-        <span id="stat-by-diff">0 / 0 / 0</span>
-      </div>
-    </div>
-
-    <div class="home-actions">
-      <button id="btn-play" class="btn btn-primary big">Играть</button>
-    </div>
-  </section>
-
-  <!-- ================= Выбор сложности и режима ================= -->
-  <section id="screen-difficulty" class="screen">
-    <header class="screen-head">
-      <button id="btn-back-diff" class="icon-btn" aria-label="Назад">
-        <svg class="icon"><use href="#icon-home"/></svg>
-      </button>
-      <div class="screen-title">Новый уровень</div>
-      <div style="width:40px"></div>
     </header>
 
     <h2 class="section-title">Сложность</h2>
@@ -169,6 +143,17 @@
     </div>
 
     <button id="btn-start-level" class="btn btn-primary big">Начать</button>
+
+    <div class="stats-card">
+      <div class="stats-line">
+        <span>Пройдено уровней:</span>
+        <span id="stat-completed">0</span>
+      </div>
+      <div class="stats-line dim">
+        <span>Простой / Средний / Сложный</span>
+        <span id="stat-by-diff">0 / 0 / 0</span>
+      </div>
+    </div>
   </section>
 
   <!-- ================= Игровой экран ================= -->
@@ -178,7 +163,7 @@
         <svg class="icon"><use href="#icon-home"/></svg>
       </button>
       <div class="game-head-title">
-        <div class="game-title">Судоку</div>
+        <div class="brand brand-game">СУДОКУ</div>
         <div id="game-subtitle" class="game-subtitle">Средний</div>
       </div>
       <div class="game-head-actions">
@@ -325,10 +310,10 @@
           <input id="setting-auto-notes" type="checkbox" />
         </label>
       </div>
-      <button id="btn-rate" class="btn btn-link">Оценить приложение</button>
-      <button class="modal-close-btn" data-close-modal="settings" aria-label="Закрыть">
+      <button class="modal-close-corner" data-close-modal="settings" aria-label="Закрыть">
         <svg class="icon"><use href="#icon-close"/></svg>
       </button>
+      <button id="btn-rate" class="btn btn-link">Оценить приложение</button>
     </div>
   </div>
 

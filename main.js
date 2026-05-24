@@ -55,16 +55,12 @@
       }
     });
 
-    // ===== 4. Главный экран =====
-    document.getElementById('btn-play').addEventListener('click', function () {
-      gotoDifficultyScreen();
-    });
+    // ===== 4. Главный экран (выбор сложности + статистика на одном экране) =====
     document.getElementById('btn-home-settings').addEventListener('click', openSettings);
     document.getElementById('btn-home-info').addEventListener('click', function () {
       window.UI.showModal('info');
     });
 
-    // ===== 5. Экран выбора сложности и режима =====
     document.querySelectorAll('.diff-tile').forEach(function (tile) {
       tile.addEventListener('click', function () {
         document.querySelectorAll('.diff-tile').forEach(function (t) { t.classList.remove('selected'); });
@@ -80,11 +76,6 @@
         tile.classList.add('selected');
         selectedMode = tile.dataset.mode;
       });
-    });
-
-    document.getElementById('btn-back-diff').addEventListener('click', function () {
-      window.UI.showScreen('home');
-      updateHomeStats();
     });
 
     document.getElementById('btn-start-level').addEventListener('click', function () {
@@ -124,7 +115,7 @@
     // ===== 8. Модалки win / gameover =====
     document.getElementById('btn-win-next').addEventListener('click', function () {
       window.UI.hideModal('win');
-      gotoDifficultyScreen();
+      backToHome();
     });
     document.getElementById('btn-win-home').addEventListener('click', function () {
       window.UI.hideModal('win');
@@ -145,7 +136,7 @@
     document.getElementById('btn-gameover-restart').addEventListener('click', function () {
       window.UI.hideModal('gameover');
       window.Game.abandon();
-      gotoDifficultyScreen();
+      backToHome();
     });
     document.getElementById('btn-gameover-home').addEventListener('click', function () {
       window.UI.hideModal('gameover');
@@ -200,14 +191,17 @@
     window.UI.showScreen('home');
   }
 
-  function gotoDifficultyScreen() {
+  function backToHome() {
+    // Главный экран совмещён с выбором сложности — просто обновляем статистику
+    // и подсветку плиток в соответствии с сохранённым выбором.
     document.querySelectorAll('.diff-tile').forEach(function (t) {
       t.classList.toggle('selected', t.dataset.difficulty === selectedDifficulty);
     });
     document.querySelectorAll('.mode-tile').forEach(function (t) {
       t.classList.toggle('selected', t.dataset.mode === selectedMode);
     });
-    window.UI.showScreen('difficulty');
+    updateHomeStats();
+    window.UI.showScreen('home');
   }
 
   function difficultyLabel(d) {
