@@ -26,12 +26,23 @@ window.Game = (function () {
   // ===== State =====
   let active = null;            // см. структуру в storage.js → DEFAULTS().active
 
-  // Возвращает variant активного режима (или Classic если active нет)
+  // Возвращает variant активного режима (или Classic если active нет).
+  // Для mode-зависимых variants (sugur, kropki) пересоздаём concrete variant
+  // из сохранённых данных каждый раз — variant-объекты не сериализуются.
   function activeVariant() {
     if (!active) return Core.ClassicVariant;
-    return (window.SudokuVariants && window.SudokuVariants.byMode)
-           ? window.SudokuVariants.byMode(active.mode || 'classic')
-           : Core.ClassicVariant;
+    const SV = window.SudokuVariants;
+    if (!SV) return Core.ClassicVariant;
+    if (active.mode === 'sugur' && active.cellSnake && active.cellSnake.length === 81) {
+      // Восстанавливаем snakeCells из cellSnake
+      const snakeCells = [[], [], [], [], [], [], [], [], []];
+      for (let i = 0; i < 81; i++) {
+        const s = active.cellSnake[i];
+        if (s >= 0 && s < 9) snakeCells[s].push(i);
+      }
+      return SV.makeSugur(snakeCells, active.cellSnake);
+    }
+    return SV.byMode(active.mode || 'classic');
   }
   let selectedIdx = null;
   let undoStack = [];           // массив снапшотов {board, notes, mistakes, hearts, hintsUsed}
@@ -111,7 +122,8 @@ window.Game = (function () {
       hintCells: active.hintCells || new Array(81).fill(false),
       selectedIdx: selectedIdx,
       variant:   activeVariant(),
-      dots:      active.dots || null
+      dots:      active.dots || null,
+      cellSnake: active.cellSnake || null
     }, settings);
     window.NumberPad.updateCounts({ board: active.board });
     // Источник правды для счётчика подсказок — Storage.getHints() (глобально,
@@ -128,13 +140,57 @@ window.Game = (function () {
     const SV = window.SudokuVariants;
     const t0 = Date.now();
 
-    // Для Kropki сначала генерируем classic-puzzle, потом считаем dots из solution.
-    // В positive-only варианте все relations показаны, поэтому unique-classic
-    // автоматически даёт unique-kropki (kropki только добавляет подсказки).
-    let gen, dots = null;
+    // Mode-specific generation paths.
+    let gen, dots = null, snakeCells = null, cellSnake = null;
     if (mode === 'kropki' && SV && SV.computeKropkiDots) {
+      // Kropki: classic puzzle + dots computed from solution
       gen = Gen.generate(difficulty, { variant: SV.Classic });
       dots = SV.computeKropkiDots(gen.solution);
+    } else if (mode === 'sugur' && SV && SV.generateSnakeLayout) {
+      // Sugur: змейки + simple puzzle generation. Sudoku solver на random snakes
+      // ОЧЕНЬ медленный (countSolutions может быть >1s), поэтому используем
+      // упрощённый путь: решаем пустую сетку (получаем solution), удаляем
+      // random cells без строгой uniqueness-проверки на каждом шаге. UX
+      // trade-off: возможны multi-solution puzzles, но игроку дают подсказки
+      // через сами правила змеек.
+      const layout = SV.generateSnakeLayout();
+      if (!layout) {
+        console.warn('[game] sugur layout generation failed, fallback to classic');
+        gen = Gen.generate(difficulty, { variant: SV.Classic });
+      } else {
+        const sugurVariant = SV.makeSugur(layout.snakeCells, layout.cellSnake);
+        const t1 = Date.now();
+        const sol = Core.solve(new Array(81).fill(0), sugurVariant, Math.random);
+        const t2 = Date.now();
+        if (!sol) {
+          console.warn('[game] sugur solve failed, fallback to classic');
+          gen = Gen.generate(difficulty, { variant: SV.Classic });
+        } else {
+          const removeMap = { easy: 35, medium: 45, hard: 52 };
+          const targetRemove = removeMap[difficulty] || 40;
+          const puzzle = sol.slice();
+          const idxs = Array.from({ length: 81 }, function (_, i) { return i; });
+          for (let i = idxs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
+          }
+          for (let k = 0; k < targetRemove; k++) puzzle[idxs[k]] = 0;
+          gen = {
+            puzzle: puzzle, solution: sol,
+            givens: puzzle.map(function (v) { return v !== 0; }),
+            difficulty: difficulty,
+            score: targetRemove,
+            techniques: {},
+            elapsedMs: Date.now() - t1,
+            attempts: 1
+          };
+          console.log('[game] sugur built: solveMs=' + (t2 - t1) + ' totalMs=' + (Date.now() - t1));
+        }
+        if (gen) {
+          snakeCells = layout.snakeCells;
+          cellSnake = layout.cellSnake;
+        }
+      }
     } else {
       const variant = (SV && SV.byMode) ? SV.byMode(mode) : Core.ClassicVariant;
       gen = Gen.generate(difficulty, { variant: variant });
@@ -148,6 +204,7 @@ window.Game = (function () {
       difficulty: difficulty,
       mode: mode,
       dots: dots,
+      cellSnake: cellSnake,
       puzzle:    gen.puzzle,
       solution:  gen.solution,
       givens:    gen.givens,

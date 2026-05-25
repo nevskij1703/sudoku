@@ -343,6 +343,21 @@ input { font: inherit; color: inherit; }
 .cell.center-cell          { background: #e0f5ee; }
 .cell.windoku-zone         { background: #fff2dc; }
 
+/* Sugur — каждая змейка своим цветом. Палитра softened pastel, читаемая поверх белого. */
+.cell[data-snake="0"] { background: #ffe3e3; }
+.cell[data-snake="1"] { background: #ffe9d4; }
+.cell[data-snake="2"] { background: #fff5cc; }
+.cell[data-snake="3"] { background: #e7f6d4; }
+.cell[data-snake="4"] { background: #d4f0e3; }
+.cell[data-snake="5"] { background: #d2eaf5; }
+.cell[data-snake="6"] { background: #dde0fb; }
+.cell[data-snake="7"] { background: #ecdcf6; }
+.cell[data-snake="8"] { background: #f8d7e6; }
+/* В sugur — обычные block-bordersr скрываем, чтобы не путать со змейками */
+.board.sugur-board .cell[data-col="2"],
+.board.sugur-board .cell[data-col="5"] { border-right-color: var(--grid-line); border-right-width: 1px; }
+.board.sugur-board .cell.row-edge-bottom { border-bottom-color: var(--grid-line); border-bottom-width: 1px; }
+
 /* Kropki — точки на границах между соседними клетками.
    После ::after = «правая» точка, ::before = «нижняя».
    Заполненная — значит цифры отличаются в 2 раза, пустая — на 1. */

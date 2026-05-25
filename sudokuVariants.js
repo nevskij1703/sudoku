@@ -232,6 +232,133 @@ window.SudokuVariants = (function () {
     };
   }
 
+  // ===== Sugur — змейки вместо квадратов 3×3 =====
+  //
+  // Поле 9×9 делится на 9 ломаных «змеек» по 9 клеток каждая. Цифры не должны
+  // повторяться по строкам, столбцам и в рамках одной змейки.
+  //
+  // Генератор раскладки змеек (snakes-layout):
+  //   1. Случайно выбираем 9 seed-клеток.
+  //   2. BFS-expansion: каждую итерацию расширяем snake с минимальным размером,
+  //      пристраивая случайную соседнюю пустую клетку.
+  //   3. Если snake застряла без соседей — restart с новыми seed'ами.
+  //   4. После 200 retries возвращаем null (fallback на classic boxes).
+  //
+  // Generator-side: в Game.startNewLevel генерим snakes, создаём concrete
+  // SugurVariant и подаём в Gen.generate().
+
+  function generateSnakeLayout(rng) {
+    rng = rng || Math.random;
+    // 9 фиксированных seed-позиций — центры классических 3×3 блоков. Это
+    // гарантирует баланс — каждый seed окружён достаточным пространством для
+    // роста до 9 клеток. Случайность даёт expansion (от центра растут в
+    // разные направления каждый раз).
+    const FIXED_SEEDS = [10, 13, 16, 37, 40, 43, 64, 67, 70];
+    for (let attempt = 0; attempt < 500; attempt++) {
+      const cellSnake = new Array(81).fill(-1);
+      const snakeCells = [[], [], [], [], [], [], [], [], []];
+      const seeds = FIXED_SEEDS;
+      for (let s = 0; s < 9; s++) {
+        cellSnake[seeds[s]] = s;
+        snakeCells[s].push(seeds[s]);
+      }
+
+      let stuck = false;
+      while (true) {
+        let allFull = true;
+        for (let s = 0; s < 9; s++) if (snakeCells[s].length < 9) { allFull = false; break; }
+        if (allFull) break;
+        const order = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(function (a, b) {
+          return snakeCells[a].length - snakeCells[b].length;
+        });
+        let expanded = false;
+        for (let oi = 0; oi < order.length; oi++) {
+          const s = order[oi];
+          if (snakeCells[s].length >= 9) continue;
+          const adj = [];
+          const seen = new Set();
+          for (let k = 0; k < snakeCells[s].length; k++) {
+            const cell = snakeCells[s][k];
+            const r = Math.floor(cell / 9), c = cell % 9;
+            if (r > 0) { const n = (r - 1) * 9 + c; if (cellSnake[n] === -1 && !seen.has(n)) { adj.push(n); seen.add(n); } }
+            if (r < 8) { const n = (r + 1) * 9 + c; if (cellSnake[n] === -1 && !seen.has(n)) { adj.push(n); seen.add(n); } }
+            if (c > 0) { const n = r * 9 + (c - 1); if (cellSnake[n] === -1 && !seen.has(n)) { adj.push(n); seen.add(n); } }
+            if (c < 8) { const n = r * 9 + (c + 1); if (cellSnake[n] === -1 && !seen.has(n)) { adj.push(n); seen.add(n); } }
+          }
+          if (adj.length === 0) continue;
+          const next = adj[Math.floor(rng() * adj.length)];
+          cellSnake[next] = s;
+          snakeCells[s].push(next);
+          expanded = true;
+          break;
+        }
+        if (!expanded) { stuck = true; break; }
+      }
+      if (stuck) continue;
+      return { cellSnake: cellSnake, snakeCells: snakeCells };
+    }
+    return null;
+  }
+
+  function makeSugur(snakeCells, cellSnake) {
+    const rowUnits = [], colUnits = [];
+    for (let i = 0; i < 9; i++) {
+      const row = [], col = [];
+      for (let j = 0; j < 9; j++) {
+        row.push(i * 9 + j);
+        col.push(j * 9 + i);
+      }
+      rowUnits.push(row);
+      colUnits.push(col);
+    }
+    const all = rowUnits.concat(colUnits).concat(snakeCells);
+
+    const cellUnits = new Array(81);
+    const peers     = new Array(81);
+    for (let i = 0; i < 81; i++) {
+      cellUnits[i] = [];
+      const peerSet = new Set();
+      for (let u = 0; u < all.length; u++) {
+        if (all[u].indexOf(i) !== -1) {
+          cellUnits[i].push(all[u]);
+          for (let k = 0; k < all[u].length; k++) if (all[u][k] !== i) peerSet.add(all[u][k]);
+        }
+      }
+      peers[i] = Array.from(peerSet);
+    }
+
+    return {
+      name: 'sugur',
+      size: 9, boxRows: 0, boxCols: 0, cellCount: 81,
+      ALL_MASK: 0x1FF,
+      digits: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      skipHumanSolve: true,    // humanSolve не учитывает змейки — пропускаем
+      // Для Sugur выбираем givensTarget исходя из общей сложности solver'а
+      givensTarget: {
+        easy:   [38, 42],
+        medium: [32, 36],
+        hard:   [26, 30]
+      },
+      unitsForCell: function (i) { return cellUnits[i]; },
+      peersForCell: function (i) { return peers[i]; },
+      allUnits: function () { return all; },
+      rowsAndCols: function () { return { rows: rowUnits, cols: colUnits, boxes: snakeCells }; },
+      isLegal: function (g, i, d) {
+        const us = cellUnits[i];
+        for (let u = 0; u < us.length; u++) {
+          const unit = us[u];
+          for (let k = 0; k < unit.length; k++) {
+            if (unit[k] !== i && g[unit[k]] === d) return false;
+          }
+        }
+        return true;
+      },
+      seedGrid: null,
+      _snakeCells: snakeCells,
+      _cellSnake: cellSnake
+    };
+  }
+
   // ===== Mini 4×4 — режим для начинающих =====
   // Поле 4×4 = 16 ячеек, 4 блока 2×2, цифры 1-4. Совершенно другая геометрия:
   // не extension Classic, а отдельный variant.
@@ -337,6 +464,9 @@ window.SudokuVariants = (function () {
     computeKropkiDots: computeKropkiDots,
     makeKropki: makeKropki,
     relationOf: relationOf,
+    // Sugur API
+    generateSnakeLayout: generateSnakeLayout,
+    makeSugur: makeSugur,
     // Доп. справка: метаданные клеток для UI (рендерим тонировку и т.п.)
     META: {
       diagonal: {

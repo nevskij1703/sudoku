@@ -38,13 +38,18 @@ window.SudokuGenerator = (function () {
 
   function rateDifficulty(puzzle, variant) {
     if (!variant) variant = Core.ClassicVariant;
-    // Не-9×9 variants (Mini) — humanSolve hardcoded под 9×9.
-    // Возвращаем фиксированный «easy» рейтинг, проверяем только solvability.
-    if ((variant.size || 9) !== 9) {
+    // Не-9×9 variants (Mini) и variants со skipHumanSolve=true (Sugur, Chain)
+    // — humanSolve либо hardcoded под 9 units определённого типа, либо слишком
+    // дорог. Возвращаем «easy/medium» оценку по количеству givens.
+    if ((variant.size || 9) !== 9 || variant.skipHumanSolve) {
       const bt = Core.solve(puzzle, variant);
+      const givens = countGivens(puzzle);
+      const N = variant.cellCount || 81;
+      const label = givens >= 0.45 * N ? 'easy' :
+                    givens >= 0.35 * N ? 'medium' : 'hard';
       return {
-        score: ((variant.cellCount || 81) - countGivens(puzzle)) * 1.0,
-        label: 'easy',
+        score: (N - givens) * 1.0,
+        label: label,
         techniques: {},
         solvable: !!bt,
         humanSolvable: true

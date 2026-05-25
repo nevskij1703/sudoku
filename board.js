@@ -83,6 +83,9 @@ window.Board = (function () {
     const selDigit = sel != null ? state.board[sel] : 0;
     const useHighlight = settings && settings.highlighter !== false;
 
+    // Sugur: добавляем/убираем класс на board чтобы CSS приглушил block-borders
+    boardEl.classList.toggle('sugur-board', !!(state.cellSnake && state.cellSnake.length === 81));
+
     // Сбрасываем Kropki-классы (могут остаться от предыдущего mode)
     for (let i = 0; i < N; i++) {
       cells[i].classList.remove(
@@ -107,6 +110,13 @@ window.Board = (function () {
       const isGiven = state.givens[i];
       const isHint = state.hintCells && state.hintCells[i];
       const isError = state.mistakes && state.mistakes[i];
+
+      // Sugur — каждая змейка имеет свой data-snake (0..8); CSS красит группу
+      if (state.cellSnake && state.cellSnake.length === 81) {
+        cell.dataset.snake = String(state.cellSnake[i]);
+      } else if (cell.dataset.snake !== undefined) {
+        delete cell.dataset.snake;
+      }
 
       if (value !== 0) {
         cell.textContent = String(value);
