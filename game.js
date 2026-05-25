@@ -534,6 +534,14 @@ window.Game = (function () {
     if (active.givens[idx]) return;
     if (active.hintCells && active.hintCells[idx]) return;
 
+    // Если в ячейке уже стоит ПРАВИЛЬНАЯ цифра (board !== 0 и не mistake) —
+    // её больше нельзя перебить ни другим числом, ни даже повторным кликом
+    // (который раньше «стирал» цифру). Игрок может только продолжить ставить
+    // в другие ячейки. Это защищает от случайной потери правильного хода.
+    if (active.board[idx] !== 0 && !active.mistakes[idx]) {
+      return;
+    }
+
     // В быстром режиме pencil заблокирован (см. NumberPad.setPencilEnabled),
     // но если кто-то всё-таки взвёл pencilMode — игнорируем pencil-ввод.
     if (active.fastModeActive && pencilMode) return;
@@ -779,6 +787,10 @@ window.Game = (function () {
         return;
       }
       active.fastModeActive = true;
+      // Карандаш в быстром режиме недоступен — выключаем сразу, чтобы
+      // юзер не оказался в состоянии «pencil ON но кнопка disabled».
+      pencilMode = false;
+      if (window.NumberPad) window.NumberPad.setPencilMode(false);
       recomputeAllNotes();
     } else {
       active.fastModeActive = false;

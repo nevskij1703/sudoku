@@ -91,8 +91,10 @@ window.Board = (function () {
     boardEl.classList.toggle('sugur-board', isSugur);
     // Выбранная змейка (id 0..8) — её граница рисуется ярче, у остальных
     // тоньше. См. renderSugurOverlay.
-    var selSnakeId = isSugur && sel != null && state.cellSnake[sel] >= 0
-      ? state.cellSnake[sel] : -1;
+    // Sugur: по запросу UX выделение selected-змейки толщиной убрано —
+    // все границы между змейками одной толщины. selSnakeId фиксируем в -1
+    // чтобы renderSugurOverlay не накладывал accent-границы.
+    var selSnakeId = -1;
     renderSugurOverlay(state, size, isSugur, selSnakeId);
     // Chain: круглые ячейки + SVG-overlay с линиями + приглушённые grid-borders
     var isChain = !!(state.cellChain && state.cellChain.length === 81);
@@ -135,12 +137,13 @@ window.Board = (function () {
         if (k !== r) peers.add(k * size + c);
       }
     }
-    // Accent-периметр выбранного блока для variants с boxes (Classic, Mini,
-    // Diagonal, Center, Windoku, Kropki). Sugur/Chain используют свой
-    // overlay (см. renderSugurOverlay / renderChainOverlay).
-    const showBlockHighlight = !isChain && !isSugur
-                            && sel != null && useHighlight
-                            && variant.boxRows > 0 && variant.boxCols > 0;
+    // Accent-периметр выбранного блока больше НЕ рисуем — по запросу
+    // пользователя block-highlight убран во всех режимах. Принадлежность
+    // ячейки к блоку 3×3 теперь подразумевается обычной сеткой grid'а
+    // (более толстые линии между блоками — см. row-edge-bottom / col-last).
+    // Sugur и Chain имеют свой overlay (renderSugurOverlay / renderChainOverlay),
+    // он остаётся.
+    const showBlockHighlight = false;
     renderBlockHighlight(state, size, variant, sel, showBlockHighlight);
     // Когда block-highlight активен — все «общие» block-borders cell'ов
     // делаем тоньше, чтобы selected-периметр заметно толще их.
@@ -263,7 +266,8 @@ window.Board = (function () {
     const edges = state.chainEdges || [];
     const cellChain = state.cellChain || [];
     const NORMAL = '0.028';
-    const THICK  = '0.05';    // выделенная цепочка заметнее (было 0.035)
+    const THICK  = '0.085';   // выделенная цепочка ОЧЕНЬ толстая — без cell-обводок
+                              // это единственный визуальный маркер цепочки
     const STROKE_COLOR = window.getComputedStyle(document.documentElement)
       .getPropertyValue('--grid-line-thick').trim() || '#1a2540';
     for (let k = 0; k < edges.length; k++) {

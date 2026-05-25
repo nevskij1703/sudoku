@@ -563,14 +563,14 @@ input { font: inherit; color: inherit; }
    cell иметь фон-квадрат. */
 .board.chain-board .cell                     { background: transparent !important; }
 .board.chain-board .cell.peer::after         { background: var(--highlight); }
+.board.chain-board .cell.same-digit::after   { background: var(--highlight-strong); }
 .board.chain-board .cell.selected::after     { background: var(--select); }
 .board.chain-board .cell.error::after        { background: var(--error-bg); }
 .board.chain-board .cell.error               { color: var(--error); }
 
-/* Ячейки выбранной цепочки (не само selected) — глубже тень + кольцо
-   акцентного цвета вокруг круга. Это и есть «подсветка цепочки»: уже не
-   через цветной фон, а через box-shadow. */
-.board.chain-board .cell.in-selected-chain::after,
+/* Selected ячейка — только она получает кольцо акцентного цвета. Cells
+   из той же цепочки НЕ обводим — связь показывается через линии
+   chain-overlay (renderChainEdges рисует выделенные линии толще). */
 .board.chain-board .cell.selected::after {
   box-shadow: 0 0 0 2px var(--accent), 0 2px 6px rgba(20, 30, 50, 0.25);
 }
