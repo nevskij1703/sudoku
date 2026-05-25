@@ -244,7 +244,6 @@ window.Board = (function () {
     }
     const edges = state.chainEdges || [];
     const cellChain = state.cellChain || [];
-    // Нормальная толщина ≈ 1.5px CSS, у selected цепочки — заметно толще.
     const NORMAL = '0.028';
     const THICK  = '0.06';
     for (let k = 0; k < edges.length; k++) {
@@ -261,6 +260,9 @@ window.Board = (function () {
       const inSel = (selChainId >= 0 && cellChain[a] === selChainId);
       line.setAttribute('stroke-width', inSel ? THICK : NORMAL);
       line.setAttribute('stroke-linecap', 'round');
+      // Линии чуть полупрозрачные — не отвлекают от цифр в кругах.
+      // У selected-цепочки выводим непрозрачно — она и должна вылезать.
+      line.setAttribute('opacity', inSel ? '1' : '0.4');
       chainSvg.appendChild(line);
     }
   }

@@ -188,7 +188,9 @@ input { font: inherit; color: inherit; }
   flex: 1 1 auto;
   height: 10px;
   border-radius: 5px;
-  background: linear-gradient(to right, #2fa974, #c9b026 50%, #e0581c);
+  /* Насыщенный градиент: яркий зелёный → ярко-жёлтый → красный.
+     Жёлтый в центре максимально читается. */
+  background: linear-gradient(to right, #25b25c 0%, #ffd11a 50%, #e23636 100%);
   outline: none;
   margin: 0;
 }
@@ -452,16 +454,17 @@ input { font: inherit; color: inherit; }
   position: relative;
   z-index: 2;
 }
-/* Сам круг — отдельный псевдоэлемент. Контур такой же тонкий и чёрный,
-   как и линии-связи в SVG-overlay (см. board.js → renderChainOverlay).
-   inset 8% оставляет небольшой воздух вокруг круга для hit-area. */
+/* Круги цепочек без обводки — только тенюшка для объёма. Связи рисует
+   SVG-overlay; линии немного прозрачные (см. board.js → renderChainOverlay)
+   чтобы не конкурировали с цифрами в фокусе. */
 .board.chain-board .cell::after {
   content: '';
   position: absolute;
   inset: 8%;
   border-radius: 50%;
   background: var(--chain-fill, #ffffff);
-  border: 1.5px solid #1a2540;
+  border: none;
+  box-shadow: 0 2px 5px rgba(20, 30, 50, 0.18);
   z-index: -1;
 }
 /* Все цепочки — одного нейтрального белого тона. Различает цепочки
@@ -478,11 +481,12 @@ input { font: inherit; color: inherit; }
 .board.chain-board .cell.error::after        { background: var(--error-bg); }
 .board.chain-board .cell.error               { color: var(--error); }
 
-/* Ячейки выбранной цепочки (не само selected) — увеличенная обводка.
-   Это и есть «подсветка цепочки», вместо цветного фона. */
+/* Ячейки выбранной цепочки (не само selected) — глубже тень + кольцо
+   акцентного цвета вокруг круга. Это и есть «подсветка цепочки»: уже не
+   через цветной фон, а через box-shadow. */
 .board.chain-board .cell.in-selected-chain::after,
 .board.chain-board .cell.selected::after {
-  border-width: 3px;
+  box-shadow: 0 0 0 2px var(--accent), 0 2px 6px rgba(20, 30, 50, 0.25);
 }
 
 /* Заметки внутри круга должны центрироваться красиво. inset 14% уменьшает
@@ -598,7 +602,12 @@ input { font: inherit; color: inherit; }
   border-radius: 14px;
   padding: 10px 4px;
   box-shadow: var(--shadow);
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  /* justify-content: center — текст всегда центрирован вертикально.
+     Высота фиксированная — гарантирует одинаковую baseline текста
+     у всех 4 кнопок, даже если иконка визуально крупнее (ластик 30px). */
+  justify-content: center;
+  min-height: 64px;
 }
 .tool-btn:active { transform: scale(0.94); }
 .tool-btn.active { background: var(--accent-soft); color: var(--accent); }
@@ -608,23 +617,19 @@ input { font: inherit; color: inherit; }
   opacity: 0.4;
   pointer-events: none;
 }
-/* Кнопка «Быстрый режим» в активном состоянии — сплошной синий фон,
-   белый текст и иконка. Контрастирует со светлыми соседями и сигналит
-   что режим работает. */
+/* Кнопка «Быстрый режим» в активном состоянии — лёгкая голубая
+   подложка (как у .tool-btn.active у карандаша). Иконка синяя, текст
+   не меняет цвет — менее яркий контраст, не отвлекает от поля. */
 #btn-fast.fast-active {
-  background: var(--accent);
-  box-shadow: 0 6px 16px rgba(49, 87, 211, 0.30);
+  background: var(--accent-soft);
 }
-#btn-fast.fast-active .tool-glyph,
-#btn-fast.fast-active .tool-label {
-  color: white;
+#btn-fast.fast-active .tool-glyph {
+  color: var(--accent);
 }
-.tool-glyph { width: 24px; height: 24px; display: block; }
-/* У ластика виду форма «длинного прямоугольника» — он визуально воспринимается
-   меньше квадратной иконки рядом. Чуть увеличиваем чтобы выровнять оптический
-   размер. */
-#btn-erase .tool-glyph { width: 30px; height: 30px; }
-.tool-label { font-size: 11px; color: var(--text-dim); }
+/* Все tool-иконки одного размера 28px — обеспечивает одинаковую
+   baseline текста на всех кнопках. Override для ластика убран. */
+.tool-glyph { width: 28px; height: 28px; display: block; }
+.tool-label { font-size: 11px; color: var(--text-dim); line-height: 1.1; }
 .tool-badge {
   position: absolute; top: 4px; right: 8px;
   font-size: 11px; font-weight: 700;

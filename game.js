@@ -382,7 +382,9 @@ window.Game = (function () {
 
   function handleCellClick(idx) {
     if (!active) return;
-    selectedIdx = idx;
+    // Повторный тап по уже выбранной ячейке — снимает выделение. Это
+    // удобно когда юзер хочет отменить выбор, не выбирая другую ячейку.
+    selectedIdx = (selectedIdx === idx) ? null : idx;
     window.AudioFX.click();
     renderAll();
   }

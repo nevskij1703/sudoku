@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=19" />
+  <link rel="stylesheet" href="styles.css?v=20" />
 </head>
 <body>
 
@@ -72,12 +72,12 @@
         <path d="M3.5 9 H 14 C 17.6 9 20.5 11.7 20.5 15.5 C 20.5 19.3 17.6 21 14 21 H 9.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
       <symbol id="icon-bolt" viewBox="0 0 24 24">
-        <!-- Молния — символ «быстрого режима» / автоматического решения.
-             Z-образный силуэт со скошенными углами, заливка currentColor. -->
+        <!-- Молния outline — Z-образный силуэт без заливки, как остальные
+             UI-иконки (pencil, lightbulb, undo). -->
         <path d="M13.5 2 L 4 14 L 11 14 L 9.5 22 L 20 9 L 13 9 L 14.5 2 Z"
-              fill="currentColor"
-              stroke="currentColor" stroke-width="1.2"
-              stroke-linejoin="round"/>
+              fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linejoin="round" stroke-linecap="round"/>
       </symbol>
       <symbol id="icon-eraser" viewBox="0 0 24 24">
         <!-- Горизонтальный прямоугольник-ластик с явным делением на две части.
@@ -134,15 +134,13 @@
         <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
-        <!-- empty white dot — сидит на середине вертикальной линии x=9
+        <!-- empty white dot — на середине вертикальной линии x=9
              между ячейками (1,0) и (1,1) -->
         <circle cx="9"  cy="12" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.2"/>
-        <!-- filled black dot — на середине вертикальной линии x=15 между
-             ячейками (1,1) и (1,2). Ранее был cy=9 — это пересечение
-             вертикальной и горизонтальной линий (угол 4 ячеек), что в
-             реальной игре не бывает: точки строго между двумя соседними
-             ячейками. Подвинули вниз чтобы попасть на середину линии. -->
-        <circle cx="15" cy="12" r="1.8" fill="currentColor"/>
+        <!-- filled black dot — на середине ГОРИЗОНТАЛЬНОЙ линии y=9
+             между ячейками (0,2) и (1,2). Это между правой средней и
+             право-верхней ячейками. -->
+        <circle cx="18" cy="9"  r="1.8" fill="currentColor"/>
       </symbol>
       <symbol id="icon-center" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
@@ -174,20 +172,23 @@
         <rect x="16.2" y="16.2" width="3.5" height="3.5" fill="currentColor" opacity="0.45"/>
       </symbol>
       <symbol id="icon-snake" viewBox="0 0 24 24">
-        <!-- Змейка-цепочка по клеточкам -->
-        <path d="M3 5 H 11 V 12 H 5 V 19 H 13 V 5 H 21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Минималистичная змейка: S-образная горизонтальная полоса с
+             двумя петлями. Линии — только 90° углы, без шумных деталей. -->
+        <path d="M4 6 H 14 V 12 H 10 V 18 H 20"
+              fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/>
       </symbol>
       <symbol id="icon-chain" viewBox="0 0 24 24">
-        <!-- Круги-ячейки соединены линиями -->
-        <line x1="6" y1="6"  x2="12" y2="12" stroke="currentColor" stroke-width="1.6"/>
-        <line x1="12" y1="12" x2="18" y2="6"  stroke="currentColor" stroke-width="1.6"/>
-        <line x1="12" y1="12" x2="18" y2="18" stroke="currentColor" stroke-width="1.6"/>
-        <line x1="12" y1="12" x2="6"  y2="18" stroke="currentColor" stroke-width="1.6"/>
-        <circle cx="6"  cy="6"  r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="18" cy="6"  r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="12" cy="12" r="3" fill="currentColor"/>
-        <circle cx="6"  cy="18" r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="18" cy="18" r="3" fill="#fff" stroke="currentColor" stroke-width="1.8"/>
+        <!-- Круги-узлы в zigzag-цепочке: 4 круга, последовательно связаны
+             диагональными линиями. Никаких X-крестов — каждая связь идёт
+             к следующему узлу в цепочке. -->
+        <line x1="4"  y1="18" x2="10" y2="9"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="10" y1="9"  x2="17" y2="15" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="17" y1="15" x2="21" y2="5"  stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="4"  cy="18" r="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="10" cy="9"  r="2.3" fill="currentColor"/>
+        <circle cx="17" cy="15" r="2.3" fill="currentColor"/>
+        <circle cx="21" cy="5"  r="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
       </symbol>
 
       <!-- Rules pictograms -->
@@ -551,21 +552,21 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=19"></script>
-  <script src="migrations.js?v=19"></script>
-  <script src="storage.js?v=19"></script>
-  <script src="sudokuCore.js?v=19"></script>
-  <script src="sudokuVariants.js?v=19"></script>
-  <script src="sudokuTechniques.js?v=19"></script>
-  <script src="sudokuGenerator.js?v=19"></script>
-  <script src="ads.js?v=19"></script>
-  <script src="rustoreReview.js?v=19"></script>
-  <script src="audio.js?v=19"></script>
-  <script src="ui.js?v=19"></script>
-  <script src="board.js?v=19"></script>
-  <script src="numberPad.js?v=19"></script>
-  <script src="game.js?v=19"></script>
-  <script src="devPanel.js?v=19"></script>
-  <script src="main.js?v=19"></script>
+  <script src="config.js?v=20"></script>
+  <script src="migrations.js?v=20"></script>
+  <script src="storage.js?v=20"></script>
+  <script src="sudokuCore.js?v=20"></script>
+  <script src="sudokuVariants.js?v=20"></script>
+  <script src="sudokuTechniques.js?v=20"></script>
+  <script src="sudokuGenerator.js?v=20"></script>
+  <script src="ads.js?v=20"></script>
+  <script src="rustoreReview.js?v=20"></script>
+  <script src="audio.js?v=20"></script>
+  <script src="ui.js?v=20"></script>
+  <script src="board.js?v=20"></script>
+  <script src="numberPad.js?v=20"></script>
+  <script src="game.js?v=20"></script>
+  <script src="devPanel.js?v=20"></script>
+  <script src="main.js?v=20"></script>
 </body>
 </html>
