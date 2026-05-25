@@ -359,6 +359,150 @@ window.SudokuVariants = (function () {
     };
   }
 
+  // ===== Chain — цепочки с диагональной связностью =====
+  //
+  // Идеологически расширение Sugur: 9 цепочек по 9 ячеек, цифры 1-9 не должны
+  // повторяться по строкам, столбцам и в каждой цепочке. Отличия:
+  //   1. 8-связность: соседство по диагонали тоже считается. Цепочка может
+  //      перейти из (3,3) сразу в (4,4) — это разрешено.
+  //   2. Визуал: ячейки рендерятся кругами, между связанными парами ячеек
+  //      одной цепочки рисуются линии (см. board.js → renderChainEdges).
+  //
+  // Для отрисовки сохраняем edges — список пар [a, b] из BFS-tree expansion
+  // (каждая ячейка кроме seed связана с предком). Получается ровно 8 линий
+  // на цепочку = 72 линии на доску, выглядит читаемо.
+  //
+  // ⚠ «Цепочки могут пересекать друг друга» в нашей v1 трактуется как
+  // визуальное пересечение линий (две цепочки идут близко и их рёбра
+  // геометрически перекрещиваются), а не как разделение одной ячейки между
+  // несколькими цепочками. Последнее ломает баланс sudoku-constraint'ов и
+  // оставлено на будущие итерации.
+  function generateChainLayout(rng) {
+    rng = rng || Math.random;
+    const FIXED_SEEDS = [10, 13, 16, 37, 40, 43, 64, 67, 70];
+    // 8 направлений (включая диагонали)
+    const DR = [-1, -1, -1,  0, 0,  1, 1, 1];
+    const DC = [-1,  0,  1, -1, 1, -1, 0, 1];
+    for (let attempt = 0; attempt < 500; attempt++) {
+      const cellChain  = new Array(81).fill(-1);
+      const chainCells = [[], [], [], [], [], [], [], [], []];
+      const parentOf   = new Array(81).fill(-1);
+      const seeds = FIXED_SEEDS;
+      for (let s = 0; s < 9; s++) {
+        cellChain[seeds[s]] = s;
+        chainCells[s].push(seeds[s]);
+      }
+
+      let stuck = false;
+      while (true) {
+        let allFull = true;
+        for (let s = 0; s < 9; s++) if (chainCells[s].length < 9) { allFull = false; break; }
+        if (allFull) break;
+        // расширяем самую короткую первой — балансирует длины
+        const order = [0, 1, 2, 3, 4, 5, 6, 7, 8].sort(function (a, b) {
+          return chainCells[a].length - chainCells[b].length;
+        });
+        let expanded = false;
+        for (let oi = 0; oi < order.length; oi++) {
+          const s = order[oi];
+          if (chainCells[s].length >= 9) continue;
+          // соседи по 8 направлениям, ещё не занятые
+          const adj = [];        // { idx, parent }
+          const seen = new Set();
+          for (let k = 0; k < chainCells[s].length; k++) {
+            const cell = chainCells[s][k];
+            const r = Math.floor(cell / 9), c = cell % 9;
+            for (let d = 0; d < 8; d++) {
+              const nr = r + DR[d], nc = c + DC[d];
+              if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+              const n = nr * 9 + nc;
+              if (cellChain[n] !== -1) continue;
+              if (seen.has(n)) continue;
+              seen.add(n);
+              adj.push({ idx: n, parent: cell });
+            }
+          }
+          if (adj.length === 0) continue;
+          const pick = adj[Math.floor(rng() * adj.length)];
+          cellChain[pick.idx] = s;
+          chainCells[s].push(pick.idx);
+          parentOf[pick.idx] = pick.parent;
+          expanded = true;
+          break;
+        }
+        if (!expanded) { stuck = true; break; }
+      }
+      if (stuck) continue;
+
+      // Формируем edges из BFS-tree (каждая non-seed ячейка → её parent)
+      const edges = [];
+      for (let i = 0; i < 81; i++) {
+        if (parentOf[i] !== -1) edges.push([parentOf[i], i]);
+      }
+      return { cellChain: cellChain, chainCells: chainCells, edges: edges };
+    }
+    return null;
+  }
+
+  function makeChain(chainCells, cellChain, edges) {
+    const rowUnits = [], colUnits = [];
+    for (let i = 0; i < 9; i++) {
+      const row = [], col = [];
+      for (let j = 0; j < 9; j++) {
+        row.push(i * 9 + j);
+        col.push(j * 9 + i);
+      }
+      rowUnits.push(row);
+      colUnits.push(col);
+    }
+    const all = rowUnits.concat(colUnits).concat(chainCells);
+
+    const cellUnits = new Array(81);
+    const peers     = new Array(81);
+    for (let i = 0; i < 81; i++) {
+      cellUnits[i] = [];
+      const peerSet = new Set();
+      for (let u = 0; u < all.length; u++) {
+        if (all[u].indexOf(i) !== -1) {
+          cellUnits[i].push(all[u]);
+          for (let k = 0; k < all[u].length; k++) if (all[u][k] !== i) peerSet.add(all[u][k]);
+        }
+      }
+      peers[i] = Array.from(peerSet);
+    }
+
+    return {
+      name: 'chain',
+      size: 9, boxRows: 0, boxCols: 0, cellCount: 81,
+      ALL_MASK: 0x1FF,
+      digits: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      skipHumanSolve: true,
+      givensTarget: {
+        easy:   [38, 42],
+        medium: [32, 36],
+        hard:   [26, 30]
+      },
+      unitsForCell: function (i) { return cellUnits[i]; },
+      peersForCell: function (i) { return peers[i]; },
+      allUnits: function () { return all; },
+      rowsAndCols: function () { return { rows: rowUnits, cols: colUnits, boxes: chainCells }; },
+      isLegal: function (g, i, d) {
+        const us = cellUnits[i];
+        for (let u = 0; u < us.length; u++) {
+          const unit = us[u];
+          for (let k = 0; k < unit.length; k++) {
+            if (unit[k] !== i && g[unit[k]] === d) return false;
+          }
+        }
+        return true;
+      },
+      seedGrid: null,
+      _chainCells: chainCells,
+      _cellChain: cellChain,
+      _edges: edges
+    };
+  }
+
   // ===== Mini 4×4 — режим для начинающих =====
   // Поле 4×4 = 16 ячеек, 4 блока 2×2, цифры 1-4. Совершенно другая геометрия:
   // не extension Classic, а отдельный variant.
@@ -445,8 +589,11 @@ window.SudokuVariants = (function () {
       case 'windoku':  return Windoku;
       case 'kropki':   return Classic;            // см. Game.startNewLevel kropki-path
       case 'mini':     return Mini;
-      // case 'sugur':   return Sugur;
-      // case 'chain':   return Chain;
+      // sugur и chain зависят от свежесгенерированной layout-структуры —
+      // конкретный variant создаётся в Game.startNewLevel после генерации
+      // змеек/цепочек. byMode для них возвращает Classic как safe-fallback.
+      case 'sugur':    return Classic;
+      case 'chain':    return Classic;
       case 'classic':
       default:         return Classic;
     }
@@ -467,6 +614,9 @@ window.SudokuVariants = (function () {
     // Sugur API
     generateSnakeLayout: generateSnakeLayout,
     makeSugur: makeSugur,
+    // Chain API
+    generateChainLayout: generateChainLayout,
+    makeChain: makeChain,
     // Доп. справка: метаданные клеток для UI (рендерим тонировку и т.п.)
     META: {
       diagonal: {

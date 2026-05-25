@@ -22,6 +22,7 @@ window.Board = (function () {
 
   let boardEl = null;
   let cells = [];           // массив DOM-нодов (N×N длиной)
+  let chainSvg = null;      // <svg> overlay для chain-режима (линии между ячейками)
   let onClickCb = null;
   let currentSize = 0;
 
@@ -85,6 +86,10 @@ window.Board = (function () {
 
     // Sugur: добавляем/убираем класс на board чтобы CSS приглушил block-borders
     boardEl.classList.toggle('sugur-board', !!(state.cellSnake && state.cellSnake.length === 81));
+    // Chain: круглые ячейки + SVG-overlay с линиями + приглушённые grid-borders
+    const isChain = !!(state.cellChain && state.cellChain.length === 81);
+    boardEl.classList.toggle('chain-board', isChain);
+    renderChainOverlay(state, size, isChain);
 
     // Сбрасываем Kropki-классы (могут остаться от предыдущего mode)
     for (let i = 0; i < N; i++) {
@@ -116,6 +121,13 @@ window.Board = (function () {
         cell.dataset.snake = String(state.cellSnake[i]);
       } else if (cell.dataset.snake !== undefined) {
         delete cell.dataset.snake;
+      }
+      // Chain — каждая цепочка имеет свой data-chain (0..8); CSS красит группу.
+      // Цвета зеркалят sugur-палитру.
+      if (state.cellChain && state.cellChain.length === 81) {
+        cell.dataset.chain = String(state.cellChain[i]);
+      } else if (cell.dataset.chain !== undefined) {
+        delete cell.dataset.chain;
       }
 
       if (value !== 0) {
@@ -162,6 +174,59 @@ window.Board = (function () {
       cell.classList.toggle('same-digit', !!isSameDigit);
 
       cell.classList.toggle('selected', i === sel);
+    }
+  }
+
+  // Монтирует/обновляет SVG-overlay с линиями для chain-режима.
+  // Виде: SVG поверх grid, координаты в "ячейках" (viewBox = "0 0 size size"),
+  // линии идут от центра ячейки a к центру ячейки b. Каждая линия покрашена
+  // в цвет своей цепочки (data-chain="0..8" → переменная-цвет из CSS).
+  // pointer-events: none — клики проходят сквозь и доходят до самих cell-DOM.
+  function renderChainOverlay(state, size, enabled) {
+    // Снимаем overlay если режим не chain
+    if (!enabled) {
+      if (chainSvg) {
+        chainSvg.remove();
+        chainSvg = null;
+      }
+      return;
+    }
+    if (!chainSvg) {
+      const NS = 'http://www.w3.org/2000/svg';
+      chainSvg = document.createElementNS(NS, 'svg');
+      chainSvg.setAttribute('class', 'chain-overlay');
+      chainSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+      chainSvg.setAttribute('preserveAspectRatio', 'none');
+      boardEl.appendChild(chainSvg);
+    } else {
+      chainSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+      while (chainSvg.firstChild) chainSvg.removeChild(chainSvg.firstChild);
+    }
+    const edges = state.chainEdges || [];
+    const cellChain = state.cellChain || [];
+    const NS = 'http://www.w3.org/2000/svg';
+    // Палитра — те же оттенки, что и у data-chain ячеек, чуть темнее
+    // для контраста линии на пастельном фоне.
+    const STROKE = [
+      '#c64a4a', '#c87a3e', '#b89534', '#6da33d',
+      '#2e9a6f', '#3079b0', '#4759c9', '#7c46b5', '#b53a7a'
+    ];
+    for (let k = 0; k < edges.length; k++) {
+      const e = edges[k];
+      const a = e[0], b = e[1];
+      const ar = Math.floor(a / size), ac = a % size;
+      const br = Math.floor(b / size), bc = b % size;
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', String(ac + 0.5));
+      line.setAttribute('y1', String(ar + 0.5));
+      line.setAttribute('x2', String(bc + 0.5));
+      line.setAttribute('y2', String(br + 0.5));
+      const colorIdx = cellChain[a] >= 0 ? cellChain[a] : 0;
+      line.setAttribute('stroke', STROKE[colorIdx]);
+      line.setAttribute('stroke-width', '0.18');
+      line.setAttribute('stroke-linecap', 'round');
+      line.setAttribute('opacity', '0.75');
+      chainSvg.appendChild(line);
     }
   }
 

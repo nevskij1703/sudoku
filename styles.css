@@ -358,6 +358,72 @@ input { font: inherit; color: inherit; }
 .board.sugur-board .cell[data-col="5"] { border-right-color: var(--grid-line); border-right-width: 1px; }
 .board.sugur-board .cell.row-edge-bottom { border-bottom-color: var(--grid-line); border-bottom-width: 1px; }
 
+/* ===== Chain — цепочки с диагональной связностью =====
+   Визуально каждая ячейка — круглый узел; между связанными ячейками одной
+   цепочки SVG-overlay рисует цветную линию. Палитра фонов та же, что в
+   Sugur, плюс лёгкая тень для объёма. Сам элемент cell остаётся
+   прямоугольным (это упрощает hit-area для пальцев), но фон рисуется
+   кругом за счёт border-radius:50%.
+*/
+.board.chain-board {
+  background: transparent;
+  box-shadow: none;
+  padding: 4px;
+}
+.board.chain-board .cell {
+  border: none;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+}
+/* Сам круг — отдельный псевдоэлемент. Это позволяет сделать круг чуть
+   меньше grid-ячейки (inset 8%) и сохранить большую hit-area вокруг него. */
+.board.chain-board .cell::after {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: var(--chain-fill, #ffffff);
+  box-shadow: 0 1px 2px rgba(20, 30, 50, 0.10);
+  z-index: -1;
+}
+.board.chain-board .cell[data-chain="0"] { --chain-fill: #ffd9d9; }
+.board.chain-board .cell[data-chain="1"] { --chain-fill: #ffe2c4; }
+.board.chain-board .cell[data-chain="2"] { --chain-fill: #fff0bf; }
+.board.chain-board .cell[data-chain="3"] { --chain-fill: #ddf2c0; }
+.board.chain-board .cell[data-chain="4"] { --chain-fill: #c5eed8; }
+.board.chain-board .cell[data-chain="5"] { --chain-fill: #c4e3f1; }
+.board.chain-board .cell[data-chain="6"] { --chain-fill: #d2d8f7; }
+.board.chain-board .cell[data-chain="7"] { --chain-fill: #e7d2f3; }
+.board.chain-board .cell[data-chain="8"] { --chain-fill: #f5cee0; }
+
+/* Состояния — переопределяют цвет круга. selected ярче всего. */
+.board.chain-board .cell.peer::after        { background: var(--highlight); }
+.board.chain-board .cell.same-digit::after  { background: var(--highlight-strong); }
+.board.chain-board .cell.selected::after {
+  background: var(--select);
+  box-shadow: 0 0 0 2px var(--accent), 0 1px 4px rgba(20, 30, 50, 0.18);
+}
+.board.chain-board .cell.error::after       { background: var(--error-bg); }
+.board.chain-board .cell.error              { color: var(--error); }
+
+/* Заметки внутри круга должны центрироваться красиво. inset 14% уменьшает
+   3×3 mini-grid карандашных пометок чтобы они не вылазили за круг. */
+.board.chain-board .cell .notes {
+  inset: 14%;
+}
+
+/* SVG-overlay с линиями. Лежит между board-фоном (z=0) и cell-кругами (z=2)
+   на z=1. pointer-events: none — клики проходят сквозь и попадают в cell. */
+.chain-overlay {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* Kropki — точки на границах между соседними клетками.
    После ::after = «правая» точка, ::before = «нижняя».
    Заполненная — значит цифры отличаются в 2 раза, пустая — на 1. */
