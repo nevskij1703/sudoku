@@ -622,27 +622,45 @@
     let snapValue = 1;             // последний committed snap (0/1/2)
     let pointerId = null;
 
-    // Power параметра «резинки»: 1 = линейное движение (без сопротивления),
-    // 2 = квадратичное (классическая parabola), 1.5 — компромисс: малейшее
-    // движение видно, в середине пути отстаёт, ближе к новому snap-у
-    // быстро ускоряется.
-    const RESISTANCE_POWER = 1.5;
+    // Параметр крутизны sigmoid-«резинки». Чем больше — тем сильнее
+    // ощущается «прилипание» к текущему уровню и тем резче «выскакивание»
+    // к следующему после преодоления зоны притяжения.
+    //   K=4   — мягкая ease-in-out (как было).
+    //   K=8   — заметное прилипание + быстрый перенос.
+    //   K=10  — почти бинарное переключение (магнит).
+    //   K=12  — экстремально тягучий, может вызвать «прыжок».
+    // Подобрано на ощупь: 10 даёт чёткое сопротивление в начале и быстрый
+    // «перекат» после точки инфлексии (frac ≈ 0.5).
+    const RUBBER_K = 10;
+    // Пред-вычисленные edge-значения sigmoid для нормализации.
+    const SIG_S0 = 1 / (1 + Math.exp(RUBBER_K * 0.5));
+    const SIG_S1 = 1 / (1 + Math.exp(-RUBBER_K * 0.5));
+    const SIG_RANGE = SIG_S1 - SIG_S0;
 
     function setPct(pct) {
       track.style.setProperty('--diff-pct', pct + '%');
     }
+    // Sigmoid (логистическая) функция, отображающая x ∈ [0, 1] → [0, 1]
+    // через S-кривую с центром в x=0.5. При малых x — почти ноль (магнит
+    // к текущему уровню), при x ≈ 0.5 — резкий рост (зона перехода),
+    // при x → 1 — почти 1 (магнит к следующему уровню).
+    function sigmoidEase(x) {
+      const s = 1 / (1 + Math.exp(-RUBBER_K * (x - 0.5)));
+      return (s - SIG_S0) / SIG_RANGE;
+    }
     // Нелинейная функция «резинки». Принимает реальное смещение курсора
     // относительно реперного snap-а и возвращает визуальное смещение.
-    // |rawDelta| ≤ 0.5 → easedAbs от 0 до 0.5 с ease-in кривой.
+    // Каждая половинка пути от snap-к-snap (frac ∈ [0, 0.5]) проходит
+    // через sigmoidEase — игрок чувствует тягучее сопротивление в начале
+    // и быстрое «затягивание» к новому snap-у в конце.
     function easeRubber(rawDelta) {
       const sign = rawDelta < 0 ? -1 : 1;
       const absD = Math.abs(rawDelta);
-      // На дробной части ±0.5 = переход к следующему snap-у.
-      // Раскладываем абсолют на (целая_часть + дробь_в_±0.5).
       const nearestInt = Math.round(absD);            // 0 / 1 / 2
       const frac = absD - nearestInt;                 // в [-0.5, 0.5]
-      const easedFrac = (frac < 0 ? -1 : 1)
-                     * Math.pow(Math.abs(frac) * 2, RESISTANCE_POWER) / 2;
+      const fracAbs = Math.abs(frac) * 2;              // в [0, 1]
+      const easedFracAbs = sigmoidEase(fracAbs) / 2;   // обратно в [0, 0.5]
+      const easedFrac = (frac < 0 ? -1 : 1) * easedFracAbs;
       return sign * (nearestInt + easedFrac);
     }
     function setVisualFromRaw(rawValue) {
