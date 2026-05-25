@@ -69,13 +69,159 @@ function shuffle(arr, rng) {
   return out;
 }
 
-// ===== Партиционирование на 9 регионов =====
+// ===== Linear-preferred snake growth =====
 //
-// Стратегия: стартуем с классических 3×3 blocks (всегда solvable как
-// classic sudoku) и делаем N safe-swap'ов между соседними regions.
-// Каждый swap сохраняет connectivity обоих regions и наличие ham-path.
-// Это даёт layouts ОЧЕНЬ разных форм (после 20-30 swaps), но constraint
-// близок к classic и solver работает быстро.
+// Стратегия: каждая змейка из 9 cells растится с continuity-бонусом
+// (предпочтение продолжать в том же направлении) + Warnsdorff (избегаем
+// изоляции остальных) + жёсткий MAX_PER_ROW/COL=4 (минимум 1 turn за 9
+// cells). Это даёт ВЫТЯНУТЫЕ змейки разной формы.
+//
+// Post-checks:
+//   isStretched — bbox региона хотя бы в одной dimension ≥ 4 cells.
+//                 Исключает 3×3-квадраты (визуально = классика).
+//   hasDiagonal — для chain (8-conn): хотя бы 1 диагональный edge
+//                 в path. Гарантирует что цепочка использует диагональ.
+
+const DR4 = [-1, 1, 0, 0];
+const DC4 = [0, 0, -1, 1];
+const DR8 = [-1, -1, -1, 0, 0, 1, 1, 1];
+const DC8 = [-1, 0, 1, -1, 1, -1, 0, 1];
+
+function dirIdx(from, to, DR, DC) {
+  const dr = (to / 9 | 0) - (from / 9 | 0);
+  const dc = (to % 9) - (from % 9);
+  for (let d = 0; d < DR.length; d++) {
+    if (DR[d] === dr && DC[d] === dc) return d;
+  }
+  return -1;
+}
+
+function freeNeighbors(cell, occupied, DR, DC) {
+  const r = cell / 9 | 0, c = cell % 9;
+  const out = [];
+  for (let d = 0; d < DR.length; d++) {
+    const nr = r + DR[d], nc = c + DC[d];
+    if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+    const n = nr * 9 + nc;
+    if (!occupied[n]) out.push(n);
+  }
+  return out;
+}
+
+// continuity=10 — preference продолжать direction (без полностью прямых линий)
+// warnsdorff=3 — предпочитаем cells с малым числом свободных соседей
+// noise=10 — случайный tiebreak для variation
+// maxPerRow/Col=4 — хотя бы 1 turn за 9 cells (snake не выпрямится в строку)
+const SNAKE_PARAMS = { continuity: 10, warnsdorff: 3, noise: 10, maxPerRow: 4, maxPerCol: 4 };
+
+function growStretchedSnake(seed, length, connectivity, occupied, rng) {
+  const DR = connectivity === '8' ? DR8 : DR4;
+  const DC = connectivity === '8' ? DC8 : DC4;
+  const path = [seed];
+  occupied[seed] = true;
+  const rowCount = new Array(9).fill(0);
+  const colCount = new Array(9).fill(0);
+  rowCount[seed / 9 | 0] = 1;
+  colCount[seed % 9] = 1;
+  let prevDir = -1;
+  while (path.length < length) {
+    const head = path[path.length - 1];
+    const free = freeNeighbors(head, occupied, DR, DC);
+    const allowed = free.filter(function (n) {
+      const nr = n / 9 | 0, nc = n % 9;
+      return rowCount[nr] < SNAKE_PARAMS.maxPerRow && colCount[nc] < SNAKE_PARAMS.maxPerCol;
+    });
+    const candidates = allowed.length > 0 ? allowed : free;
+    if (candidates.length === 0) {
+      for (const c of path) occupied[c] = false;
+      return null;
+    }
+    const scored = candidates.map(function (n) {
+      const dir = dirIdx(head, n, DR, DC);
+      let s = 0;
+      if (dir === prevDir && prevDir !== -1) s += SNAKE_PARAMS.continuity;
+      const nFree = freeNeighbors(n, occupied, DR, DC).filter(function (x) {
+        return x !== head;
+      }).length;
+      s += (DR.length - nFree) * SNAKE_PARAMS.warnsdorff;
+      s += rng() * SNAKE_PARAMS.noise;
+      return { n: n, s: s, dir: dir };
+    });
+    scored.sort(function (a, b) { return b.s - a.s; });
+    const pick = scored[0];
+    path.push(pick.n);
+    occupied[pick.n] = true;
+    rowCount[pick.n / 9 | 0]++;
+    colCount[pick.n % 9]++;
+    prevDir = pick.dir;
+  }
+  return path;
+}
+
+function chooseSeed(occupied, DR, DC, rng) {
+  let bestDeg = 99;
+  const candidates = [];
+  for (let i = 0; i < 81; i++) {
+    if (occupied[i]) continue;
+    const deg = freeNeighbors(i, occupied, DR, DC).length;
+    if (deg < bestDeg) { bestDeg = deg; candidates.length = 0; candidates.push(i); }
+    else if (deg === bestDeg) { candidates.push(i); }
+  }
+  return candidates.length ? candidates[Math.floor(rng() * candidates.length)] : -1;
+}
+
+function isStretched(region) {
+  let rMin = 9, rMax = -1, cMin = 9, cMax = -1;
+  for (const i of region) {
+    const r = i / 9 | 0, c = i % 9;
+    if (r < rMin) rMin = r; if (r > rMax) rMax = r;
+    if (c < cMin) cMin = c; if (c > cMax) cMax = c;
+  }
+  return Math.max(rMax - rMin, cMax - cMin) + 1 >= 4;
+}
+
+function hasDiagonal(path) {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i];
+    const dr = Math.abs((a / 9 | 0) - (b / 9 | 0));
+    const dc = Math.abs((a % 9) - (b % 9));
+    if (dr === 1 && dc === 1) return true;
+  }
+  return false;
+}
+
+function generateStretchedLayout(connectivity, rng) {
+  const DR = connectivity === '8' ? DR8 : DR4;
+  const DC = connectivity === '8' ? DC8 : DC4;
+  const requireDiagonal = connectivity === '8';
+  const deadline = Date.now() + 10000;
+  let attempts = 0;
+  while (Date.now() < deadline) {
+    attempts++;
+    const occupied = new Array(81).fill(false);
+    const regions = [];
+    let ok = true;
+    for (let s = 0; s < 9; s++) {
+      const seed = chooseSeed(occupied, DR, DC, rng);
+      if (seed < 0) { ok = false; break; }
+      const path = growStretchedSnake(seed, 9, connectivity, occupied, rng);
+      if (!path) { ok = false; break; }
+      if (!isStretched(path)) { ok = false; break; }
+      if (requireDiagonal && !hasDiagonal(path)) { ok = false; break; }
+      regions.push(path);
+    }
+    if (!ok) {
+      for (let i = 0; i < 81; i++) occupied[i] = false;
+      continue;
+    }
+    let cnt = 0;
+    for (let i = 0; i < 81; i++) if (occupied[i]) cnt++;
+    if (cnt === 81) return { regions: regions, attempts: attempts };
+  }
+  return null;
+}
+
+// ===== Legacy: классические 3×3 + diversify (для совместимости, не используется) =====
 
 function classicBlockRegions() {
   const regions = [[], [], [], [], [], [], [], [], []];
@@ -333,65 +479,37 @@ function findHamPath(region, connectivity, rng) {
   }
 }
 
-// Sugur layout: стартуем с классических 3×3 blocks, делаем swap'ы для
-// разнообразия форм. Затем findHamPath по 4-связности.
-// Solver на таких layouts работает быстро (constraint близок к classic).
+// Sugur layout: linear-preferred growth (4-conn) + isStretched constraint.
+// Каждая змейка имеет bbox ≥ 4 в одной dimension → нет 3×3 квадратов.
 function bakeSugurLayout(rng) {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const regions = classicBlockRegions();
-    // 8 swap'ов даёт умеренное разнообразие без сильной деформации
-    // constraint (≤8 cells меняют region). При большем swap count solver
-    // не успевает за 60s.
-    const div = diversifyFromBlocks(regions, '4', rng, 8);
-    const paths = [];
-    let ok = true;
-    for (let s = 0; s < 9; s++) {
-      const p = findHamPath(div.regions[s], '4', rng);
-      if (!p) { ok = false; break; }
-      paths.push(p);
-    }
-    if (!ok) continue;
-    const cellSnake = new Array(81).fill(-1);
-    const snakeCells = [];
-    for (let s = 0; s < 9; s++) {
-      snakeCells.push(paths[s].slice());
-      for (let k = 0; k < paths[s].length; k++) cellSnake[paths[s][k]] = s;
-    }
-    return { cellSnake: cellSnake, snakeCells: snakeCells, swaps: div.swaps };
+  const result = generateStretchedLayout('4', rng);
+  if (!result) return null;
+  const paths = result.regions;
+  const cellSnake = new Array(81).fill(-1);
+  const snakeCells = [];
+  for (let s = 0; s < 9; s++) {
+    snakeCells.push(paths[s].slice());
+    for (let k = 0; k < paths[s].length; k++) cellSnake[paths[s][k]] = s;
   }
-  return null;
+  return { cellSnake: cellSnake, snakeCells: snakeCells, attempts: result.attempts };
 }
 
-// Chain layout: то же что Sugur, но 8-связность (диагональные edges).
-// Использует diversify-from-blocks с 8-conn, что даёт более экзотические
-// формы (regions могут заходить друг в друга по диагонали).
+// Chain layout: linear-preferred growth (8-conn) + isStretched + hasDiagonal.
+// 8-conn даёт диагональные edges; hasDiagonal constraint гарантирует, что
+// каждая цепочка реально использует диагональ (хотя бы 1 edge).
 function bakeChainLayout(rng) {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const regions = classicBlockRegions();
-    // 12 swap'ов с 8-conn (есть диагональные edges) — больше разнообразия
-    // чем sugur с 8 swap'ов 4-conn, потому что 8-conn даёт более компактные
-    // regions после swap (диагональные cells могут "склеить" растянутый
-    // регион).
-    const div = diversifyFromBlocks(regions, '8', rng, 12);
-    const paths = [];
-    let ok = true;
-    for (let s = 0; s < 9; s++) {
-      const p = findHamPath(div.regions[s], '8', rng);
-      if (!p) { ok = false; break; }
-      paths.push(p);
-    }
-    if (!ok) continue;
-    const cellChain = new Array(81).fill(-1);
-    const chainCells = [];
-    const edges = [];
-    for (let s = 0; s < 9; s++) {
-      chainCells.push(paths[s].slice());
-      for (let k = 0; k < paths[s].length; k++) cellChain[paths[s][k]] = s;
-      for (let i = 1; i < paths[s].length; i++) edges.push([paths[s][i - 1], paths[s][i]]);
-    }
-    return { cellChain: cellChain, chainCells: chainCells, edges: edges, swaps: div.swaps };
+  const result = generateStretchedLayout('8', rng);
+  if (!result) return null;
+  const paths = result.regions;
+  const cellChain = new Array(81).fill(-1);
+  const chainCells = [];
+  const edges = [];
+  for (let s = 0; s < 9; s++) {
+    chainCells.push(paths[s].slice());
+    for (let k = 0; k < paths[s].length; k++) cellChain[paths[s][k]] = s;
+    for (let i = 1; i < paths[s].length; i++) edges.push([paths[s][i - 1], paths[s][i]]);
   }
-  return null;
+  return { cellChain: cellChain, chainCells: chainCells, edges: edges, attempts: result.attempts };
 }
 
 // ===== Bake-runner =====
