@@ -644,20 +644,30 @@ input { font: inherit; color: inherit; }
 }
 .tool-btn.depleted .tool-badge { background: var(--text-faded); }
 
-/* Refill-бэйдж: показывается на кнопке «Подсказка» когда подсказок 0.
-   Вместо обычной цифры — приглашение посмотреть rewarded ad: «+1 ▶».
-   Цвет золотистый/оранжевый чтобы привлекал внимание. Шире обычного
-   бэйджа потому что внутри текст + иконка. */
+/* Refill-бэйдж: показывается на кнопках «Подсказка» (когда подсказок 0)
+   и «Быстрый режим» (когда не разблокирован в этом уровне). Круглый
+   оранжевый бэйдж с белым треугольником play внутри — приглашает
+   посмотреть rewarded ad. Центроид треугольника специально подобран
+   на (6,6) в viewBox 12×12 → визуально центр стрелки совпадает с
+   центром круга (см. SVG-symbol #icon-play-mini). */
 .tool-badge.refill-ad {
-  width: auto; min-width: 18px; height: 18px;
-  padding: 0 6px;
+  width: 18px; height: 18px;
+  padding: 0;
   background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
   box-shadow: 0 2px 6px rgba(255, 140, 0, 0.45);
-  display: inline-flex; align-items: center; gap: 2px;
-  font-size: 10px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
   animation: refill-pulse 1.6s ease-in-out infinite;
+  color: #fff;
+}
+.ad-play-icon {
+  width: 12px; height: 12px;
+  display: block;
+  fill: #fff;
 }
 .tool-badge.refill-ad .badge-play {
+  /* Legacy class — оставлен на случай старых элементов; новый компонент
+     использует .ad-play-icon SVG. */
   font-size: 8px;
   display: inline-flex; align-items: center; justify-content: center;
   width: 11px; height: 11px;

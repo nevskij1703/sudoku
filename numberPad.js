@@ -120,12 +120,13 @@ window.NumberPad = (function () {
     const remaining = Math.max(0, n | 0);
     if (badge) {
       if (remaining === 0) {
-        // Подсказки кончились — превращаем бэйдж в «+1 ▶», который
-        // приглашает посмотреть rewarded ad. Клик по кнопке в этом
-        // состоянии ловится в main.js: вместо Game.handleHint() уходим
-        // в requestHintRefill() (AdManager.showRewardedAd).
-        badge.textContent = '';
-        badge.innerHTML = '+1<span class="badge-play">▶</span>';
+        // Подсказки кончились — превращаем бэйдж в круглый «▶» (тот же
+        // визуальный паттерн, что у Быстрого режима), который приглашает
+        // посмотреть rewarded ad. Клик по кнопке в этом состоянии
+        // ловится в main.js: вместо Game.handleHint() уходим в
+        // requestHintRefill() (AdManager.showRewardedAd → +1 подсказка).
+        badge.innerHTML = '<svg class="ad-play-icon" viewBox="0 0 12 12">'
+                       + '<use href="#icon-play-mini"/></svg>';
         badge.classList.add('refill-ad');
       } else {
         badge.textContent = String(remaining);
