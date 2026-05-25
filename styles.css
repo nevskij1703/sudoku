@@ -182,37 +182,41 @@ input { font: inherit; color: inherit; }
 }
 .diff-side-icon-easy { color: #2fa974; }
 .diff-side-icon-hard { color: #e0581c; }
-.diff-range {
-  -webkit-appearance: none;
-  appearance: none;
+/* Кастомный slider: track — это div с градиентным фоном и фиксированной
+   высотой; thumb — отдельный круг, абсолютно позиционированный по
+   `--diff-pct` (0–100%, через JS). При drag CSS-transition выключается
+   (rendering мгновенный), при отпускании включается ease-out — даёт
+   плавную «магнитную» анимацию к ближайшему snap-point. */
+.diff-track {
   flex: 1 1 auto;
   height: 10px;
   border-radius: 5px;
-  /* Насыщенный градиент: яркий зелёный → ярко-жёлтый → красный.
-     Жёлтый в центре максимально читается. */
   background: linear-gradient(to right, #25b25c 0%, #ffd11a 50%, #e23636 100%);
-  outline: none;
-  margin: 0;
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+  /* CSS-var, которую обновляет JS на каждый drag-tick (0..100). */
+  --diff-pct: 50;
 }
-.diff-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
+.diff-thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--diff-pct, 50%);
+  transform: translate(-50%, -50%);
   width: 24px; height: 24px;
   border-radius: 50%;
   background: var(--bg-soft);
-  border: none;
   box-shadow: 0 2px 6px rgba(26, 37, 64, 0.30);
-  cursor: pointer;
-  transition: transform 0.08s ease;
+  /* Magnetic ease-out при отпуске. Cubic-bezier даёт лёгкий «прижим»
+     к финальной точке. */
+  transition: left 0.22s cubic-bezier(.4, 0, .2, 1);
 }
-.diff-range::-webkit-slider-thumb:active { transform: scale(0.94); }
-.diff-range::-moz-range-thumb {
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  background: var(--bg-soft);
-  border: none;
-  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.30);
-  cursor: pointer;
+.diff-track.dragging .diff-thumb {
+  transition: none;       /* во время drag — мгновенный отклик */
+}
+.diff-track:focus { outline: none; }
+.diff-track:focus-visible .diff-thumb {
+  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.30), 0 0 0 3px var(--accent-soft);
 }
 .diff-labels {
   display: flex;

@@ -37,6 +37,9 @@
   let pendingStartDifficulty = null;
   let pendingStartMode = null;
 
+  // Ссылка на смонтированный slider — нужна вне init() (backToHome и т.п.).
+  let diffSliderRef = null;
+
   // Короткие caps-имена режимов для большого заголовка игрового экрана
   // (раньше там всегда было «СУДОКУ»; пользователь попросил показывать
   // конкретный текущий режим). Подбирали значения с прицелом на ≤9 букв,
@@ -194,34 +197,20 @@
       });
     });
 
-    // Difficulty — ползунок 0..2 (easy/medium/hard). Поддерживаем синхронно
-    // три ярлыка (Простой/Средний/Сложный) под ним: они кликабельны и
-    // подсвечиваются как «активный».
+    // Difficulty — кастомный ползунок 0..2 (easy/medium/hard) с магнитной
+    // фиксацией к ближайшему значению. Подробности в mountDiffSlider() ниже.
     const DIFF_ORDER = ['easy', 'medium', 'hard'];
-    const diffRange = document.getElementById('difficulty-range');
-    function updateDiffLabels(idx) {
-      document.querySelectorAll('.diff-label').forEach(function (lbl) {
-        const v = lbl.dataset.difficulty;
-        lbl.classList.toggle('active', DIFF_ORDER.indexOf(v) === idx);
-      });
-    }
-    function setDifficultyByIndex(idx) {
-      diffRange.value = String(idx);
-      selectedDifficulty = DIFF_ORDER[idx];
-      updateDiffLabels(idx);
-    }
-    if (diffRange) {
-      diffRange.addEventListener('input', function () {
-        const idx = parseInt(diffRange.value, 10);
+    diffSliderRef = mountDiffSlider({
+      onChange: function (idx) {
         selectedDifficulty = DIFF_ORDER[idx];
-        updateDiffLabels(idx);
-      });
-    }
+      }
+    });
+    // Кликабельные ярлыки под ползунком — анимированно подъезжают к нужному.
     document.querySelectorAll('.diff-label').forEach(function (lbl) {
       lbl.addEventListener('click', function () {
         const v = lbl.dataset.difficulty;
         const idx = DIFF_ORDER.indexOf(v);
-        if (idx >= 0) setDifficultyByIndex(idx);
+        if (idx >= 0) diffSliderRef.setValue(idx);
       });
     });
 
@@ -447,15 +436,10 @@
 
   function backToHome() {
     // Главный экран совмещён с выбором сложности — обновляем статистику
-    // и подсветку выбранного режима/сложности.
+    // и подсветку выбранного режима/сложности через тот же API слайдера,
+    // что и кликабельные ярлыки. Тильное анимация подгонит thumb.
     const idx = ['easy', 'medium', 'hard'].indexOf(selectedDifficulty);
-    if (idx >= 0) {
-      const range = document.getElementById('difficulty-range');
-      if (range) range.value = String(idx);
-      document.querySelectorAll('.diff-label').forEach(function (lbl) {
-        lbl.classList.toggle('active', lbl.dataset.difficulty === selectedDifficulty);
-      });
-    }
+    if (idx >= 0 && diffSliderRef) diffSliderRef.setValue(idx);
     document.querySelectorAll('.mode-tile').forEach(function (t) {
       t.classList.toggle('selected', t.dataset.mode === selectedMode);
     });
@@ -604,5 +588,115 @@
     }).catch(function (e) {
       console.warn('[hint-refill] showRewardedAd threw:', e);
     });
+  }
+
+  // Кастомный slider сложности с магнитной фиксацией к 3 значениям 0/1/2.
+  //
+  // Поведение:
+  // * pointerdown в любом месте track'а — захват, thumb сразу под пальцем.
+  // * pointermove — thumb идёт плавно за пальцем (без snap, continuous-pos).
+  //   Если палец оказывается в радиусе MAGNET_RADIUS от snap-point — thumb
+  //   «залипает» к нему. Это даёт ощущение мягкого магнита: легко тянуть
+  //   по линии, но рядом со значением чувствуется фиксация.
+  // * pointerup — снапаем к ближайшему. CSS transition (0.22s ease-out)
+  //   делает анимацию подъезда.
+  // * При клике вне track — игнорируется (pointer capture зафиксирован).
+  //
+  // Возвращает { setValue(idx), getValue() }. setValue(idx) анимированно
+  // подъезжает к точке idx (используется при клике по ярлыкам / backToHome).
+  function mountDiffSlider(opts) {
+    const onChange = (opts && opts.onChange) || function () {};
+    const track = document.getElementById('diff-track');
+    if (!track) return { setValue: function(){}, getValue: function(){ return 1; } };
+
+    // Текущее «магнитное» значение, 0..2 float. continuousRaw — то, где
+    // реально палец (без snap), snapValue — последняя зафиксированная.
+    let continuousRaw = 1;
+    let snapValue = 1;
+    let pointerId = null;
+    const MAGNET_RADIUS = 0.22;     // в единицах snap-points (0.22 от шага 1)
+
+    function setPct(pct) {
+      track.style.setProperty('--diff-pct', pct + '%');
+    }
+    function setVisualFromRaw(rawValue) {
+      // Magnetic snap: если рядом со snap-point — притягиваем визуально.
+      const nearest = Math.round(rawValue);
+      const dist = Math.abs(rawValue - nearest);
+      const visual = (dist < MAGNET_RADIUS) ? nearest : rawValue;
+      setPct((visual / 2) * 100);
+    }
+    function fromClientX(clientX) {
+      const rect = track.getBoundingClientRect();
+      if (rect.width === 0) return continuousRaw;
+      const x = clientX - rect.left;
+      const f = Math.max(0, Math.min(1, x / rect.width));
+      return f * 2;   // 0..2
+    }
+    function commitSnap(value) {
+      snapValue = value;
+      continuousRaw = value;
+      setPct((value / 2) * 100);
+      track.setAttribute('aria-valuenow', String(value));
+      updateDiffLabels(value);
+      onChange(value);
+    }
+    function updateDiffLabels(idx) {
+      const order = ['easy', 'medium', 'hard'];
+      document.querySelectorAll('.diff-label').forEach(function (lbl) {
+        lbl.classList.toggle('active', lbl.dataset.difficulty === order[idx]);
+      });
+    }
+
+    track.addEventListener('pointerdown', function (e) {
+      if (pointerId !== null) return;
+      pointerId = e.pointerId;
+      track.setPointerCapture(pointerId);
+      track.classList.add('dragging');
+      const raw = fromClientX(e.clientX);
+      continuousRaw = raw;
+      setVisualFromRaw(raw);
+      e.preventDefault();
+    });
+    track.addEventListener('pointermove', function (e) {
+      if (e.pointerId !== pointerId) return;
+      const raw = fromClientX(e.clientX);
+      continuousRaw = raw;
+      setVisualFromRaw(raw);
+    });
+    function endDrag(e) {
+      if (e.pointerId !== pointerId) return;
+      track.classList.remove('dragging');
+      try { track.releasePointerCapture(pointerId); } catch (err) {}
+      pointerId = null;
+      // Snap к ближайшему. CSS transition в .diff-thumb сделает анимацию.
+      const nearest = Math.max(0, Math.min(2, Math.round(continuousRaw)));
+      commitSnap(nearest);
+    }
+    track.addEventListener('pointerup',     endDrag);
+    track.addEventListener('pointercancel', endDrag);
+    // Клавиатура (a11y): стрелки влево/вправо.
+    track.addEventListener('keydown', function (e) {
+      let next = snapValue;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')  next = Math.max(0, snapValue - 1);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp')   next = Math.min(2, snapValue + 1);
+      if (e.key === 'Home') next = 0;
+      if (e.key === 'End')  next = 2;
+      if (next !== snapValue) {
+        commitSnap(next);
+        e.preventDefault();
+      }
+    });
+
+    // Инициализация по умолчанию = medium (1).
+    commitSnap(1);
+
+    return {
+      setValue: function (idx) {
+        const v = Math.max(0, Math.min(2, idx | 0));
+        commitSnap(v);
+      },
+      getValue: function () { return snapValue; }
+    };
   }
 })();

@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
 
@@ -267,8 +267,15 @@
       <div class="difficulty-slider">
         <div class="diff-slider-row">
           <svg class="diff-side-icon diff-side-icon-easy" viewBox="0 0 24 24"><use href="#icon-sprout"/></svg>
-          <input type="range" id="difficulty-range" class="diff-range"
-                 min="0" max="2" value="1" step="1" aria-label="Сложность">
+          <!-- Кастомный slider: track + плавающий thumb. Перетаскивается
+               pointer-событиями (см. main.js → mountDiffSlider). Поддерживает
+               «магнетизм» к 3 значениям 0/1/2 — ползунок легко тянется по
+               линии, но залипает у ближайшего значения и при отпуске
+               анимированно подъезжает к нему. -->
+          <div id="diff-track" class="diff-track" role="slider"
+               aria-label="Сложность" aria-valuemin="0" aria-valuemax="2" aria-valuenow="1" tabindex="0">
+            <div class="diff-thumb"></div>
+          </div>
           <svg class="diff-side-icon diff-side-icon-hard" viewBox="0 0 24 24"><use href="#icon-fire"/></svg>
         </div>
         <div class="diff-labels">
@@ -552,21 +559,21 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=20"></script>
-  <script src="migrations.js?v=20"></script>
-  <script src="storage.js?v=20"></script>
-  <script src="sudokuCore.js?v=20"></script>
-  <script src="sudokuVariants.js?v=20"></script>
-  <script src="sudokuTechniques.js?v=20"></script>
-  <script src="sudokuGenerator.js?v=20"></script>
-  <script src="ads.js?v=20"></script>
-  <script src="rustoreReview.js?v=20"></script>
-  <script src="audio.js?v=20"></script>
-  <script src="ui.js?v=20"></script>
-  <script src="board.js?v=20"></script>
-  <script src="numberPad.js?v=20"></script>
-  <script src="game.js?v=20"></script>
-  <script src="devPanel.js?v=20"></script>
-  <script src="main.js?v=20"></script>
+  <script src="config.js?v=21"></script>
+  <script src="migrations.js?v=21"></script>
+  <script src="storage.js?v=21"></script>
+  <script src="sudokuCore.js?v=21"></script>
+  <script src="sudokuVariants.js?v=21"></script>
+  <script src="sudokuTechniques.js?v=21"></script>
+  <script src="sudokuGenerator.js?v=21"></script>
+  <script src="ads.js?v=21"></script>
+  <script src="rustoreReview.js?v=21"></script>
+  <script src="audio.js?v=21"></script>
+  <script src="ui.js?v=21"></script>
+  <script src="board.js?v=21"></script>
+  <script src="numberPad.js?v=21"></script>
+  <script src="game.js?v=21"></script>
+  <script src="devPanel.js?v=21"></script>
+  <script src="main.js?v=21"></script>
 </body>
 </html>
