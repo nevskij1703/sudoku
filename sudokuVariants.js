@@ -35,6 +35,11 @@ window.SudokuVariants = (function () {
     const extraUnits = extra.units || [];
     const name = extra.name;
     const seed = extra.seedGrid !== undefined ? extra.seedGrid : null;
+    // skipHumanSolve: true говорит generator'у НЕ требовать humanSolvable
+    // у puzzle. humanSolve в sudokuTechniques знает только row/col/box —
+    // extra-units (диагонали, центр, виндоку-зоны) он не учитывает. Для
+    // extension-variants полагаемся только на бэктрек-уникальность.
+    const skipHuman = !!extra.skipHumanSolve;
 
     // Предвычисленные peer-сеты для каждой extra unit
     const cellInExtra = new Array(81);
@@ -52,6 +57,7 @@ window.SudokuVariants = (function () {
       ALL_MASK: 0x1FF,
       digits: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       seedGrid: seed,
+      skipHumanSolve: skipHuman,
 
       unitsForCell: function (i) {
         const base = Classic.unitsForCell(i).slice();
@@ -95,7 +101,8 @@ window.SudokuVariants = (function () {
   }
   const Diagonal = extendClassic({
     name: 'diagonal',
-    units: [mainDiag, antiDiag]
+    units: [mainDiag, antiDiag],
+    skipHumanSolve: true   // humanSolve не знает диагональных units
     // seedGrid = null → backtracking
   });
 
@@ -107,7 +114,8 @@ window.SudokuVariants = (function () {
   }
   const Center = extendClassic({
     name: 'center',
-    units: [centerUnit]
+    units: [centerUnit],
+    skipHumanSolve: true   // humanSolve не знает центрального unit'а
   });
 
   // ===== Windoku: классика + 4 внутренних зоны 3×3 =====
@@ -126,7 +134,8 @@ window.SudokuVariants = (function () {
   ];
   const Windoku = extendClassic({
     name: 'windoku',
-    units: windokuUnits
+    units: windokuUnits,
+    skipHumanSolve: true   // humanSolve не знает виндоку-зон
   });
 
   // ===== Kropki (Точки) =====

@@ -31,22 +31,42 @@ window.SudokuGenerator = (function () {
   }
 
   function countGivens(puzzle) {
+    // ВАЖНО: puzzle.length может быть 16 (Mini 4×4) или 81 (стандартные).
+    // Hardcoded 81 даёт неправильный count для Mini — undefined cells
+    // считаются как not-zero, carving никогда не доходит до min-cap.
     let n = 0;
-    for (let i = 0; i < 81; i++) if (puzzle[i] !== 0) n++;
+    for (let i = 0; i < puzzle.length; i++) if (puzzle[i] !== 0) n++;
     return n;
   }
 
-  function rateDifficulty(puzzle, variant) {
+  function rateDifficulty(puzzle, variant, modeKey) {
     if (!variant) variant = Core.ClassicVariant;
-    // Не-9×9 variants (Mini) и variants со skipHumanSolve=true (Sugur, Chain)
-    // — humanSolve либо hardcoded под 9 units определённого типа, либо слишком
-    // дорог. Возвращаем «easy/medium» оценку по количеству givens.
+    // Не-9×9 variants (Mini) и variants со skipHumanSolve=true (Diagonal,
+    // Center, Windoku, Sugur, Chain) — humanSolve либо hardcoded под 9
+    // units определённого типа, либо не учитывает extra-units, либо
+    // слишком дорог. Возвращаем оценку по количеству givens, используя
+    // per-mode targets из CONFIG.DIFFICULTY (или относительные 0.45/0.35*N
+    // как fallback).
     if ((variant.size || 9) !== 9 || variant.skipHumanSolve) {
       const bt = Core.solve(puzzle, variant);
       const givens = countGivens(puzzle);
       const N = variant.cellCount || 81;
-      const label = givens >= 0.45 * N ? 'easy' :
-                    givens >= 0.35 * N ? 'medium' : 'hard';
+      const MODE_DIFFICULTY = (window.GAME_CONFIG && window.GAME_CONFIG.DIFFICULTY) || {};
+      const mk = modeKey || (variant && variant.name) || 'classic';
+      const D = MODE_DIFFICULTY[mk];
+      let label;
+      if (D && D.easy && D.medium && D.hard) {
+        // Используем per-mode targets: lower bound каждого диапазона —
+        // граница для попадания в этот лейбл (givens ≤ easy.max → easy,
+        // givens ≤ medium.max → medium, иначе hard). Берём верхнюю границу
+        // как threshold — она наиболее «лёгкая» границы данной сложности.
+        if (givens > D.medium[1]) label = 'easy';
+        else if (givens > D.hard[1]) label = 'medium';
+        else label = 'hard';
+      } else {
+        label = givens >= 0.45 * N ? 'easy' :
+                givens >= 0.35 * N ? 'medium' : 'hard';
+      }
       return {
         score: (N - givens) * 1.0,
         label: label,
@@ -254,8 +274,13 @@ window.SudokuGenerator = (function () {
     opts = opts || {};
     const variant   = opts.variant || Core.ClassicVariant;
     const symmetry  = opts.symmetry || CONFIG.symmetry;
-    // Variant может задать собственный givensTarget (например Mini 4×4 — 6-10 клеток).
-    const givensSource = variant.givensTarget || CONFIG.givensTarget;
+    // Per-mode пороги сложности (config.js → GAME_CONFIG.DIFFICULTY[mode]).
+    // Учитывают extra-constraints: режимы с большей помощью (Windoku, Diagonal)
+    // используют МЕНЬШЕ givens для той же difficulty. Если mode не задан в opts —
+    // берём через variant.givensTarget (legacy) или общий CONFIG.givensTarget.
+    const MODE_DIFFICULTY = (window.GAME_CONFIG && window.GAME_CONFIG.DIFFICULTY) || {};
+    const modeKey = opts.mode || (variant && variant.name) || 'classic';
+    const givensSource = MODE_DIFFICULTY[modeKey] || variant.givensTarget || CONFIG.givensTarget;
     const givensRange = (givensSource[targetDifficulty] || givensSource.medium || [30, 35]).slice();
     const timeBudget = opts.timeBudgetMs || CONFIG.timeBudgetMs;
     const maxRetries = opts.maxRetries || CONFIG.maxRetries;
@@ -280,7 +305,7 @@ window.SudokuGenerator = (function () {
       // Финальный verify (защита-сетка). makePuzzle уже проверяет uniqueness
       // на каждом удалении, но проверяем явно ещё раз — и заодно сверяем
       // решение из backtrack-солвера с заранее известным `solution`.
-      const verifyRes = verifyPuzzle(puzzle, solution, variant);
+      const verifyRes = verifyPuzzle(puzzle, solution, variant, modeKey);
       if (!verifyRes.ok) {
         console.warn('[generator] verify rejected:', verifyRes.reason);
         continue;
@@ -309,10 +334,23 @@ window.SudokuGenerator = (function () {
 
       if (verifyRes.difficulty === targetDifficulty) return candidate;
 
-      // Fallback: запомним «ближайший» вариант, если не получится найти точное совпадение
-      if (!bestFallback || difficultyDistance(verifyRes.difficulty, targetDifficulty) <
-                          difficultyDistance(bestFallback.difficulty, targetDifficulty)) {
+      // Fallback: запомним «ближайший» вариант, если не получится найти
+      // точное совпадение. Tie-breaker — count givens: предпочитаем тот,
+      // где givens ближе к maxGivens целевого диапазона. Это защищает от
+      // outliers с 56 givens (uncarved puzzle), которые формально могут
+      // иметь «ближайший» лейбл из-за simple-rating per-mode.
+      const fbGivens = candidate.puzzle.reduce(function (a, v) { return v !== 0 ? a + 1 : a; }, 0);
+      const distNow = difficultyDistance(verifyRes.difficulty, targetDifficulty);
+      const distGivens = Math.abs(fbGivens - givensRange[1]);
+      if (!bestFallback) {
         bestFallback = candidate;
+        bestFallback._dist = distNow;
+        bestFallback._distGivens = distGivens;
+      } else if (distNow < bestFallback._dist ||
+                 (distNow === bestFallback._dist && distGivens < bestFallback._distGivens)) {
+        bestFallback = candidate;
+        bestFallback._dist = distNow;
+        bestFallback._distGivens = distGivens;
       }
     }
 
@@ -369,7 +407,7 @@ window.SudokuGenerator = (function () {
   //   4. Возвращает оценку сложности и флаг humanSolvable.
   //
   // Дополнительно доступен публично как SudokuGenerator.verifyPuzzle(puzzle).
-  function verifyPuzzle(puzzle, solution, variant) {
+  function verifyPuzzle(puzzle, solution, variant, modeKey) {
     if (!variant) variant = Core.ClassicVariant;
 
     // 1. Уникальность через countSolutions с early-exit на 2.
@@ -383,13 +421,14 @@ window.SudokuGenerator = (function () {
 
     // 3. Сверка с переданным solution.
     if (solution) {
-      for (let i = 0; i < 81; i++) {
+      const N = variant.cellCount || 81;
+      for (let i = 0; i < N; i++) {
         if (bt[i] !== solution[i]) return { ok: false, reason: 'solution_mismatch' };
       }
     }
 
     // 4. Оценка сложности и решаемость человеком.
-    const rating = rateDifficulty(puzzle, variant);
+    const rating = rateDifficulty(puzzle, variant, modeKey);
     return {
       ok: true,
       unique: true,

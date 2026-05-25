@@ -223,8 +223,14 @@ window.Game = (function () {
       const relabeled = tpl.solution.map(function (v) {
         return v >= 1 && v <= 9 ? perm[v - 1] : 0;
       });
-      // Случайный carve до target givens по сложности
-      const givensTarget = { easy: 45, medium: 35, hard: 28 }[difficulty] || 35;
+      // Случайный carve до target givens по сложности. Берём per-mode
+      // диапазон из config.js → DIFFICULTY[mode]. Из диапазона [min, max]
+      // берём random integer — даёт небольшую вариативность сложности
+      // даже в рамках одного difficulty-лейбла.
+      const D = (CFG.DIFFICULTY && CFG.DIFFICULTY[mode]) ||
+                { easy: [42, 46], medium: [33, 37], hard: [28, 32] };
+      const range = D[difficulty] || D.medium || [33, 37];
+      const givensTarget = range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
       const puzzle = relabeled.slice();
       const idxs = Array.from({ length: 81 }, function (_, i) { return i; });
       for (let i = idxs.length - 1; i > 0; i--) {
@@ -254,8 +260,9 @@ window.Game = (function () {
       console.log('[game] ' + mode + ' template #' + idx + '/' + pool.length +
                   ' relabeled (perm=' + perm.join('') + ') carved to ' + givensTarget + ' givens');
     } else if (mode === 'kropki' && SV && SV.computeKropkiDots) {
-      // Kropki: classic puzzle + dots computed from solution
-      gen = Gen.generate(difficulty, { variant: SV.Classic });
+      // Kropki: classic puzzle + dots computed from solution. Передаём
+      // mode='kropki' чтобы генератор взял per-mode givensTarget.
+      gen = Gen.generate(difficulty, { variant: SV.Classic, mode: 'kropki' });
       dots = SV.computeKropkiDots(gen.solution);
     } else if (mode === 'sugur' && SV && SV.generateSnakeLayout) {
       // Sugur: змейки + simple puzzle generation. Sudoku solver на random snakes
@@ -367,8 +374,11 @@ window.Game = (function () {
         chainEdges = layout.edges;
       }
     } else {
+      // Дефолтный путь — Classic, Diagonal, Center, Windoku, Mini. Каждый
+      // режим получает свои givensTarget через CONFIG.DIFFICULTY[mode]
+      // (см. sudokuGenerator.js → передачу opts.mode).
       const variant = (SV && SV.byMode) ? SV.byMode(mode) : Core.ClassicVariant;
-      gen = Gen.generate(difficulty, { variant: variant });
+      gen = Gen.generate(difficulty, { variant: variant, mode: mode });
     }
 
     console.log('[game] generated in', Date.now() - t0, 'ms, score=', Math.round(gen.score),
