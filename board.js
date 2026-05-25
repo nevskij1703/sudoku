@@ -116,11 +116,22 @@ window.Board = (function () {
       const isHint = state.hintCells && state.hintCells[i];
       const isError = state.mistakes && state.mistakes[i];
 
-      // Sugur — каждая змейка имеет свой data-snake (0..8); CSS красит группу
+      // Sugur — каждая змейка имеет свой data-snake (0..8); CSS не красит
+      // фон (по запросу пользователя — отделяем толстыми бордерами а не
+      // цветами). data-snake оставляем чтобы тесты/dev-panel могли по нему
+      // искать ячейки. Снизу/справа добавляем класс snake-edge-* когда сосед
+      // в другой змейке — это и даёт «толстые границы между зонами».
       if (state.cellSnake && state.cellSnake.length === 81) {
-        cell.dataset.snake = String(state.cellSnake[i]);
-      } else if (cell.dataset.snake !== undefined) {
-        delete cell.dataset.snake;
+        const sCell = state.cellSnake[i];
+        cell.dataset.snake = String(sCell);
+        const r = Math.floor(i / 9), c = i % 9;
+        const right  = (c < 8) ? state.cellSnake[i + 1] : sCell;
+        const bottom = (r < 8) ? state.cellSnake[i + 9] : sCell;
+        cell.classList.toggle('snake-edge-right',  right  !== sCell);
+        cell.classList.toggle('snake-edge-bottom', bottom !== sCell);
+      } else {
+        if (cell.dataset.snake !== undefined) delete cell.dataset.snake;
+        cell.classList.remove('snake-edge-right', 'snake-edge-bottom');
       }
       // Chain — каждая цепочка имеет свой data-chain (0..8); CSS красит группу.
       // Цвета зеркалят sugur-палитру.
@@ -203,14 +214,10 @@ window.Board = (function () {
       while (chainSvg.firstChild) chainSvg.removeChild(chainSvg.firstChild);
     }
     const edges = state.chainEdges || [];
-    const cellChain = state.cellChain || [];
     const NS = 'http://www.w3.org/2000/svg';
-    // Палитра — те же оттенки, что и у data-chain ячеек, чуть темнее
-    // для контраста линии на пастельном фоне.
-    const STROKE = [
-      '#c64a4a', '#c87a3e', '#b89534', '#6da33d',
-      '#2e9a6f', '#3079b0', '#4759c9', '#7c46b5', '#b53a7a'
-    ];
+    // Один нейтральный серый цвет для всех цепочек — по запросу пользователя.
+    // Различие цепочек считывается по их форме (последовательная верёвочка
+    // с двумя концами), а не по цвету.
     for (let k = 0; k < edges.length; k++) {
       const e = edges[k];
       const a = e[0], b = e[1];
@@ -221,11 +228,10 @@ window.Board = (function () {
       line.setAttribute('y1', String(ar + 0.5));
       line.setAttribute('x2', String(bc + 0.5));
       line.setAttribute('y2', String(br + 0.5));
-      const colorIdx = cellChain[a] >= 0 ? cellChain[a] : 0;
-      line.setAttribute('stroke', STROKE[colorIdx]);
-      line.setAttribute('stroke-width', '0.18');
+      line.setAttribute('stroke', '#8e94a3');
+      line.setAttribute('stroke-width', '0.10');
       line.setAttribute('stroke-linecap', 'round');
-      line.setAttribute('opacity', '0.75');
+      line.setAttribute('opacity', '0.9');
       chainSvg.appendChild(line);
     }
   }

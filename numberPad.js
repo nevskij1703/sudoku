@@ -51,11 +51,15 @@ window.NumberPad = (function () {
   function isPencilMode() { return pencilMode; }
 
   // Скрывает кнопки старше maxDigit (для Mini 4×4 → maxDigit=4, кнопки 5-9 скрыты).
+  // Дополнительно: при max=4 включаем «numpad-compact» — 4 кнопки центрируются
+  // по экрану с шире-подложками (см. CSS .number-pad.numpad-compact).
   function setMaxDigit(max) {
     document.querySelectorAll('.num-btn').forEach(function (btn) {
       const d = parseInt(btn.dataset.num, 10);
       btn.style.display = d <= max ? '' : 'none';
     });
+    const padEl = document.querySelector('.number-pad');
+    if (padEl) padEl.classList.toggle('numpad-compact', max < 9);
   }
 
   function setPencilMode(v) {

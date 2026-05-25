@@ -264,9 +264,12 @@ input { font: inherit; color: inherit; }
   pointer-events: none;
 }
 .brand.brand-game {
-  font-size: 36px;
-  letter-spacing: 4px;
+  /* Размер подбирается через clamp — даже самое длинное слово
+     («ДИАГОНАЛЬ», 9 букв) вписывается между home- и info-кнопками. */
+  font-size: clamp(18px, 6.4vw, 28px);
+  letter-spacing: clamp(0.3px, 0.2vw, 1.5px);
   line-height: 1;
+  white-space: nowrap;
 }
 .game-subtitle {
   font-size: 12px; color: var(--text-dim);
@@ -280,9 +283,10 @@ input { font: inherit; color: inherit; }
   justify-content: center;
   margin: 12px 0 14px;
 }
-/* SVG-сердечко вместо unicode-эмодзи — одинаковый вид на всех платформах */
+/* SVG-сердечко вместо unicode-эмодзи — одинаковый вид на всех платформах.
+   Размер 32px (на 20% меньше прежних 40 — менее доминирующий блок). */
 .heart {
-  width: 40px; height: 40px;
+  width: 32px; height: 32px;
   color: var(--error);
   display: block;
 }
@@ -326,37 +330,59 @@ input { font: inherit; color: inherit; }
 .cell.col-last { border-right: none; }
 .cell.row-last { border-bottom: none; }
 
-/* Mini-board: grid 4×4, цифры крупнее */
+/* Mini-board: grid 4×4, цифры крупнее. Поле на ~33% меньше классики 9×9 —
+   доступно ~320px вместо 480px, с запасом по бокам экрана. */
 .board[data-size="4"] {
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows:    repeat(4, 1fr);
+  width:     min(100vw - 80px, 320px);
+  max-width: 320px;
 }
 .board[data-size="4"] .cell { font-size: clamp(28px, 8vw, 44px); font-weight: 600; }
 
+/* Mini-numpad: 4 кнопки центрированы по экрану, подложки шире обычных
+   (классика «прижата» к 9 кнопкам, а здесь места достаточно — даём пальцу
+   разгуляться). Активируется в numberPad.setMaxDigit(4). */
+.number-pad.numpad-compact .numpad-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 10px;
+}
+.number-pad.numpad-compact .num-btn {
+  padding: 22px 0;
+  min-height: 72px;
+  font-size: 32px;
+}
+
 .cell.given { color: var(--given); font-weight: 500; }
 
-/* Variant-специфичные тонировки. Применяются ДО подсветки peer/selected/error
-   (которые их перебивают). Лёгкий цвет — игрок видит где работают доп. правила. */
+/* Variant-специфичные тонировки. Все доп.зоны (диагонали, центральные клетки
+   блоков, внутренние зоны Виндоку) тонируются одним малозаметным около-серым.
+   Это даёт ориентир «здесь работает доп.правило» без отвлекающих ярких пятен. */
 .cell.on-main-diag,
-.cell.on-anti-diag         { background: #eef3ff; }
-.cell.on-main-diag.on-anti-diag { background: #d6e0fb; } /* центр пересечения диагоналей */
-.cell.center-cell          { background: #e0f5ee; }
-.cell.windoku-zone         { background: #fff2dc; }
+.cell.on-anti-diag,
+.cell.center-cell,
+.cell.windoku-zone         { background: #eceff3; }
+/* центр пересечения двух диагоналей раньше выделялся темнее — убрано:
+   теперь центральная клетка такая же как остальные диагональные. */
 
-/* Sugur — каждая змейка своим цветом. Палитра softened pastel, читаемая поверх белого. */
-.cell[data-snake="0"] { background: #ffe3e3; }
-.cell[data-snake="1"] { background: #ffe9d4; }
-.cell[data-snake="2"] { background: #fff5cc; }
-.cell[data-snake="3"] { background: #e7f6d4; }
-.cell[data-snake="4"] { background: #d4f0e3; }
-.cell[data-snake="5"] { background: #d2eaf5; }
-.cell[data-snake="6"] { background: #dde0fb; }
-.cell[data-snake="7"] { background: #ecdcf6; }
-.cell[data-snake="8"] { background: #f8d7e6; }
-/* В sugur — обычные block-bordersr скрываем, чтобы не путать со змейками */
+/* Sugur — отделяем змейки толстыми границами вместо цветной заливки.
+   data-snake остаётся (для dev-инструментов) но фон не красим. Соседи в
+   разных змейках разделяются толстой линией; соседи внутри одной змейки —
+   тонкой. Жирные block-borders отключаем (они путали со змейками). */
 .board.sugur-board .cell[data-col="2"],
 .board.sugur-board .cell[data-col="5"] { border-right-color: var(--grid-line); border-right-width: 1px; }
 .board.sugur-board .cell.row-edge-bottom { border-bottom-color: var(--grid-line); border-bottom-width: 1px; }
+.board.sugur-board .cell.snake-edge-right {
+  border-right-color: var(--grid-line-thick);
+  border-right-width: 2.5px;
+}
+.board.sugur-board .cell.snake-edge-bottom {
+  border-bottom-color: var(--grid-line-thick);
+  border-bottom-width: 2.5px;
+}
 
 /* ===== Chain — цепочки с диагональной связностью =====
    Визуально каждая ячейка — круглый узел; между связанными ячейками одной
@@ -387,15 +413,9 @@ input { font: inherit; color: inherit; }
   box-shadow: 0 1px 2px rgba(20, 30, 50, 0.10);
   z-index: -1;
 }
-.board.chain-board .cell[data-chain="0"] { --chain-fill: #ffd9d9; }
-.board.chain-board .cell[data-chain="1"] { --chain-fill: #ffe2c4; }
-.board.chain-board .cell[data-chain="2"] { --chain-fill: #fff0bf; }
-.board.chain-board .cell[data-chain="3"] { --chain-fill: #ddf2c0; }
-.board.chain-board .cell[data-chain="4"] { --chain-fill: #c5eed8; }
-.board.chain-board .cell[data-chain="5"] { --chain-fill: #c4e3f1; }
-.board.chain-board .cell[data-chain="6"] { --chain-fill: #d2d8f7; }
-.board.chain-board .cell[data-chain="7"] { --chain-fill: #e7d2f3; }
-.board.chain-board .cell[data-chain="8"] { --chain-fill: #f5cee0; }
+/* Все цепочки — одного нейтрального белого тона. Различает цепочки
+   только начертание линий-связей в SVG-overlay (см. board.js), без цвета. */
+.board.chain-board .cell[data-chain] { --chain-fill: #ffffff; }
 
 /* Состояния — переопределяют цвет круга. selected ярче всего. */
 .board.chain-board .cell.peer::after        { background: var(--highlight); }
