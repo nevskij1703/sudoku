@@ -439,13 +439,25 @@
 
     // ===== 12. Стартовый экран =====
     //
-    // При запуске приложения — всегда показываем home. Сейвы лежат в
-    // activeByMode[mode]: если юзер кликнет «Начать» на режиме с сейвом,
-    // save-confirm модалка предложит «Продолжить» / «Начать заново».
-    // Это более consistent UX чем auto-resume первого попавшегося mode'а
-    // (теперь у нас сейв на каждый режим).
+    // Если есть активный сейв — открываем сразу этот уровень. Игрок
+    // продолжает с того места, где вышел (закрыл вкладку / убил app).
+    // Если несколько сейвов — берём «самый свежий» по recency-эвристике
+    // (getAllActiveModes возвращает в порядке вставки, последний — самый
+    // недавний). Если активных сейвов нет — показываем home.
     updateHomeStats();
-    window.UI.showScreen('home');
+    const slots = window.Storage.getAllActiveModes();
+    if (slots.length > 0) {
+      const last = slots[slots.length - 1];
+      if (window.Game.resumeMode(last.mode, last.difficulty)) {
+        selectedMode = last.mode;
+        selectedDifficulty = last.difficulty;
+        window.UI.showScreen('game');
+      } else {
+        window.UI.showScreen('home');
+      }
+    } else {
+      window.UI.showScreen('home');
+    }
   }
 
   function backToHome() {

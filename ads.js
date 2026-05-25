@@ -29,6 +29,10 @@ window.AdManager = (function () {
   let pendingRewardedTimer = null;
   let lastInterstitialAt = 0;
   let totalShown = 0;
+  // Время старта сессии — используется для гэйта minSessionMs.
+  // В первую минуту app interstitial не показывается, даже если все
+  // остальные condition'ы выполнены. Хорошее first-impression UX.
+  const sessionStartAt = Date.now();
 
   function isForcedMock() {
     return window.Storage ? window.Storage.getMockAds() : window.GAME_CONFIG.mockAds;
@@ -156,7 +160,16 @@ window.AdManager = (function () {
   }
 
   function shouldShowInterstitial(levelsCompleted) {
+    // Гэйты (все должны быть пройдены чтобы показать interstitial):
+    //   1. Пройдено уровней ≥ skipFirstNLevels (3 — игрок не сразу
+    //      получает рекламу, а после знакомства с механикой).
+    //   2. С момента запуска приложения прошло ≥ minSessionMs (60s).
+    //      Хороший first-impression UX, рекламы не сразу в лоб.
+    //   3. С последнего показа прошло ≥ cooldownMs (90s).
+    //   4. levelsCompleted кратен cadenceLevels (по умолчанию каждый 2-й).
     if (levelsCompleted < CFG.interstitial.skipFirstNLevels) return false;
+    const minSession = CFG.interstitial.minSessionMs | 0;
+    if (minSession > 0 && Date.now() - sessionStartAt < minSession) return false;
     if ((levelsCompleted % CFG.interstitial.cadenceLevels) !== 0) return false;
     if (Date.now() - lastInterstitialAt < CFG.interstitial.cooldownMs) return false;
     return true;
