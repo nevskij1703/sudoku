@@ -148,7 +148,7 @@
           requestHintRefill();
         }
       },
-      onUndo:   function ()  { window.Game.handleUndo(); }
+      onErase:  function ()  { window.Game.handleErase(); }
     });
 
     // ===== 3. Game callbacks =====

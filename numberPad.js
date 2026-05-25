@@ -1,5 +1,5 @@
 /**
- * numberPad.js — нижняя панель: цифры, карандаш, подсказка, отмена.
+ * numberPad.js — нижняя панель: цифры, карандаш, подсказка, ластик.
  *
  * API:
  *   NumberPad.mount(handlers)
@@ -7,13 +7,13 @@
  *       onNumber(d): функция, вызывается при клике на цифру 1..9
  *       onPencilToggle(active): toggle режима заметок
  *       onHint():    запросить подсказку
- *       onUndo():    отменить последнее действие
+ *       onErase():   очистить выбранную ячейку (цифра + заметки + ошибка)
  *     }
  *
  *   NumberPad.updateDepleted(state) — пометить цифры, которых уже 9 на поле
  *   NumberPad.setPencilMode(bool)
  *   NumberPad.setHintsLeft(n)
- *   NumberPad.setUndoEnabled(bool)
+ *   NumberPad.setUndoEnabled(bool) — no-op, оставлен для обратной совместимости
  */
 window.NumberPad = (function () {
   let pencilMode = false;
@@ -42,9 +42,9 @@ window.NumberPad = (function () {
       if (handlers && handlers.onHint) handlers.onHint();
     });
 
-    const undoBtn = document.getElementById('btn-undo');
-    if (undoBtn) undoBtn.addEventListener('click', function () {
-      if (handlers && handlers.onUndo) handlers.onUndo();
+    const eraseBtn = document.getElementById('btn-erase');
+    if (eraseBtn) eraseBtn.addEventListener('click', function () {
+      if (handlers && handlers.onErase) handlers.onErase();
     });
   }
 
@@ -108,8 +108,10 @@ window.NumberPad = (function () {
   }
 
   function setUndoEnabled(enabled) {
-    const btn = document.getElementById('btn-undo');
-    if (btn) btn.style.opacity = enabled ? '1' : '0.3';
+    // Кнопка undo заменена на «Стереть». No-op оставлен для обратной
+    // совместимости вызовов из game.js (Game.startNewLevel и pushUndo).
+    // Логику undo в Game оставили на месте — может пригодиться в будущем,
+    // но больше не привязана к UI.
   }
 
   return {
