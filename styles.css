@@ -647,17 +647,17 @@ input { font: inherit; color: inherit; }
 /* Refill-бэйдж: показывается на кнопках «Подсказка» (когда подсказок 0)
    и «Быстрый режим» (когда не разблокирован в этом уровне). Круглый
    оранжевый бэйдж с белым треугольником play внутри — приглашает
-   посмотреть rewarded ad. Центроид треугольника специально подобран
-   на (6,6) в viewBox 12×12 → визуально центр стрелки совпадает с
-   центром круга (см. SVG-symbol #icon-play-mini). */
+   посмотреть rewarded ad. Без пульсации (статичный). Размер 14×14 —
+   на ~20% меньше прежних 18×18, чтобы не доминировать в UI. Внутри
+   крупный SVG-треугольник (см. #icon-play-mini): centroid в (6,6)
+   viewBox 12×12 → центр масс точно в центре круга. */
 .tool-badge.refill-ad {
-  width: 18px; height: 18px;
+  width: 14px; height: 14px;
   padding: 0;
   background: linear-gradient(135deg, #ffb347 0%, #ff8c00 100%);
   box-shadow: 0 2px 6px rgba(255, 140, 0, 0.45);
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  animation: refill-pulse 1.6s ease-in-out infinite;
   color: #fff;
 }
 .ad-play-icon {

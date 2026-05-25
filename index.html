@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Мастер</title>
-  <link rel="stylesheet" href="styles.css?v=23" />
+  <link rel="stylesheet" href="styles.css?v=24" />
 </head>
 <body>
 
@@ -106,14 +106,16 @@
       <symbol id="icon-play" viewBox="0 0 24 24">
         <path d="M7 4 L 20 12 L 7 20 Z" fill="currentColor"/>
       </symbol>
-      <!-- Маленький play-треугольник для refill-ad бэйджей. Координаты
+      <!-- Крупный play-треугольник для refill-ad бэйджей. Координаты
            подобраны так, что centroid (среднее вершин) находится в (6, 6),
-           т.е. ровно в центре viewBox 12×12. Поэтому при центровке внутри
-           круглого бэйджа центр масс треугольника совпадает с центром круга.
-           Bbox треугольника при этом немного смещён вправо — это и даёт
-           оптически верное положение play-стрелки. -->
+           т.е. ровно в центре viewBox 12×12. Bbox треугольника при этом
+           немного смещён вправо относительно центра — это даёт оптически
+           верное положение play-стрелки.
+           Vertices (3, 2), (3, 10), (12, 6) — больше прежнего (4,3),(4,9),
+           (10,6): треугольник заполняет ≈75% viewBox по width и ≈67% по
+           height, поэтому в маленьком кружке смотрится солидно. -->
       <symbol id="icon-play-mini" viewBox="0 0 12 12">
-        <path d="M4 3 L 4 9 L 10 6 Z" fill="currentColor"/>
+        <path d="M3 2 L 3 10 L 12 6 Z" fill="currentColor"/>
       </symbol>
       <symbol id="icon-grid" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -570,21 +572,21 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=23"></script>
-  <script src="migrations.js?v=23"></script>
-  <script src="storage.js?v=23"></script>
-  <script src="sudokuCore.js?v=23"></script>
-  <script src="sudokuVariants.js?v=23"></script>
-  <script src="sudokuTechniques.js?v=23"></script>
-  <script src="sudokuGenerator.js?v=23"></script>
-  <script src="ads.js?v=23"></script>
-  <script src="rustoreReview.js?v=23"></script>
-  <script src="audio.js?v=23"></script>
-  <script src="ui.js?v=23"></script>
-  <script src="board.js?v=23"></script>
-  <script src="numberPad.js?v=23"></script>
-  <script src="game.js?v=23"></script>
-  <script src="devPanel.js?v=23"></script>
-  <script src="main.js?v=23"></script>
+  <script src="config.js?v=24"></script>
+  <script src="migrations.js?v=24"></script>
+  <script src="storage.js?v=24"></script>
+  <script src="sudokuCore.js?v=24"></script>
+  <script src="sudokuVariants.js?v=24"></script>
+  <script src="sudokuTechniques.js?v=24"></script>
+  <script src="sudokuGenerator.js?v=24"></script>
+  <script src="ads.js?v=24"></script>
+  <script src="rustoreReview.js?v=24"></script>
+  <script src="audio.js?v=24"></script>
+  <script src="ui.js?v=24"></script>
+  <script src="board.js?v=24"></script>
+  <script src="numberPad.js?v=24"></script>
+  <script src="game.js?v=24"></script>
+  <script src="devPanel.js?v=24"></script>
+  <script src="main.js?v=24"></script>
 </body>
 </html>
