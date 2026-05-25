@@ -650,18 +650,20 @@
     }
     // Нелинейная функция «резинки». Принимает реальное смещение курсора
     // относительно реперного snap-а и возвращает визуальное смещение.
-    // Каждая половинка пути от snap-к-snap (frac ∈ [0, 0.5]) проходит
-    // через sigmoidEase — игрок чувствует тягучее сопротивление в начале
-    // и быстрое «затягивание» к новому snap-у в конце.
+    //
+    // ВАЖНО: используем Math.floor (целая часть пройденных snap-границ),
+    // а не Math.round (ближайший snap). С Math.round две sigmoid-кривые
+    // встречались бы в зоне их пологих краёв (вблизи frac=±0.5), создавая
+    // ВИЗУАЛЬНОЕ ПЛАТО около середины — пользователь воспринимал бы это
+    // как лишний промежуточный stop. С Math.floor — одна непрерывная
+    // sigmoid на каждом [snap_N, snap_{N+1}) интервале, без плато.
     function easeRubber(rawDelta) {
       const sign = rawDelta < 0 ? -1 : 1;
       const absD = Math.abs(rawDelta);
-      const nearestInt = Math.round(absD);            // 0 / 1 / 2
-      const frac = absD - nearestInt;                 // в [-0.5, 0.5]
-      const fracAbs = Math.abs(frac) * 2;              // в [0, 1]
-      const easedFracAbs = sigmoidEase(fracAbs) / 2;   // обратно в [0, 0.5]
-      const easedFrac = (frac < 0 ? -1 : 1) * easedFracAbs;
-      return sign * (nearestInt + easedFrac);
+      const intPart = Math.floor(absD);                // 0 / 1 / 2 (пройденные snap)
+      const frac = absD - intPart;                     // в [0, 1)
+      const easedFrac = sigmoidEase(frac);             // в [0, 1)
+      return sign * (intPart + easedFrac);
     }
     function setVisualFromRaw(rawValue) {
       // Реперный snap — последний committed (snapValue). Движение
