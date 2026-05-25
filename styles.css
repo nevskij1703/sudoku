@@ -667,6 +667,33 @@ input { font: inherit; color: inherit; }
   display: flex; align-items: center; justify-content: center;
   line-height: 1;
 }
+/* Подсветка цифры-заметки совпадающей с цифрой в выбранной ячейке.
+   Маленький квадратик с фоном --highlight-strong и текстом контрастного
+   цвета — игрок сразу видит во всех ячейках где он раньше делал
+   заметку про эту цифру. */
+.cell .notes span.hl {
+  background: var(--highlight-strong);
+  color: var(--bg-soft);
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+/* Wave-анимация при заполнении row/col/box/snake/chain. Запускается
+   через JS (board.js → playFillWave) когда unit становится full. */
+@keyframes cell-wave {
+  0%, 100% {
+    background-color: var(--cell-wave-from, transparent);
+    color: var(--cell-wave-color-from, inherit);
+  }
+  40%, 60% {
+    background-color: var(--accent) !important;
+    color: #ffffff !important;
+  }
+}
+.cell.wave-fill {
+  animation: cell-wave 600ms ease;
+}
+.cell.wave-fill .notes { opacity: 0.3; }
 
 /* ===== Number pad ===== */
 .number-pad {

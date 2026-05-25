@@ -65,6 +65,32 @@ window.Game = (function () {
 
   function clone(arr) { return arr.slice(); }
 
+  // Когда игрок поставил правильную цифру в ячейку idx — проверяем все
+  // units (row/col/box/snake/chain) в которые входит idx. Если какой-то
+  // unit стал полностью заполнен — запускаем волну от idx.
+  // Используем variant.unitsForCell(idx) — он возвращает row/col/box и
+  // спец-юниты текущего варианта.
+  function triggerFillWaves(idx) {
+    if (!window.Board || !window.Board.playFillWave) return;
+    const variant = activeVariant();
+    const units = variant.unitsForCell(idx);
+    const triggered = new Set();
+    for (let u = 0; u < units.length; u++) {
+      const unit = units[u];
+      let full = true;
+      for (let k = 0; k < unit.length; k++) {
+        if (active.board[unit[k]] === 0) { full = false; break; }
+      }
+      if (!full) continue;
+      // Защита от дубликата: если две unit'ы оказались одной и той же
+      // (бывает при custom variants) — играем волну только раз.
+      const key = unit.slice().sort(function (a, b) { return a - b; }).join(',');
+      if (triggered.has(key)) continue;
+      triggered.add(key);
+      window.Board.playFillWave(unit.slice(), idx);
+    }
+  }
+
   function startTimer() {
     stopTimer();
     timerStartedAt = Date.now();
@@ -580,6 +606,11 @@ window.Game = (function () {
             if (active.notes[peers[k]] & bit) active.notes[peers[k]] &= ~bit;
           }
         }
+        // Wave-анимация: проверяем все units, в которые входит idx.
+        // Если какой-то unit стал полностью заполнен (все cells != 0) —
+        // запускаем волну от idx. Это эффектный feedback что игрок
+        // только что закрыл линию/блок/змейку.
+        triggerFillWaves(idx);
         // Победа?
         if (isWin()) {
           persist();

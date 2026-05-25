@@ -66,11 +66,16 @@ window.Board = (function () {
     }
   }
 
-  function notesMaskToHtml(mask) {
+  function notesMaskToHtml(mask, hlDigit) {
     // 9-битная маска. Отрисуем 3×3 сетку из цифр 1..9 (или пустоту).
+    // hlDigit (1..9) — если задана, span этой цифры получает класс 'hl'
+    // (подсветка через CSS). Используется чтобы видеть в каких ячейках
+    // выбранная цифра присутствует в заметках.
     const cells9 = [];
     for (let d = 0; d < 9; d++) {
-      cells9.push('<span>' + ((mask >> d) & 1 ? String(d + 1) : '') + '</span>');
+      const present = (mask >> d) & 1;
+      const isHl = present && (d + 1) === hlDigit;
+      cells9.push('<span class="' + (isHl ? 'hl' : '') + '">' + (present ? String(d + 1) : '') + '</span>');
     }
     return '<div class="notes">' + cells9.join('') + '</div>';
   }
@@ -184,7 +189,9 @@ window.Board = (function () {
       if (value !== 0) {
         cell.textContent = String(value);
       } else if (state.notes[i] && state.notes[i] !== 0) {
-        cell.innerHTML = notesMaskToHtml(state.notes[i]);
+        // selDigit (если есть) подсвечивает span этой цифры в notes —
+        // игрок видит во всех ячейках где он ранее писал эту цифру.
+        cell.innerHTML = notesMaskToHtml(state.notes[i], selDigit);
       } else {
         cell.textContent = '';
       }
@@ -496,12 +503,38 @@ window.Board = (function () {
     setTimeout(function () { cell.classList.remove('fast-fill'); }, 420);
   }
 
+  // Волновая анимация заполненного unit'а (row/col/box/snake/chain).
+  // Получает массив cellIdx и idx-источник волны (последняя поставленная
+  // cell). Сортирует cells по дистанции от source и стартует анимацию
+  // cell-wave с stagger 60ms. После всех анимаций классы снимутся сами
+  // (animation 600ms one-shot, остаётся transparent после).
+  function playFillWave(cellIdxs, sourceIdx) {
+    if (!cellIdxs || !cellIdxs.length) return;
+    const sr = Math.floor(sourceIdx / 9), sc = sourceIdx % 9;
+    const sorted = cellIdxs.slice().sort(function (a, b) {
+      const ar = Math.floor(a / 9), ac = a % 9;
+      const br = Math.floor(b / 9), bc = b % 9;
+      const da = Math.abs(ar - sr) + Math.abs(ac - sc);
+      const db = Math.abs(br - sr) + Math.abs(bc - sc);
+      return da - db;
+    });
+    sorted.forEach(function (idx, i) {
+      const cell = cells[idx];
+      if (!cell) return;
+      setTimeout(function () {
+        cell.classList.add('wave-fill');
+        setTimeout(function () { cell.classList.remove('wave-fill'); }, 620);
+      }, i * 70);
+    });
+  }
+
   return {
     mount: mount,
     remount: remount,
     render: render,
     setSelected: setSelected,
     flashError: flashError,
-    flashFastFill: flashFastFill
+    flashFastFill: flashFastFill,
+    playFillWave: playFillWave
   };
 })();
