@@ -382,6 +382,13 @@ input { font: inherit; color: inherit; }
 .board[data-size="9"] .cell[data-col="5"] { border-right-color: var(--grid-line-thick); border-right-width: 2px; }
 .board[data-size="4"] .cell[data-col="1"] { border-right-color: var(--grid-line-thick); border-right-width: 2px; }
 .cell.row-edge-bottom { border-bottom-color: var(--grid-line-thick); border-bottom-width: 2px; }
+/* Когда активна подсветка блока (выбрана ячейка) — остальные block-borders
+   утоньшаем чтобы выбранный блок (рисуется SVG-overlay'ем) визуально
+   выделился толщиной. Высота/цвет не меняем — только толщина. */
+.board.has-block-highlight[data-size="9"] .cell[data-col="2"],
+.board.has-block-highlight[data-size="9"] .cell[data-col="5"] { border-right-width: 1px; }
+.board.has-block-highlight[data-size="4"] .cell[data-col="1"] { border-right-width: 1px; }
+.board.has-block-highlight .cell.row-edge-bottom { border-bottom-width: 1px; }
 .cell.col-last { border-right: none; }
 .cell.row-last { border-bottom: none; }
 
@@ -523,12 +530,17 @@ input { font: inherit; color: inherit; }
    После ::after = «правая» точка, ::before = «нижняя».
    Заполненная — значит цифры отличаются в 2 раза, пустая — на 1.
    Размер 5×5 — компактные, не отвлекают от цифр. */
+/* Позиция точек: 50% padding-box, плюс 0.5px компенсация. У cell есть
+   border-right и border-bottom по 1px (без border-top/left), поэтому
+   padding-box ассиметричен — центр padding на 0.5px выше/левее
+   визуального центра cell. Без компенсации точки выглядят слегка
+   смещёнными вверх и влево. */
 .cell.dot-right-consec::after,
 .cell.dot-right-double::after {
   content: ''; position: absolute;
   width: 5px; height: 5px;
   border-radius: 50%;
-  top: 50%; right: -2.5px;
+  top: calc(50% + 0.5px); right: -2.5px;
   transform: translateY(-50%);
   z-index: 5;
   pointer-events: none;
@@ -541,7 +553,7 @@ input { font: inherit; color: inherit; }
   content: ''; position: absolute;
   width: 5px; height: 5px;
   border-radius: 50%;
-  left: 50%; bottom: -2.5px;
+  left: calc(50% + 0.5px); bottom: -2.5px;
   transform: translateX(-50%);
   z-index: 5;
   pointer-events: none;

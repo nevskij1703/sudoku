@@ -137,24 +137,19 @@ window.Board = (function () {
     } else {
       // Classic / Diagonal / Center / Windoku / Kropki / Mini — peers
       // включают весь блок, диагональ, центры и зоны. Сам блок 3×3 (2×2 для
-      // Mini) НЕ красим как peer-fill — для него рисуется accent-периметр
-      // через renderBlockHighlight. Это даёт визуально чистую картину:
-      // блок отделён акцентной рамкой, а пересечения row/col и спецзон
-      // (диагональ/центр/виндоку) подсвечены как peer.
-      peers = new Set(variant.peersForCell(sel));
-      if (variant.boxRows > 0 && variant.boxCols > 0) {
-        const r = Math.floor(sel / size), c = sel % size;
-        const boxR0 = Math.floor(r / variant.boxRows) * variant.boxRows;
-        const boxC0 = Math.floor(c / variant.boxCols) * variant.boxCols;
-        for (let br = boxR0; br < boxR0 + variant.boxRows; br++) {
-          for (let bc = boxC0; bc < boxC0 + variant.boxCols; bc++) {
-            peers.delete(br * size + bc);
-          }
-        }
-        // Возвращаем row/col cells блока — они должны оставаться peers.
-        for (let k = 0; k < size; k++) {
-          if (k !== c) peers.add(r * size + k);
-          if (k !== r) peers.add(k * size + c);
+      // Mini) НЕ красим как peer-fill — для него рисуется акцентный периметр
+      // через renderBlockHighlight. Поэтому peers составляем явно из всех
+      // unit-ов sel, КРОМЕ box-unit. Так diagonal-/center-/windoku-cells
+      // (которые могут проходить и сквозь блок sel) остаются подсвечены
+      // как peers, а сам блок только обведён рамкой.
+      peers = new Set();
+      const myBox = findBoxUnitFor(sel, variant, size);
+      const units = variant.unitsForCell(sel);
+      for (let u = 0; u < units.length; u++) {
+        if (units[u] === myBox) continue;
+        const unit = units[u];
+        for (let k = 0; k < unit.length; k++) {
+          if (unit[k] !== sel) peers.add(unit[k]);
         }
       }
     }
@@ -165,6 +160,9 @@ window.Board = (function () {
                             && sel != null && useHighlight
                             && variant.boxRows > 0 && variant.boxCols > 0;
     renderBlockHighlight(state, size, variant, sel, showBlockHighlight);
+    // Когда block-highlight активен — все «общие» block-borders cell'ов
+    // делаем тоньше, чтобы selected-периметр заметно толще их.
+    boardEl.classList.toggle('has-block-highlight', showBlockHighlight);
 
     for (let i = 0; i < N; i++) {
       const cell = cells[i];
@@ -308,7 +306,8 @@ window.Board = (function () {
   // (вертикальную или горизонтальную) между ячейками разных змеек одной
   // непрерывной line — без CSS-border'ов на cell'ах, поэтому никаких
   // micro-gap'ов в углах. Если selSnakeId >= 0, граница ВЫБРАННОЙ змейки
-  // рисуется толще и accent-цветом; остальные — тоньше и обычным цветом.
+  // рисуется заметно толще, остальные — тоньше. Цвет всех границ
+  // одинаковый чёрный — выделение только толщиной.
   function renderSugurOverlay(state, size, enabled, selSnakeId) {
     if (!enabled) {
       if (sugurSvg) { sugurSvg.remove(); sugurSvg = null; }
@@ -326,13 +325,13 @@ window.Board = (function () {
       while (sugurSvg.firstChild) sugurSvg.removeChild(sugurSvg.firstChild);
     }
     const snake = state.cellSnake;
-    // 1 unit = (board_px / size) ≈ 53px на 480px-доске.
-    // Обычная толщина 0.04 ≈ 2.1px (чуть тоньше прежних 2.5px),
-    // selected — 0.075 ≈ 4px + accent.
+    // Все границы одного чёрного цвета. Выбранная змейка — толще,
+    // остальные — заметно тоньше: разница в толщине достаточна чтобы
+    // выделить selected, цвет везде одинаковый.
     const STROKE_NORMAL = '#1a2540';
-    const STROKE_SELECT = '#3157d3';   // var(--accent)
-    const W_NORMAL = '0.035';
-    const W_SELECT = '0.075';
+    const STROKE_SELECT = '#1a2540';
+    const W_NORMAL = '0.022';   // ≈ 1.2px на 480-доске (раньше 0.035)
+    const W_SELECT = '0.075';   // ≈ 4px на 480-доске
 
     function drawEdge(x1, y1, x2, y2, sA, sB) {
       const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
@@ -401,6 +400,34 @@ window.Board = (function () {
     }
   }
 
+  // Возвращает unit (массив cell-индексов), который представляет «box»
+  // (блок) для cell sel в данном variant. Идентифицируется по геометрии:
+  // unit, чьи cells точно покрывают прямоугольник boxRows×boxCols вокруг sel.
+  // Возвращает null если у variant'а нет box-структуры (или sel вне неё).
+  function findBoxUnitFor(sel, variant, size) {
+    if (!variant.boxRows || !variant.boxCols) return null;
+    const r = Math.floor(sel / size), c = sel % size;
+    const boxR0 = Math.floor(r / variant.boxRows) * variant.boxRows;
+    const boxC0 = Math.floor(c / variant.boxCols) * variant.boxCols;
+    const expected = new Set();
+    for (let br = boxR0; br < boxR0 + variant.boxRows; br++) {
+      for (let bc = boxC0; bc < boxC0 + variant.boxCols; bc++) {
+        expected.add(br * size + bc);
+      }
+    }
+    const units = variant.unitsForCell(sel);
+    for (let u = 0; u < units.length; u++) {
+      const unit = units[u];
+      if (unit.length !== expected.size) continue;
+      let match = true;
+      for (let k = 0; k < unit.length; k++) {
+        if (!expected.has(unit[k])) { match = false; break; }
+      }
+      if (match) return unit;
+    }
+    return null;
+  }
+
   // SVG-overlay accent-периметра вокруг блока выбранной ячейки.
   // Используется для всех variants с boxRows/boxCols > 0 (Classic, Mini,
   // Diagonal, Center, Windoku, Kropki). Рисует 4 линии по периметру
@@ -430,7 +457,7 @@ window.Board = (function () {
     const x2 = boxC0 + variant.boxCols;
     const y1 = boxR0;
     const y2 = boxR0 + variant.boxRows;
-    const STROKE = '#3157d3';   // var(--accent)
+    const STROKE = '#1a2540';   // чёрный (var(--grid-line-thick))
     const W = '0.075';
     const HALF = 0.04;
     // Сдвиг для внешних краёв (касающихся края доски):
