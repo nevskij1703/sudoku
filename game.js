@@ -88,17 +88,36 @@ window.Game = (function () {
     return timerBaseMs + (Date.now() - timerStartedAt);
   }
 
+  // Уровень считается «нетронутым», если игрок ничего не сделал
+  // (board совпадает со стартовым puzzle, нет заметок/подсказок/ошибок,
+  // hearts полные, fast-mode не задействован). Такие сейвы не сохраняем:
+  // если игрок просто открыл уровень и вышел, в следующий раз поле
+  // должно сгенерироваться с нуля, а не предлагаться продолжить пустой
+  // уровень.
+  function isUntouched() {
+    if (!active) return true;
+    for (let i = 0; i < active.board.length; i++) {
+      if (active.board[i] !== active.puzzle[i]) return false;
+      if (active.notes[i] !== 0) return false;
+      if (active.hintCells && active.hintCells[i]) return false;
+    }
+    if (active.hearts !== CFG.BALANCE.heartsPerLevel) return false;
+    if (active.hintsUsed > 0) return false;
+    if (active.fastModeUnlocked || active.fastModeActive) return false;
+    return true;
+  }
+
   function persist() {
     if (!active) return;
+    const mode = active.mode || 'classic';
+    const diff = active.difficulty || 'medium';
+    if (isUntouched()) {
+      // Untouched уровень — не сохраняем (и подчищаем слот если он там был).
+      window.Storage.clearActiveByMode(mode, diff);
+      return;
+    }
     active.elapsedMs = getElapsedMs();
-    // Сохраняем в слот текущей пары (режим, сложность). Любые другие
-    // слоты — другого режима ИЛИ другой сложности того же режима —
-    // остаются нетронутыми.
-    window.Storage.setActiveByMode(
-      active.mode || 'classic',
-      active.difficulty || 'medium',
-      active
-    );
+    window.Storage.setActiveByMode(mode, diff, active);
   }
 
   function makeSnapshot() {
