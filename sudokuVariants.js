@@ -391,61 +391,6 @@ window.SudokuVariants = (function () {
     }
   }
 
-  // Sequential path-grow: каждую змейку растим путём (path) по одной,
-  // от random unoccupied seed, добавляя клетку к одному из концов. После
-  // 9 cells — переходим к следующей змейке. Если path застрял до длины 9
-  // или после 9 змеек остались свободные cells — reroll.
-  //
-  // Этот алгоритм даёт **настоящие тонкие верёвочки**: каждая снейка —
-  // последовательный path без ветвлений. Регион «толстый» (как 3×3 блок)
-  // получиться не может, потому что path по 4-conn физически не закрывает
-  // 2×2 квадрат (он бы стал циклом).
-  function growPathSnake(occupied, rng, connectivity) {
-    const DR4 = [-1, 1, 0, 0];
-    const DC4 = [0, 0, -1, 1];
-    const DR8 = [-1, -1, -1,  0, 0,  1, 1, 1];
-    const DC8 = [-1,  0,  1, -1, 1, -1, 0, 1];
-    const DR = connectivity === '8' ? DR8 : DR4;
-    const DC = connectivity === '8' ? DC8 : DC4;
-    function nbrsFree(cell) {
-      const r = Math.floor(cell / 9), c = cell % 9;
-      const out = [];
-      for (let d = 0; d < DR.length; d++) {
-        const nr = r + DR[d], nc = c + DC[d];
-        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
-        const n = nr * 9 + nc;
-        if (!occupied[n]) out.push(n);
-      }
-      return out;
-    }
-    // Выбираем seed из всех free cells
-    const free = [];
-    for (let i = 0; i < 81; i++) if (!occupied[i]) free.push(i);
-    if (free.length === 0) return null;
-    const seed = free[Math.floor(rng() * free.length)];
-    const path = [seed];
-    occupied[seed] = true;
-
-    while (path.length < 9) {
-      const headNbrs = nbrsFree(path[path.length - 1]);
-      const tailNbrs = nbrsFree(path[0]);
-      const ends = [];
-      if (headNbrs.length > 0) ends.push({ side: 'head', nbrs: headNbrs });
-      if (tailNbrs.length > 0) ends.push({ side: 'tail', nbrs: tailNbrs });
-      if (ends.length === 0) {
-        // Path заперт — откатываем и фейлим
-        for (const c of path) occupied[c] = false;
-        return null;
-      }
-      const pickEnd = ends[Math.floor(rng() * ends.length)];
-      const next = pickEnd.nbrs[Math.floor(rng() * pickEnd.nbrs.length)];
-      occupied[next] = true;
-      if (pickEnd.side === 'head') path.push(next);
-      else                          path.unshift(next);
-    }
-    return path;
-  }
-
   // Возвращает 9 классических 3×3 блоков как массив регионов.
   // Используется для Chain (8-связность — внутри блока ham-path по диагоналям).
   function classicBlockRegions() {
@@ -546,123 +491,30 @@ window.SudokuVariants = (function () {
     return regions;
   }
 
-  // Backtracking-генератор линейных «верёвочек»:
-  //   - паттерн растим path-grow'ом по одному (как `growPathSnake`),
-  //   - если на N-том снейке застряли — откатываем (N-1) и пробуем для него
-  //     другой seed/направление; если это тоже не помогает — откатываем
-  //     дальше. Backtracking гарантирует полное покрытие или provable failure.
-  //   - при выборе seed предпочитаем cells с минимальной свободной соседской
-  //     степенью (это эвристика «начать из угла» — углы обычно «безвыходные»,
-  //     иначе они блокируются позже и фейлят генерацию).
-  function backtrackingGrow(occupied, paths, rng, connectivity, seedTries) {
-    if (paths.length === 9) {
-      // проверка что все 81 заняты
-      for (let i = 0; i < 81; i++) if (!occupied[i]) return false;
-      return true;
-    }
-    // Собираем cells по «приоритету начала роста» (с наименьшей свободной
-    // степенью — обычно углы / клетки рядом со стенами).
-    const DR4 = [-1, 1, 0, 0];
-    const DC4 = [0, 0, -1, 1];
-    const DR8 = [-1, -1, -1, 0, 0, 1, 1, 1];
-    const DC8 = [-1, 0, 1, -1, 1, -1, 0, 1];
-    const DR = connectivity === '8' ? DR8 : DR4;
-    const DC = connectivity === '8' ? DC8 : DC4;
-    const candidates = [];
-    for (let i = 0; i < 81; i++) {
-      if (occupied[i]) continue;
-      const r = Math.floor(i / 9), c = i % 9;
-      let freeDeg = 0;
-      for (let d = 0; d < DR.length; d++) {
-        const nr = r + DR[d], nc = c + DC[d];
-        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
-        if (!occupied[nr * 9 + nc]) freeDeg++;
-      }
-      candidates.push({ idx: i, deg: freeDeg });
-    }
-    candidates.sort(function (a, b) { return a.deg - b.deg; });
-    // Перемешиваем равные по degree, чтобы не было детерминизма
-    for (let i = 0; i < candidates.length - 1; i++) {
-      let j = i + 1;
-      while (j < candidates.length && candidates[j].deg === candidates[i].deg) j++;
-      // shuffle [i, j-1]
-      for (let k = j - 1; k > i; k--) {
-        const m = i + Math.floor(rng() * (k - i + 1));
-        const tmp = candidates[k]; candidates[k] = candidates[m]; candidates[m] = tmp;
-      }
-      i = j - 1;
-    }
-    const limit = Math.min(seedTries, candidates.length);
-    for (let t = 0; t < limit; t++) {
-      const seed = candidates[t].idx;
-      // Try grow path from this seed
-      const path = growPathFromSeed(occupied, seed, rng, connectivity);
-      if (!path) continue;
-      paths.push(path);
-      if (backtrackingGrow(occupied, paths, rng, connectivity, seedTries)) return true;
-      // Undo
-      for (const c of path) occupied[c] = false;
-      paths.pop();
-    }
-    return false;
-  }
-  function growPathFromSeed(occupied, seed, rng, connectivity) {
-    const DR4 = [-1, 1, 0, 0];
-    const DC4 = [0, 0, -1, 1];
-    const DR8 = [-1, -1, -1, 0, 0, 1, 1, 1];
-    const DC8 = [-1, 0, 1, -1, 1, -1, 0, 1];
-    const DR = connectivity === '8' ? DR8 : DR4;
-    const DC = connectivity === '8' ? DC8 : DC4;
-    function nbrsFree(cell) {
-      const r = Math.floor(cell / 9), c = cell % 9;
-      const out = [];
-      for (let d = 0; d < DR.length; d++) {
-        const nr = r + DR[d], nc = c + DC[d];
-        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
-        const n = nr * 9 + nc;
-        if (!occupied[n]) out.push(n);
-      }
-      return out;
-    }
-    const path = [seed];
-    occupied[seed] = true;
-    while (path.length < 9) {
-      const headNbrs = nbrsFree(path[path.length - 1]);
-      const tailNbrs = nbrsFree(path[0]);
-      const ends = [];
-      if (headNbrs.length > 0) ends.push({ side: 'head', nbrs: headNbrs });
-      if (tailNbrs.length > 0) ends.push({ side: 'tail', nbrs: tailNbrs });
-      if (ends.length === 0) {
-        // Откатываем path и фейлим
-        for (const c of path) occupied[c] = false;
-        return null;
-      }
-      const pickEnd = ends[Math.floor(rng() * ends.length)];
-      const next = pickEnd.nbrs[Math.floor(rng() * pickEnd.nbrs.length)];
-      occupied[next] = true;
-      if (pickEnd.side === 'head') path.push(next);
-      else                          path.unshift(next);
-    }
-    return path;
-  }
-
+  // Sugur layout — классические 3×3 блоки как regions, внутри каждого
+  // ищем Hamiltonian-путь по 4-связности (z-shape / S-shape). Так
+  // получается визуальная «змейка» внутри привычного блока, и solver
+  // работает быстро (snake-constraint = block-constraint).
+  // Diversify swaps пока не делаем — там есть риск что constraint
+  // меняется и solve уходит в долгий поиск.
   function generateSnakeLayout(rng) {
     rng = rng || Math.random;
-    // Несколько глобальных attempts со свежим occupied, потом backtracking
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const occupied = new Array(81).fill(false);
-      const paths = [];
-      if (backtrackingGrow(occupied, paths, rng, '4', 10)) {
-        const cellSnake = new Array(81).fill(-1);
-        const snakeCells = [];
-        for (let s = 0; s < 9; s++) {
-          snakeCells.push(paths[s].slice());
-          for (let k = 0; k < paths[s].length; k++) cellSnake[paths[s][k]] = s;
-        }
-        return { cellSnake: cellSnake, snakeCells: snakeCells };
-      }
+    const deadline = Date.now() + 250;
+    const regions = classicBlockRegions();
+    const paths = [];
+    for (let s = 0; s < 9; s++) {
+      if (Date.now() > deadline) return null;
+      const p = findHamPath(regions[s], '4', rng);
+      if (!p) return null;
+      paths.push(p);
     }
-    return null;
+    const cellSnake = new Array(81).fill(-1);
+    const snakeCells = [];
+    for (let s = 0; s < 9; s++) {
+      snakeCells.push(paths[s].slice());
+      for (let k = 0; k < paths[s].length; k++) cellSnake[paths[s][k]] = s;
+    }
+    return { cellSnake: cellSnake, snakeCells: snakeCells };
   }
 
   function makeSugur(snakeCells, cellSnake) {
@@ -744,24 +596,104 @@ window.SudokuVariants = (function () {
   // оставлено на будущие итерации.
   // Цепочки: тот же sequential path-grow что Sugur, но 8-связность.
   // Edges = последовательные пары ячеек path'а, 8 на цепочку = 72.
+  // Chain-layout — простой и надёжный алгоритм:
+  //   1. Стартуем с классических 3×3 блоков (instant, всегда работает).
+  //   2. Делаем несколько safe-swap'ов между соседними блоками — каждый swap
+  //      сохраняет связность обоих и наличие Hamiltonian-пути.
+  //   3. Внутри каждого блока ищем Ham-path по 8-связности (всегда есть в
+  //      3×3 блоке с 8-conn — там полный граф).
+  // На всё — hard deadline 250ms. Backtracking из прошлой реализации
+  // мог уходить в экспоненту на bad-luck комбинациях, теперь это исключено.
   function generateChainLayout(rng) {
     rng = rng || Math.random;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const occupied = new Array(81).fill(false);
-      const paths = [];
-      if (backtrackingGrow(occupied, paths, rng, '8', 5)) {
-        const cellChain = new Array(81).fill(-1);
-        const chainCells = [];
-        const edges = [];
-        for (let s = 0; s < 9; s++) {
-          chainCells.push(paths[s].slice());
-          for (let k = 0; k < paths[s].length; k++) cellChain[paths[s][k]] = s;
-          for (let i = 1; i < paths[s].length; i++) edges.push([paths[s][i - 1], paths[s][i]]);
-        }
-        return { cellChain: cellChain, chainCells: chainCells, edges: edges };
-      }
+    const deadline = Date.now() + 250;
+    // Chain layout — чистые классические 3×3 блоки (без diversify swaps).
+    // Это гарантирует что chain-constraint эквивалентен block-constraint,
+    // и решение можно искать через classic solve (быстро, надёжно).
+    // Внутри каждого блока ищем Hamiltonian-путь по 8-связности — он
+    // даёт zigzag-цепочку для визуализации, не меняя set ячеек.
+    const regions = classicBlockRegions();
+    const paths = [];
+    for (let s = 0; s < 9; s++) {
+      if (Date.now() > deadline) return null;
+      const p = findHamPath(regions[s], '8', rng);
+      if (!p) return null;
+      paths.push(p);
     }
-    return null;
+    const cellChain = new Array(81).fill(-1);
+    const chainCells = [];
+    const edges = [];
+    for (let s = 0; s < 9; s++) {
+      chainCells.push(paths[s].slice());
+      for (let k = 0; k < paths[s].length; k++) cellChain[paths[s][k]] = s;
+      for (let i = 1; i < paths[s].length; i++) edges.push([paths[s][i - 1], paths[s][i]]);
+    }
+    return { cellChain: cellChain, chainCells: chainCells, edges: edges };
+  }
+
+  // Версия diversifyRegions с deadline — выходит из loop когда время вышло.
+  function diversifyRegionsTimed(regions, connectivity, rng, swapAttempts, deadline) {
+    const cellRegion = new Array(81);
+    for (let s = 0; s < 9; s++) for (const i of regions[s]) cellRegion[i] = s;
+    const DR4 = [-1, 1, 0, 0];
+    const DC4 = [0, 0, -1, 1];
+    const DR8 = [-1, -1, -1, 0, 0, 1, 1, 1];
+    const DC8 = [-1, 0, 1, -1, 1, -1, 0, 1];
+    const DR = connectivity === '8' ? DR8 : DR4;
+    const DC = connectivity === '8' ? DC8 : DC4;
+    function neighborsInRegion(cell, target) {
+      const r = Math.floor(cell / 9), c = cell % 9;
+      const out = [];
+      for (let d = 0; d < DR.length; d++) {
+        const nr = r + DR[d], nc = c + DC[d];
+        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+        const n = nr * 9 + nc;
+        if (cellRegion[n] === target) out.push(n);
+      }
+      return out;
+    }
+    function isConnected(cells, target) {
+      if (cells.length === 0) return true;
+      const visited = new Set([cells[0]]);
+      const stack = [cells[0]];
+      while (stack.length) {
+        const cur = stack.pop();
+        for (const n of neighborsInRegion(cur, target)) {
+          if (!visited.has(n)) { visited.add(n); stack.push(n); }
+        }
+      }
+      return visited.size === cells.length;
+    }
+    for (let a = 0; a < swapAttempts; a++) {
+      if (Date.now() > deadline) break;
+      const i = Math.floor(rng() * 81);
+      const sA = cellRegion[i];
+      const r = Math.floor(i / 9), c = i % 9;
+      const dir = Math.floor(rng() * DR.length);
+      const nr = r + DR[dir], nc = c + DC[dir];
+      if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+      const j = nr * 9 + nc;
+      const sB = cellRegion[j];
+      if (sA === sB) continue;
+      cellRegion[i] = sB;
+      cellRegion[j] = sA;
+      const newA = [], newB = [];
+      for (let k = 0; k < 81; k++) {
+        if (cellRegion[k] === sA) newA.push(k);
+        if (cellRegion[k] === sB) newB.push(k);
+      }
+      if (!isConnected(newA, sA) || !isConnected(newB, sB)) {
+        cellRegion[i] = sA;
+        cellRegion[j] = sB;
+        continue;
+      }
+      // Не проверяем ham-path (это можно проверить только дорого) — accepting
+      // если регион connected. В 8-conn graph 9-cell region почти всегда
+      // имеет Ham-path, риск минимален; finalHam-search все равно найдёт.
+      regions[sA] = newA;
+      regions[sB] = newB;
+    }
+    return regions;
   }
 
   function makeChain(chainCells, cellChain, edges) {

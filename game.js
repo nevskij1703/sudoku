@@ -203,9 +203,13 @@ window.Game = (function () {
         console.warn('[game] sugur layout generation failed, fallback to classic');
         gen = Gen.generate(difficulty, { variant: SV.Classic });
       } else {
-        const sugurVariant = SV.makeSugur(layout.snakeCells, layout.cellSnake);
+        // Снейк-регионы у нас совпадают с классическими 3×3 блоками
+        // (внутри них ham-path даёт zigzag-визуал). Поэтому snake-
+        // constraint = block-constraint, и решение можно искать быстрым
+        // classic-solve. Если в будущем добавим diversify-swaps —
+        // понадобится либо sugur-solve, либо validation/fallback.
         const t1 = Date.now();
-        const sol = Core.solve(new Array(81).fill(0), sugurVariant, Math.random);
+        const sol = Core.solve(new Array(81).fill(0), SV.Classic, Math.random);
         const t2 = Date.now();
         if (!sol) {
           console.warn('[game] sugur solve failed, fallback to classic');
@@ -237,18 +241,18 @@ window.Game = (function () {
         }
       }
     } else if (mode === 'chain' && SV && SV.generateChainLayout) {
-      // Chain: 9 цепочек с 8-связностью + simplified puzzle generation
-      // (тот же UX trade-off что у Sugur — без строгой uniqueness-проверки
-      // на каждом удалении, т.к. countSolutions на random chains может
-      // занимать секунды). Решаем пустую сетку → удаляем N random cells.
+      // Chain: 9 цепочек с 8-связностью. Genгенерируем layout (block-based,
+      // ≤250ms), затем решаем пустую сетку как CLASSIC (потому что chains
+      // в текущей реализации = классические 3×3 блоки + ham-path внутри
+      // для рисования визуальных связей). Solve классики — гарантированно
+      // быстрый. Constraint-wise результат эквивалентен chain'у.
       const layout = SV.generateChainLayout();
       if (!layout) {
         console.warn('[game] chain layout generation failed, fallback to classic');
         gen = Gen.generate(difficulty, { variant: SV.Classic });
       } else {
-        const chainVariant = SV.makeChain(layout.chainCells, layout.cellChain, layout.edges);
         const t1 = Date.now();
-        const sol = Core.solve(new Array(81).fill(0), chainVariant, Math.random);
+        const sol = Core.solve(new Array(81).fill(0), SV.Classic, Math.random);
         const t2 = Date.now();
         if (!sol) {
           console.warn('[game] chain solve failed, fallback to classic');
