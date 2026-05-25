@@ -494,13 +494,19 @@
 
     // ===== 12. Стартовый экран =====
     //
-    // Если есть активный сейв — открываем сразу этот уровень. Игрок
-    // продолжает с того места, где вышел (закрыл вкладку / убил app).
-    // Если несколько сейвов — берём «самый свежий» по recency-эвристике
-    // (getAllActiveModes возвращает в порядке вставки, последний — самый
-    // недавний). Если активных сейвов нет — показываем home.
+    // Логика стартового экрана:
+    //   1. Если есть активный сейв — открываем сразу этот уровень.
+    //      Игрок продолжает с того места, где вышел. Если несколько
+    //      сейвов — берём «самый свежий» (последний в порядке вставки).
+    //   2. Если сейвов нет, но игрок УЖЕ играл (completedLevels > 0) —
+    //      показываем home, чтобы он выбрал режим/сложность.
+    //   3. Если совсем новый игрок (sеейвов нет И completedLevels=0) —
+    //      сразу запускаем Классику/Средний, чтобы игрок не «выпал»
+    //      в незнакомое меню сразу после установки app. Home он
+    //      увидит когда дойдёт до неё через ← из игры.
     updateHomeStats();
     const slots = window.Storage.getAllActiveModes();
+    const completedLevels = window.Storage.getCompletedLevels();
     if (slots.length > 0) {
       const last = slots[slots.length - 1];
       if (window.Game.resumeMode(last.mode, last.difficulty)) {
@@ -510,7 +516,14 @@
       } else {
         window.UI.showScreen('home');
       }
+    } else if (completedLevels === 0) {
+      // Новый игрок — сразу в игру с дефолтным режимом и сложностью.
+      selectedMode = 'classic';
+      selectedDifficulty = 'medium';
+      window.Game.startNewLevel('medium', 'classic');
+      window.UI.showScreen('game');
     } else {
+      // Игрок без активного сейва, но уже играл — показываем home.
       window.UI.showScreen('home');
     }
   }

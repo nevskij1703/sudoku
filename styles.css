@@ -318,26 +318,32 @@ input { font: inherit; color: inherit; }
 .mode-tile {
   position: relative;
   background: var(--bg-soft);
-  border-radius: 16px;
-  padding: 14px 6px 10px;
+  border-radius: 18px;
+  padding: 20px 8px 14px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
   text-align: center;
   transition: transform 0.08s ease;
   cursor: pointer;
-  min-height: 110px;
+  min-height: 140px;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
 }
 .mode-tile.selected { border-color: var(--accent); background: var(--accent-soft); }
 .mode-tile.locked { opacity: 0.4; cursor: not-allowed; }
 .mode-tile:active:not(.locked) { transform: scale(0.96); }
 
-.mode-emoji { font-size: 32px; line-height: 1; height: 36px; display: flex; align-items: center; justify-content: center; }
-.mode-emoji svg { width: 32px; height: 32px; color: var(--text); }
-.mode-label { font-weight: 700; font-size: 14px; margin-top: 6px; line-height: 1.1; }
-.mode-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; line-height: 1.15; }
+/* Иконка режима — крупная, занимает большую часть верхней части плитки. */
+.mode-emoji {
+  height: 48px;
+  margin-top: 4px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text);
+}
+.mode-emoji svg { width: 44px; height: 44px; color: var(--text); }
+.mode-label { font-weight: 700; font-size: 16px; margin-top: 10px; line-height: 1.15; }
+.mode-sub { font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.2; }
 
-/* Info-кнопка в левом-верхнем углу плитки (как было до v2). */
+/* Info-кнопка в левом-верхнем углу плитки. */
 .mode-info-btn {
   position: absolute;
   top: 6px; left: 6px;
@@ -350,14 +356,6 @@ input { font: inherit; color: inherit; }
 }
 .mode-info-btn:active { color: var(--accent); transform: scale(0.88); }
 .mode-info-btn .icon { width: 18px; height: 18px; }
-.mode-emoji {
-  height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text);
-}
-.mode-emoji svg { width: 30px; height: 30px; }
-.mode-label { font-weight: 600; font-size: 14px; margin-top: 4px; }
-.mode-sub { font-size: 11px; color: var(--text-dim); }
 
 
 /* ============ Game ============ */

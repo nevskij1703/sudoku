@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Мастер</title>
-  <link rel="stylesheet" href="styles.css?v=41" />
+  <link rel="stylesheet" href="styles.css?v=42" />
 </head>
 <body>
 
@@ -297,14 +297,6 @@
            в левом-верхнем углу, иконка по центру сверху, название и
            краткое описание. -->
       <div class="mode-grid">
-        <div class="mode-tile" data-mode="mini" role="button" tabindex="0">
-          <button class="mode-info-btn" data-mode-info="mini" aria-label="Правила режима «Мини»">
-            <svg class="icon"><use href="#icon-info"/></svg>
-          </button>
-          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-mini"/></svg></div>
-          <div class="mode-label">Мини 4×4</div>
-          <div class="mode-sub">для начинающих</div>
-        </div>
         <div class="mode-tile selected" data-mode="classic" role="button" tabindex="0">
           <button class="mode-info-btn" data-mode-info="classic" aria-label="Правила режима «Судоку»">
             <svg class="icon"><use href="#icon-info"/></svg>
@@ -312,6 +304,14 @@
           <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></div>
           <div class="mode-label">Судоку</div>
           <div class="mode-sub">9×9, классика</div>
+        </div>
+        <div class="mode-tile" data-mode="mini" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="mini" aria-label="Правила режима «Мини»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-mini"/></svg></div>
+          <div class="mode-label">Мини 4×4</div>
+          <div class="mode-sub">для начинающих</div>
         </div>
         <div class="mode-tile" data-mode="diagonal" role="button" tabindex="0">
           <button class="mode-info-btn" data-mode-info="diagonal" aria-label="Правила режима «Диагональ»">
@@ -572,22 +572,22 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=41"></script>
-  <script src="migrations.js?v=41"></script>
-  <script src="storage.js?v=41"></script>
-  <script src="sudokuCore.js?v=41"></script>
-  <script src="sudokuVariants.js?v=41"></script>
-  <script src="sudokuTechniques.js?v=41"></script>
-  <script src="sudokuGenerator.js?v=41"></script>
-  <script src="precomputedPools.js?v=41"></script>
-  <script src="ads.js?v=41"></script>
-  <script src="rustoreReview.js?v=41"></script>
-  <script src="audio.js?v=41"></script>
-  <script src="ui.js?v=41"></script>
-  <script src="board.js?v=41"></script>
-  <script src="numberPad.js?v=41"></script>
-  <script src="game.js?v=41"></script>
-  <script src="devPanel.js?v=41"></script>
-  <script src="main.js?v=41"></script>
+  <script src="config.js?v=42"></script>
+  <script src="migrations.js?v=42"></script>
+  <script src="storage.js?v=42"></script>
+  <script src="sudokuCore.js?v=42"></script>
+  <script src="sudokuVariants.js?v=42"></script>
+  <script src="sudokuTechniques.js?v=42"></script>
+  <script src="sudokuGenerator.js?v=42"></script>
+  <script src="precomputedPools.js?v=42"></script>
+  <script src="ads.js?v=42"></script>
+  <script src="rustoreReview.js?v=42"></script>
+  <script src="audio.js?v=42"></script>
+  <script src="ui.js?v=42"></script>
+  <script src="board.js?v=42"></script>
+  <script src="numberPad.js?v=42"></script>
+  <script src="game.js?v=42"></script>
+  <script src="devPanel.js?v=42"></script>
+  <script src="main.js?v=42"></script>
 </body>
 </html>
