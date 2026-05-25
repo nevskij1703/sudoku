@@ -25,9 +25,6 @@ window.Game = (function () {
 
   // ===== State =====
   let active = null;            // см. структуру в storage.js → DEFAULTS().active
-  // Таймер каскадного заполнения в Быстром режиме. Сбрасывается при
-  // выключении режима, win, gameover, abandon, startNewLevel.
-  let fastTimer = null;
 
   // Возвращает variant активного режима (или Classic если active нет).
   // Для mode-зависимых variants (sugur, kropki) пересоздаём concrete variant
@@ -382,8 +379,26 @@ window.Game = (function () {
 
   function handleCellClick(idx) {
     if (!active) return;
-    // Повторный тап по уже выбранной ячейке — снимает выделение. Это
-    // удобно когда юзер хочет отменить выбор, не выбирая другую ячейку.
+    // === Быстрый режим: тап по ячейке с единственным candidate =====
+    // Если включён Быстрый режим и в выбранной ячейке (пустая, не-given,
+    // не-hint) осталась ровно ОДНА possible цифра в заметках — мы её
+    // ставим автоматически, без необходимости вводить цифру через num-pad.
+    // Это и есть «полу-ручной» каскад: каждый ход требует тапа игрока.
+    if (active.fastModeActive
+        && active.board[idx] === 0
+        && !active.givens[idx]
+        && !(active.hintCells && active.hintCells[idx])) {
+      const d = singleCandidate(idx);
+      if (d > 0) {
+        // Делегируем handleNumber — он всё сделает чисто: place, auto-clean
+        // peers' notes, mistake-check, win-check, persist, render, audio.
+        selectedIdx = idx;
+        handleNumber(d);
+        return;
+      }
+    }
+    // Обычное поведение — toggle selection. Повторный тап по той же ячейке
+    // снимает выделение.
     selectedIdx = (selectedIdx === idx) ? null : idx;
     window.AudioFX.click();
     renderAll();
@@ -616,12 +631,13 @@ window.Game = (function () {
   // рекламу.
   //
   // При включении: пересчитываются заметки всех пустых ячеек до полного
-  // набора кандидатов (с учётом variant peers и исключая mistakes). Если
-  // образуются single-candidate ячейки — стартует каскадная цепочка
-  // автозаполнения (`runFastModeStep`), которая может полностью решить
-  // уровень за пару секунд.
+  // набора кандидатов (с учётом variant peers и исключая mistakes). Авто-
+  // каскада больше нет — тап игрока по ячейке с ровно ОДНОЙ заметкой
+  // автоматически превращается в установку цифры (см. handleCellClick).
+  // Цифра выбирается без необходимости тапа по цифровой клавише.
   //
-  // При выключении: notes остаются как есть, дальше игрок работает руками.
+  // При выключении: notes остаются как есть, дальше игрок работает руками
+  // и pencil снова доступен.
 
   function getFastState() {
     if (!active) return { unlocked: false, active: false };
@@ -635,24 +651,18 @@ window.Game = (function () {
     if (!active) return;
     on = !!on;
     if (on) {
-      // Активация всегда требует unlocked. Если ещё не — это баг вызывающего.
       if (!active.fastModeUnlocked) {
         console.warn('[fast] setFastModeActive(true) called before unlock');
         return;
       }
       active.fastModeActive = true;
       recomputeAllNotes();
-      persist();
-      renderAll();
-      emit('change');
-      scheduleFastStep(150);   // короткий лаг до первого автозаполнения
     } else {
       active.fastModeActive = false;
-      clearFastTimer();
-      persist();
-      renderAll();
-      emit('change');
     }
+    persist();
+    renderAll();
+    emit('change');
   }
 
   // Помечает что юзер уже посмотрел rewarded-ad (или иначе разблокировал
@@ -663,15 +673,6 @@ window.Game = (function () {
     persist();
     renderAll();
     emit('change');
-  }
-
-  function clearFastTimer() {
-    if (fastTimer) { clearTimeout(fastTimer); fastTimer = null; }
-  }
-
-  function scheduleFastStep(delayMs) {
-    clearFastTimer();
-    fastTimer = setTimeout(runFastModeStep, delayMs);
   }
 
   // Пересчитывает заметки для всех пустых не-given ячеек, основываясь на
@@ -699,47 +700,22 @@ window.Game = (function () {
     }
   }
 
-  // Шаг каскада: ищет ПЕРВУЮ пустую ячейку с ровно 1 candidate в notes,
-  // ставит туда цифру, чистит соответствующий бит у peer'ов, проигрывает
-  // звук, шлёт board flash-анимацию, и планирует следующий шаг с задержкой.
-  // Если single-candidate не нашлось — цепочка останавливается.
-  function runFastModeStep() {
-    fastTimer = null;
-    if (!active || !active.fastModeActive) return;
-    let singleIdx = -1;
-    let singleBit = 0;
-    for (let i = 0; i < active.board.length; i++) {
-      if (active.board[i] !== 0) continue;
-      const m = active.notes[i];
-      if (m === 0) continue;
-      // Точно один бит установлен? m & (m-1) === 0 + m !== 0
-      if ((m & (m - 1)) === 0) {
-        singleIdx = i;
-        singleBit = m;
-        break;
-      }
-    }
-    if (singleIdx === -1) return;   // нет одиночек — каскад окончен
-    // Преобразуем bit → digit (1..9)
-    let d = 0;
-    for (let bi = 0; bi < 9; bi++) if (singleBit & (1 << bi)) { d = bi + 1; break; }
-    if (d === 0) return;
+  // Legacy stubs: раньше быстрый режим запускал каскадный таймер автозаполнения.
+  // В новой механике (тап = установка single-candidate) каскада нет, но
+  // вызовы остались в нескольких местах (startNewLevel, win, gameover,
+  // abandon, leaveToMenu) для будущей совместимости. No-op.
+  function clearFastTimer() {}
+  function scheduleFastStep() {}
 
-    active.board[singleIdx] = d;
-    active.notes[singleIdx] = 0;
-    active.mistakes[singleIdx] = false;
-    // Auto-clean: убираем этот бит из notes peer'ов
-    const peers = activeVariant().peersForCell(singleIdx);
-    const bit = 1 << (d - 1);
-    for (let k = 0; k < peers.length; k++) {
-      if (active.notes[peers[k]] & bit) active.notes[peers[k]] &= ~bit;
-    }
-    window.AudioFX.place();
-    persist();
-    renderAll();
-    if (window.Board && window.Board.flashFastFill) window.Board.flashFastFill(singleIdx);
-    if (isWin()) { onWin(); return; }
-    scheduleFastStep(180);
+  // Возвращает единственный candidate (1..9) для ячейки idx если её notes
+  // содержат ровно один бит, иначе 0. Используется в fast-mode-click.
+  function singleCandidate(idx) {
+    if (!active) return 0;
+    const m = active.notes[idx] | 0;
+    if (m === 0) return 0;
+    if ((m & (m - 1)) !== 0) return 0;
+    for (let b = 0; b < 9; b++) if (m & (1 << b)) return b + 1;
+    return 0;
   }
 
   function getActive() { return active; }
