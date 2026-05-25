@@ -25,6 +25,9 @@ window.Game = (function () {
 
   // ===== State =====
   let active = null;            // см. структуру в storage.js → DEFAULTS().active
+  // Таймер каскадного заполнения в Быстром режиме. Сбрасывается при
+  // выключении режима, win, gameover, abandon, startNewLevel.
+  let fastTimer = null;
 
   // Возвращает variant активного режима (или Classic если active нет).
   // Для mode-зависимых variants (sugur, kropki) пересоздаём concrete variant
@@ -142,6 +145,14 @@ window.Game = (function () {
     // переносится между уровнями). active.hintsUsed остаётся как per-level
     // статистика для модалки win, в UI не отображается.
     window.NumberPad.setHintsLeft(window.Storage.getHints());
+    // Синхронизируем UI быстрого режима с active state. Делается на каждый
+    // renderAll — поэтому setFastModeActive/unlockFastMode не обязаны сами
+    // дёргать NumberPad: достаточно что они вызывают renderAll/emit('change').
+    window.NumberPad.setFastState({
+      unlocked: !!active.fastModeUnlocked,
+      active:   !!active.fastModeActive
+    });
+    window.NumberPad.setPencilEnabled(!active.fastModeActive);
     window.UI.setHearts(active.hearts, CFG.BALANCE.heartsPerLevel);
   }
 
@@ -273,15 +284,21 @@ window.Game = (function () {
       hearts:    CFG.BALANCE.heartsPerLevel,
       hintsUsed: 0,
       elapsedMs: 0,
-      score:     gen.score
+      score:     gen.score,
+      // Быстрый режим — per-level, сбрасывается при каждом startNewLevel.
+      fastModeUnlocked: false,
+      fastModeActive:   false
     };
     selectedIdx = null;
     undoStack = [];
     timerBaseMs = 0;
     pencilMode = false;
+    clearFastTimer();
     if (window.NumberPad) {
       window.NumberPad.setPencilMode(false);
       window.NumberPad.setUndoEnabled(false);
+      window.NumberPad.setPencilEnabled(true);
+      window.NumberPad.setFastState({ unlocked: false, active: false });
       // Скрываем неподходящие цифры (Mini → 1-4, остальные 1-9)
       const variantForLevel = (window.SudokuVariants && window.SudokuVariants.byMode)
         ? window.SudokuVariants.byMode(active.mode || 'classic') : Core.ClassicVariant;
@@ -304,12 +321,22 @@ window.Game = (function () {
     undoStack = [];
     timerBaseMs = active.elapsedMs || 0;
     pencilMode = false;
+    clearFastTimer();
     if (window.NumberPad) {
       window.NumberPad.setPencilMode(false);
       window.NumberPad.setUndoEnabled(false);
       const variantForLevel = (window.SudokuVariants && window.SudokuVariants.byMode)
         ? window.SudokuVariants.byMode(active.mode || 'classic') : Core.ClassicVariant;
       window.NumberPad.setMaxDigit(variantForLevel.size || 9);
+      // Восстанавливаем UI быстрого режима: бэйдж скрыт если уже unlocked,
+      // подсветка кнопки — если был активен. Карандаш — disabled если active.
+      const fastUnlocked = !!active.fastModeUnlocked;
+      const fastActive   = !!active.fastModeActive;
+      window.NumberPad.setFastState({ unlocked: fastUnlocked, active: fastActive });
+      window.NumberPad.setPencilEnabled(!fastActive);
+      // Если уровень был сохранён в активной фазе быстрого режима —
+      // продолжаем каскад с того места.
+      if (fastActive) scheduleFastStep(300);
     }
     startTimer();
     renderAll();
@@ -332,6 +359,7 @@ window.Game = (function () {
   function leaveToMenu() {
     if (active) persist();   // зафиксировать текущее состояние
     stopTimer();
+    clearFastTimer();
     active = null;
     selectedIdx = null;
     undoStack = [];
@@ -343,6 +371,7 @@ window.Game = (function () {
   function abandon() {
     const m = active ? (active.mode || 'classic') : null;
     stopTimer();
+    clearFastTimer();
     if (m) window.Storage.clearActiveByMode(m);
     active = null;
     selectedIdx = null;
@@ -365,6 +394,10 @@ window.Game = (function () {
     // Given-ячейку нельзя менять. Hint-ячейку тоже (она заблочена).
     if (active.givens[idx]) return;
     if (active.hintCells && active.hintCells[idx]) return;
+
+    // В быстром режиме pencil заблокирован (см. NumberPad.setPencilEnabled),
+    // но если кто-то всё-таки взвёл pencilMode — игнорируем pencil-ввод.
+    if (active.fastModeActive && pencilMode) return;
 
     if (pencilMode) {
       // Если в ячейке уже стоит цифра — карандаш не работает поверх.
@@ -407,6 +440,9 @@ window.Game = (function () {
           onWin();
           return;
         }
+        // Если включён быстрый режим — после ручного хода игрока могут
+        // открыться новые single-candidate ячейки. Продолжаем каскад.
+        if (active.fastModeActive) scheduleFastStep(180);
       } else {
         active.mistakes[idx] = true;
         active.hearts--;
@@ -521,6 +557,7 @@ window.Game = (function () {
 
   function onWin() {
     stopTimer();
+    clearFastTimer();
     window.AudioFX.win();
     const elapsed = getElapsedMs();
     const mistakesCount = active.mistakes.reduce(function (s, m) { return s + (m ? 1 : 0); }, 0);
@@ -540,6 +577,7 @@ window.Game = (function () {
 
   function onGameOver() {
     stopTimer();
+    clearFastTimer();
     window.AudioFX.lose();
     emit('gameover');
   }
@@ -566,6 +604,142 @@ window.Game = (function () {
     }
   }
 
+  // === Быстрый режим (fast mode) ===
+  //
+  // Активация — через rewarded ad ОДИН РАЗ за уровень (main.js обрабатывает
+  // флоу рекламы и зовёт setFastModeActive(true)). После активации флаг
+  // `active.fastModeUnlocked = true` сохраняется в Storage вместе со всем
+  // активом, и в рамках уровня кнопка свободно toggle'ится. При новом
+  // уровне (startNewLevel) флаг сбрасывается → юзер снова должен смотреть
+  // рекламу.
+  //
+  // При включении: пересчитываются заметки всех пустых ячеек до полного
+  // набора кандидатов (с учётом variant peers и исключая mistakes). Если
+  // образуются single-candidate ячейки — стартует каскадная цепочка
+  // автозаполнения (`runFastModeStep`), которая может полностью решить
+  // уровень за пару секунд.
+  //
+  // При выключении: notes остаются как есть, дальше игрок работает руками.
+
+  function getFastState() {
+    if (!active) return { unlocked: false, active: false };
+    return {
+      unlocked: !!active.fastModeUnlocked,
+      active:   !!active.fastModeActive
+    };
+  }
+
+  function setFastModeActive(on) {
+    if (!active) return;
+    on = !!on;
+    if (on) {
+      // Активация всегда требует unlocked. Если ещё не — это баг вызывающего.
+      if (!active.fastModeUnlocked) {
+        console.warn('[fast] setFastModeActive(true) called before unlock');
+        return;
+      }
+      active.fastModeActive = true;
+      recomputeAllNotes();
+      persist();
+      renderAll();
+      emit('change');
+      scheduleFastStep(150);   // короткий лаг до первого автозаполнения
+    } else {
+      active.fastModeActive = false;
+      clearFastTimer();
+      persist();
+      renderAll();
+      emit('change');
+    }
+  }
+
+  // Помечает что юзер уже посмотрел rewarded-ad (или иначе разблокировал
+  // фичу) в текущем уровне. Дальше setFastModeActive можно дёргать без ads.
+  function unlockFastMode() {
+    if (!active) return;
+    active.fastModeUnlocked = true;
+    persist();
+    renderAll();
+    emit('change');
+  }
+
+  function clearFastTimer() {
+    if (fastTimer) { clearTimeout(fastTimer); fastTimer = null; }
+  }
+
+  function scheduleFastStep(delayMs) {
+    clearFastTimer();
+    fastTimer = setTimeout(runFastModeStep, delayMs);
+  }
+
+  // Пересчитывает заметки для всех пустых не-given ячеек, основываясь на
+  // правилах текущего variant. mistakes игнорируются (они «не считаются» как
+  // финальные цифры). hint/given cells получают notes=0.
+  function recomputeAllNotes() {
+    if (!active) return;
+    const variant = activeVariant();
+    const ALL = variant.ALL_MASK || 0x1FF;
+    const N = active.board.length;
+    for (let i = 0; i < N; i++) {
+      if (active.givens[i] || (active.hintCells && active.hintCells[i]) || active.board[i] !== 0) {
+        active.notes[i] = 0;
+        continue;
+      }
+      let mask = ALL;
+      const peers = variant.peersForCell(i);
+      for (let k = 0; k < peers.length; k++) {
+        const p = peers[k];
+        if (active.mistakes[p]) continue;   // ошибочные цифры не блокируют кандидатов
+        const v = active.board[p];
+        if (v >= 1 && v <= variant.size) mask &= ~(1 << (v - 1));
+      }
+      active.notes[i] = mask;
+    }
+  }
+
+  // Шаг каскада: ищет ПЕРВУЮ пустую ячейку с ровно 1 candidate в notes,
+  // ставит туда цифру, чистит соответствующий бит у peer'ов, проигрывает
+  // звук, шлёт board flash-анимацию, и планирует следующий шаг с задержкой.
+  // Если single-candidate не нашлось — цепочка останавливается.
+  function runFastModeStep() {
+    fastTimer = null;
+    if (!active || !active.fastModeActive) return;
+    let singleIdx = -1;
+    let singleBit = 0;
+    for (let i = 0; i < active.board.length; i++) {
+      if (active.board[i] !== 0) continue;
+      const m = active.notes[i];
+      if (m === 0) continue;
+      // Точно один бит установлен? m & (m-1) === 0 + m !== 0
+      if ((m & (m - 1)) === 0) {
+        singleIdx = i;
+        singleBit = m;
+        break;
+      }
+    }
+    if (singleIdx === -1) return;   // нет одиночек — каскад окончен
+    // Преобразуем bit → digit (1..9)
+    let d = 0;
+    for (let bi = 0; bi < 9; bi++) if (singleBit & (1 << bi)) { d = bi + 1; break; }
+    if (d === 0) return;
+
+    active.board[singleIdx] = d;
+    active.notes[singleIdx] = 0;
+    active.mistakes[singleIdx] = false;
+    // Auto-clean: убираем этот бит из notes peer'ов
+    const peers = activeVariant().peersForCell(singleIdx);
+    const bit = 1 << (d - 1);
+    for (let k = 0; k < peers.length; k++) {
+      if (active.notes[peers[k]] & bit) active.notes[peers[k]] &= ~bit;
+    }
+    window.AudioFX.place();
+    persist();
+    renderAll();
+    if (window.Board && window.Board.flashFastFill) window.Board.flashFastFill(singleIdx);
+    if (isWin()) { onWin(); return; }
+    scheduleFastStep(180);
+  }
+
   function getActive() { return active; }
   function getSelected() { return selectedIdx; }
 
@@ -584,6 +758,10 @@ window.Game = (function () {
     setPencilMode: setPencilMode,
     applyAdReward: applyAdReward,
     applyHintReward: applyHintReward,
+    // Быстрый режим
+    getFastState: getFastState,
+    unlockFastMode: unlockFastMode,
+    setFastModeActive: setFastModeActive,
     getActive: getActive,
     getSelected: getSelected,
     // dev-helpers

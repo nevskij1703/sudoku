@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=18" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
 
@@ -70,6 +70,14 @@
       <symbol id="icon-undo" viewBox="0 0 24 24">
         <path d="M9 14 L 3.5 9 L 9 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M3.5 9 H 14 C 17.6 9 20.5 11.7 20.5 15.5 C 20.5 19.3 17.6 21 14 21 H 9.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <symbol id="icon-bolt" viewBox="0 0 24 24">
+        <!-- Молния — символ «быстрого режима» / автоматического решения.
+             Z-образный силуэт со скошенными углами, заливка currentColor. -->
+        <path d="M13.5 2 L 4 14 L 11 14 L 9.5 22 L 20 9 L 13 9 L 14.5 2 Z"
+              fill="currentColor"
+              stroke="currentColor" stroke-width="1.2"
+              stroke-linejoin="round"/>
       </symbol>
       <symbol id="icon-eraser" viewBox="0 0 24 24">
         <!-- Горизонтальный прямоугольник-ластик с явным делением на две части.
@@ -396,6 +404,15 @@
           <svg class="tool-glyph" viewBox="0 0 24 24"><use href="#icon-pencil"/></svg>
           <span class="tool-label">Заметка</span>
         </button>
+        <!-- «Быстрый режим» — расставляет на пустых ячейках все возможные
+             по правилам цифры как заметки, и каскадно заполняет одиночные
+             single-candidate ячейки. Активация — rewarded ad один раз на
+             уровень, потом toggle on/off бесплатно в рамках этого уровня. -->
+        <button id="btn-fast" class="tool-btn" aria-label="Быстрый режим">
+          <svg class="tool-glyph" viewBox="0 0 24 24"><use href="#icon-bolt"/></svg>
+          <span class="tool-label">Быстрый</span>
+          <span id="fast-badge" class="tool-badge refill-ad">▶</span>
+        </button>
         <button id="btn-hint" class="tool-btn" aria-label="Подсказка">
           <svg class="tool-glyph" viewBox="0 0 24 24"><use href="#icon-lightbulb"/></svg>
           <span class="tool-label">Подсказка</span>
@@ -534,21 +551,21 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=18"></script>
-  <script src="migrations.js?v=18"></script>
-  <script src="storage.js?v=18"></script>
-  <script src="sudokuCore.js?v=18"></script>
-  <script src="sudokuVariants.js?v=18"></script>
-  <script src="sudokuTechniques.js?v=18"></script>
-  <script src="sudokuGenerator.js?v=18"></script>
-  <script src="ads.js?v=18"></script>
-  <script src="rustoreReview.js?v=18"></script>
-  <script src="audio.js?v=18"></script>
-  <script src="ui.js?v=18"></script>
-  <script src="board.js?v=18"></script>
-  <script src="numberPad.js?v=18"></script>
-  <script src="game.js?v=18"></script>
-  <script src="devPanel.js?v=18"></script>
-  <script src="main.js?v=18"></script>
+  <script src="config.js?v=19"></script>
+  <script src="migrations.js?v=19"></script>
+  <script src="storage.js?v=19"></script>
+  <script src="sudokuCore.js?v=19"></script>
+  <script src="sudokuVariants.js?v=19"></script>
+  <script src="sudokuTechniques.js?v=19"></script>
+  <script src="sudokuGenerator.js?v=19"></script>
+  <script src="ads.js?v=19"></script>
+  <script src="rustoreReview.js?v=19"></script>
+  <script src="audio.js?v=19"></script>
+  <script src="ui.js?v=19"></script>
+  <script src="board.js?v=19"></script>
+  <script src="numberPad.js?v=19"></script>
+  <script src="game.js?v=19"></script>
+  <script src="devPanel.js?v=19"></script>
+  <script src="main.js?v=19"></script>
 </body>
 </html>

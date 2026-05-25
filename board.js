@@ -336,11 +336,22 @@ window.Board = (function () {
     // Не убираем — error снимается явно через render(), когда mistakes[idx] = false
   }
 
+  // Кратковременная анимация появления цифры при каскадном заполнении в
+  // Быстром режиме. Класс снимается через 400ms, после чего ячейка
+  // выглядит обычно (цифру нарисовал render).
+  function flashFastFill(idx) {
+    const cell = cells[idx];
+    if (!cell) return;
+    cell.classList.add('fast-fill');
+    setTimeout(function () { cell.classList.remove('fast-fill'); }, 420);
+  }
+
   return {
     mount: mount,
     remount: remount,
     render: render,
     setSelected: setSelected,
-    flashError: flashError
+    flashError: flashError,
+    flashFastFill: flashFastFill
   };
 })();

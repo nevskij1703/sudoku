@@ -589,8 +589,8 @@ input { font: inherit; color: inherit; }
 
 .tools-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
 }
 .tool-btn {
   position: relative;
@@ -602,6 +602,23 @@ input { font: inherit; color: inherit; }
 }
 .tool-btn:active { transform: scale(0.94); }
 .tool-btn.active { background: var(--accent-soft); color: var(--accent); }
+/* Disabled — кнопка визуально потушена и не реагирует на pointer'ы.
+   Используется например для btn-pencil когда включён быстрый режим. */
+.tool-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+/* Кнопка «Быстрый режим» в активном состоянии — сплошной синий фон,
+   белый текст и иконка. Контрастирует со светлыми соседями и сигналит
+   что режим работает. */
+#btn-fast.fast-active {
+  background: var(--accent);
+  box-shadow: 0 6px 16px rgba(49, 87, 211, 0.30);
+}
+#btn-fast.fast-active .tool-glyph,
+#btn-fast.fast-active .tool-label {
+  color: white;
+}
 .tool-glyph { width: 24px; height: 24px; display: block; }
 /* У ластика виду форма «длинного прямоугольника» — он визуально воспринимается
    меньше квадратной иконки рядом. Чуть увеличиваем чтобы выровнять оптический
@@ -642,6 +659,18 @@ input { font: inherit; color: inherit; }
 @keyframes refill-pulse {
   0%, 100% { transform: scale(1); box-shadow: 0 2px 6px rgba(255, 140, 0, 0.45); }
   50%      { transform: scale(1.08); box-shadow: 0 3px 10px rgba(255, 140, 0, 0.65); }
+}
+
+/* Анимация появления цифры при каскадном заполнении в Быстром режиме.
+   Цифра «вспыхивает» — fade-in + scale-up — чтобы игроку было видно
+   когда именно эта ячейка решилась. */
+.cell.fast-fill {
+  animation: fast-fill-anim 0.36s ease-out;
+}
+@keyframes fast-fill-anim {
+  0%   { transform: scale(0.4); opacity: 0; color: var(--accent); }
+  60%  { transform: scale(1.15); opacity: 1; color: var(--accent); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* ============ Modals ============ */

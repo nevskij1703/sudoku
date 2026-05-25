@@ -153,7 +153,8 @@
           requestHintRefill();
         }
       },
-      onErase:  function ()  { window.Game.handleErase(); }
+      onErase:  function ()  { window.Game.handleErase(); },
+      onFastToggle: function () { requestFastToggle(); }
     });
 
     // ===== 3. Game callbacks =====
@@ -567,6 +568,32 @@
   // Защита от двойного клика: AdManager уже умеет игнорить параллельные
   // вызовы (см. busy в showRewardedAd), плюс UI блокирует клик пока показ
   // рекламы идёт. Так что здесь дополнительный mutex не нужен.
+  // Toggle быстрого режима. Если фича в текущем уровне ещё не разблокирована
+  // (active.fastModeUnlocked === false) — сначала просим юзера посмотреть
+  // rewarded ad; при успехе помечаем unlock + сразу включаем. Если уже
+  // unlocked — обычный toggle без рекламы. См. game.js → setFastModeActive.
+  function requestFastToggle() {
+    const a = window.Game.getActive();
+    if (!a) return;
+    if (a.fastModeUnlocked) {
+      // Toggle on/off без рекламы — уже разблокирован на этот уровень.
+      // UI обновится через renderAll (см. game.js → setFastModeActive).
+      window.Game.setFastModeActive(!a.fastModeActive);
+      return;
+    }
+    // Ещё не unlocked — запрашиваем rewarded ad. На watched: unlock + on.
+    window.AdManager.showRewardedAd({ kind: 'fast-mode' }).then(function (result) {
+      if (result && result.watched) {
+        window.Game.unlockFastMode();
+        window.Game.setFastModeActive(true);
+      } else {
+        console.log('[fast] rewarded ad not watched, unlock skipped');
+      }
+    }).catch(function (e) {
+      console.warn('[fast] showRewardedAd threw:', e);
+    });
+  }
+
   function requestHintRefill() {
     window.AdManager.showRewardedAd({ kind: 'hint' }).then(function (result) {
       if (result && result.watched) {

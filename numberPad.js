@@ -1,5 +1,6 @@
 /**
- * numberPad.js — нижняя панель: цифры, карандаш, подсказка, ластик.
+ * numberPad.js — нижняя панель: цифры, ластик, карандаш, быстрый режим,
+ * подсказка.
  *
  * API:
  *   NumberPad.mount(handlers)
@@ -8,12 +9,16 @@
  *       onPencilToggle(active): toggle режима заметок
  *       onHint():    запросить подсказку
  *       onErase():   очистить выбранную ячейку (цифра + заметки + ошибка)
+ *       onFastToggle(): toggle быстрого режима (см. main.js — там логика
+ *                       rewarded-ad и Game.setFastModeActive)
  *     }
  *
- *   NumberPad.updateDepleted(state) — пометить цифры, которых уже 9 на поле
+ *   NumberPad.updateDepleted(state)
  *   NumberPad.setPencilMode(bool)
+ *   NumberPad.setPencilEnabled(bool)  — отключает кнопку карандаша
  *   NumberPad.setHintsLeft(n)
- *   NumberPad.setUndoEnabled(bool) — no-op, оставлен для обратной совместимости
+ *   NumberPad.setFastState({unlocked, active}) — статус быстрого режима
+ *   NumberPad.setUndoEnabled(bool) — no-op, для обратной совместимости
  */
 window.NumberPad = (function () {
   let pencilMode = false;
@@ -46,6 +51,33 @@ window.NumberPad = (function () {
     if (eraseBtn) eraseBtn.addEventListener('click', function () {
       if (handlers && handlers.onErase) handlers.onErase();
     });
+
+    const fastBtn = document.getElementById('btn-fast');
+    if (fastBtn) fastBtn.addEventListener('click', function () {
+      if (handlers && handlers.onFastToggle) handlers.onFastToggle();
+    });
+  }
+
+  // Управляет UI кнопки «Быстрый режим». unlocked=false → бэйдж «▶»
+  // (приглашает посмотреть rewarded ad). unlocked=true → бэйдж скрыт,
+  // обычный toggle. active=true → синяя подсветка (.fast-active).
+  function setFastState(s) {
+    const btn = document.getElementById('btn-fast');
+    const badge = document.getElementById('fast-badge');
+    if (!btn) return;
+    const unlocked = !!(s && s.unlocked);
+    const active   = !!(s && s.active);
+    btn.classList.toggle('fast-active', active);
+    if (badge) badge.style.display = unlocked ? 'none' : '';
+  }
+
+  // Включает/выключает кнопку карандаша. Используется когда активен
+  // Быстрый режим — там карандашные заметки управляются автоматически,
+  // ручное toggle лишь сбивает игрока.
+  function setPencilEnabled(enabled) {
+    const btn = document.getElementById('btn-pencil');
+    if (!btn) return;
+    btn.classList.toggle('disabled', !enabled);
   }
 
   function isPencilMode() { return pencilMode; }
@@ -118,11 +150,13 @@ window.NumberPad = (function () {
     mount: mount,
     isPencilMode: isPencilMode,
     setPencilMode: setPencilMode,
+    setPencilEnabled: setPencilEnabled,
     updateDepleted: updateDepleted,
     // Алиас для совместимости со старым именованием:
     updateCounts: updateDepleted,
     setHintsLeft: setHintsLeft,
     setUndoEnabled: setUndoEnabled,
-    setMaxDigit: setMaxDigit
+    setMaxDigit: setMaxDigit,
+    setFastState: setFastState
   };
 })();
