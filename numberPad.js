@@ -101,16 +101,20 @@ window.NumberPad = (function () {
   }
 
   function updateDepleted(state) {
-    // Считаем для каждой цифры 1..9 сколько штук уже выставлено на поле.
-    // Если выставлено 9 — кнопка depleted (полупрозрачна).
-    const counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < 81; i++) {
+    // Считаем для каждой цифры сколько штук уже выставлено на поле. Цифра
+    // считается «исчерпанной» (depleted, полупрозрачная кнопка), если её
+    // экземпляров на поле = size (4 для Mini 4×4, 9 для всех 9×9 режимов).
+    // Размер выводим из state.board.length: 16 → Mini (size=4), 81 → 9×9.
+    const cellCount = state.board.length;
+    const size = (cellCount === 16) ? 4 : 9;
+    const counts = new Array(size + 1).fill(0);
+    for (let i = 0; i < cellCount; i++) {
       const v = state.board[i];
-      if (v >= 1 && v <= 9) counts[v]++;
+      if (v >= 1 && v <= size) counts[v]++;
     }
     document.querySelectorAll('.num-btn').forEach(function (btn) {
       const d = parseInt(btn.dataset.num, 10);
-      btn.classList.toggle('depleted', counts[d] >= 9);
+      btn.classList.toggle('depleted', d <= size && counts[d] >= size);
     });
   }
 
