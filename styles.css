@@ -43,9 +43,17 @@
   --zone-bg:          #f0f0f5;    /* серая зона: диагональ/центр/виндоку */
   --zone-peer-blend:  #c8d4ec;    /* зона + peer */
   --zone-same-blend:  #9fb2d4;    /* зона + same-digit */
-  --dot-light:        #ffffff;    /* пустая точка Kropki (consecutive) */
-  --dot-dark:         #444444;    /* закрашенная точка Kropki (double) */
-  --num-pad-text:     var(--user);
+  /* Kropki dots:
+       --dot-consec — пустой круг (consecutive: цифры отличаются на 1)
+       --dot-double — закрашенный круг (double: одна цифра вдвое больше)
+       --dot-outline — обводка обеих точек (контраст к фону клетки) */
+  --dot-consec:       #ffffff;    /* пустой круг на свет. теме = просто фон cell */
+  --dot-double:       #1a2540;    /* закрашенный = тёмный */
+  --dot-outline:      #1a2540;    /* обводка тёмная контрастна к белой cell */
+  --num-pad-text:     #3954bb;    /* цифры на num-pad */
+  --chain-fill:       #ffffff;    /* фон кругов цепочек */
+  --modal-backdrop:   rgba(26, 37, 64, 0.5);   /* затемнение фона за модалкой */
+  --thumb-bg:         #ffffff;     /* бегунок слайдера сложности */
 }
 
 /* Тёмная тема. Активируется через [data-theme="dark"] на <html>.
@@ -73,11 +81,29 @@
   --grid-line-thick: #b8c0d6;
   --shadow:       0 6px 20px rgba(0, 0, 0, 0.5);
   --shadow-lg:    0 12px 30px rgba(0, 0, 0, 0.7);
-  --zone-bg:          #283146;    /* серая зона на dark */
-  --zone-peer-blend:  #364c75;    /* зона + peer на dark */
-  --zone-same-blend:  #5a6f9e;    /* зона + same-digit на dark */
-  --dot-light:        #d8dcea;    /* пустая точка на dark */
-  --dot-dark:         #b8c0d6;    /* закрашенная точка на dark */
+  --zone-bg:          #2d3a58;    /* серая зона на dark — заметнее отличается от --bg-soft */
+  --zone-peer-blend:  #3f5688;    /* зона + peer на dark */
+  --zone-same-blend:  #6d83b6;    /* зона + same-digit на dark */
+  /* Kropki dots на тёмной теме:
+       --dot-consec (пустой круг) — цвет фона ячейки, чтобы внутри был «дырка».
+                                    Outline даёт периметр круга.
+       --dot-double (заполненный) — светлый, ярко контрастирует с фоном. */
+  --dot-consec:       #232a3d;    /* = --bg-soft, круг сливается с фоном (только обводка) */
+  --dot-double:       #e8ecf5;    /* светлая «таблетка», явный контраст с фоном cell */
+  --dot-outline:      #e8ecf5;    /* светлая обводка ярко выделяет круг на тёмном фоне */
+  /* Цвет цифр num-pad: ярче чем в light, чтобы синие цифры читались на тёмной клавише */
+  --num-pad-text:     #a5b8ff;
+  /* Фон кругов цепочек: tёмный как ячейки. */
+  --chain-fill:       #232a3d;
+  /* Затемнение за модалкой: на dark — глубокий чёрный с прозрачностью.
+     В light была rgba(26,37,64,0.5) что выглядело как «затемнение»,
+     на dark тот же цвет даёт ОСВЕТЛЕНИЕ — поэтому переменная меняется. */
+  --modal-backdrop:   rgba(0, 0, 0, 0.65);
+  /* Бегунок слайдера: всегда белый, чтобы был виден на любом фоне. */
+  --thumb-bg:         #ffffff;
+  /* Grid line thick на dark делаем ярче чем text-dim — чтобы border
+     выделенного блока был заметно сильнее обычной сетки. */
+  --grid-line-thick: #ffffff;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -244,8 +270,10 @@ input { font: inherit; color: inherit; }
   transform: translate(-50%, -50%);
   width: 24px; height: 24px;
   border-radius: 50%;
-  background: var(--bg-soft);
-  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.30);
+  /* Бегунок всегда белый — на тёмной теме --bg-soft тёмный и thumb
+     растворялся в треке. См. var(--thumb-bg) в :root и [data-theme="dark"]. */
+  background: var(--thumb-bg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   /* Magnetic ease-out при отпуске. Cubic-bezier даёт лёгкий «прижим»
      к финальной точке. */
   transition: left 0.22s cubic-bezier(.4, 0, .2, 1);
@@ -521,14 +549,13 @@ input { font: inherit; color: inherit; }
   position: absolute;
   inset: 8%;
   border-radius: 50%;
-  background: var(--chain-fill, #ffffff);
+  background: var(--chain-fill);
   border: none;
-  box-shadow: 0 2px 5px rgba(20, 30, 50, 0.18);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
   z-index: -1;
 }
-/* Все цепочки — одного нейтрального белого тона. Различает цепочки
-   только начертание линий-связей в SVG-overlay (см. board.js), без цвета. */
-.board.chain-board .cell[data-chain] { --chain-fill: #ffffff; }
+/* В light theme круги цепочек белые, в dark — тёмные (= --bg-soft на dark). */
+.board.chain-board .cell[data-chain] { /* --chain-fill уже задана глобально */ }
 
 /* Состояния — переопределяют цвет круга (НЕ самой cell — иначе был бы
    синий квадрат позади круга). `!important` нужен потому что общий
@@ -584,8 +611,8 @@ input { font: inherit; color: inherit; }
   z-index: 5;
   pointer-events: none;
 }
-.cell.dot-right-consec::after { background: var(--dot-light); border: 1px solid var(--dot-dark); }
-.cell.dot-right-double::after { background: var(--dot-dark); border: 1px solid var(--dot-dark); }
+.cell.dot-right-consec::after { background: var(--dot-consec); border: 1px solid var(--dot-outline); }
+.cell.dot-right-double::after { background: var(--dot-double); border: 1px solid var(--dot-outline); }
 
 .cell.dot-bottom-consec::before,
 .cell.dot-bottom-double::before {
@@ -597,8 +624,8 @@ input { font: inherit; color: inherit; }
   z-index: 5;
   pointer-events: none;
 }
-.cell.dot-bottom-consec::before { background: var(--dot-light); border: 1px solid var(--dot-dark); }
-.cell.dot-bottom-double::before { background: var(--dot-dark); border: 1px solid var(--dot-dark); }
+.cell.dot-bottom-consec::before { background: var(--dot-consec); border: 1px solid var(--dot-outline); }
+.cell.dot-bottom-double::before { background: var(--dot-double); border: 1px solid var(--dot-outline); }
 .cell.error { color: var(--error); background: var(--error-bg); }
 .cell.hint  { color: var(--hint); font-weight: 700; }
 
@@ -663,7 +690,7 @@ input { font: inherit; color: inherit; }
   padding: 18px 0;
   font-size: 28px;
   font-weight: 700;
-  color: #3954bb;
+  color: var(--num-pad-text);
   box-shadow: var(--shadow);
   display: flex; align-items: center; justify-content: center;
   min-height: 64px;
@@ -776,7 +803,7 @@ input { font: inherit; color: inherit; }
 /* ============ Modals ============ */
 .modal {
   position: fixed; inset: 0;
-  background: rgba(26, 37, 64, 0.5);
+  background: var(--modal-backdrop);
   display: flex; align-items: center; justify-content: center;
   z-index: 100;
   padding: 16px;

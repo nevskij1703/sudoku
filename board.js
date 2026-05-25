@@ -263,7 +263,7 @@ window.Board = (function () {
     const edges = state.chainEdges || [];
     const cellChain = state.cellChain || [];
     const NORMAL = '0.028';
-    const THICK  = '0.035';   // тоньше прежних 0.045
+    const THICK  = '0.05';    // выделенная цепочка заметнее (было 0.035)
     const STROKE_COLOR = window.getComputedStyle(document.documentElement)
       .getPropertyValue('--grid-line-thick').trim() || '#1a2540';
     for (let k = 0; k < edges.length; k++) {
@@ -317,7 +317,7 @@ window.Board = (function () {
     const STROKE_NORMAL = _gridLineThick;
     const STROKE_SELECT = _gridLineThick;
     const W_NORMAL = '0.022';   // ≈ 1.2px на 480-доске
-    const W_SELECT = '0.035';   // ≈ 1.9px (тоньше прежних 0.05/2.7px)
+    const W_SELECT = '0.05';    // ≈ 2.7px — выделенная змейка явно толще
 
     function drawEdge(x1, y1, x2, y2, sA, sB) {
       const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
@@ -447,8 +447,8 @@ window.Board = (function () {
     const STROKE = (typeof window !== 'undefined' && window.getComputedStyle)
       ? (window.getComputedStyle(document.documentElement).getPropertyValue('--grid-line-thick').trim() || '#1a2540')
       : '#1a2540';
-    const W = '0.035';           // ≈ 1.9px (тоньше прежних 0.05/2.7px)
-    const HALF = 0.0175;
+    const W = '0.05';            // ≈ 2.7px — заметнее, особенно на тёмной теме
+    const HALF = 0.025;
     // Сдвиг для внешних краёв (касающихся края доски):
     const ty = (y1 === 0)    ? HALF        : y1;
     const by = (y2 === size) ? size - HALF : y2;
