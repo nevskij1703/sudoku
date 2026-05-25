@@ -264,6 +264,8 @@ window.Board = (function () {
     const cellChain = state.cellChain || [];
     const NORMAL = '0.028';
     const THICK  = '0.035';   // тоньше прежних 0.045
+    const STROKE_COLOR = window.getComputedStyle(document.documentElement)
+      .getPropertyValue('--grid-line-thick').trim() || '#1a2540';
     for (let k = 0; k < edges.length; k++) {
       const e = edges[k];
       const a = e[0], b = e[1];
@@ -274,7 +276,7 @@ window.Board = (function () {
       line.setAttribute('y1', String(ar + 0.5));
       line.setAttribute('x2', String(bc + 0.5));
       line.setAttribute('y2', String(br + 0.5));
-      line.setAttribute('stroke', '#1a2540');
+      line.setAttribute('stroke', STROKE_COLOR);
       const inSel = (selChainId >= 0 && cellChain[a] === selChainId);
       line.setAttribute('stroke-width', inSel ? THICK : NORMAL);
       line.setAttribute('stroke-linecap', 'round');
@@ -310,8 +312,10 @@ window.Board = (function () {
     const snake = state.cellSnake;
     // Все границы одного чёрного цвета. Выбранная змейка — толще,
     // остальные — заметно тоньше. Цвет везде одинаковый.
-    const STROKE_NORMAL = '#1a2540';
-    const STROKE_SELECT = '#1a2540';
+    const _gridLineThick = window.getComputedStyle(document.documentElement)
+      .getPropertyValue('--grid-line-thick').trim() || '#1a2540';
+    const STROKE_NORMAL = _gridLineThick;
+    const STROKE_SELECT = _gridLineThick;
     const W_NORMAL = '0.022';   // ≈ 1.2px на 480-доске
     const W_SELECT = '0.035';   // ≈ 1.9px (тоньше прежних 0.05/2.7px)
 
@@ -439,7 +443,10 @@ window.Board = (function () {
     const x2 = boxC0 + variant.boxCols;
     const y1 = boxR0;
     const y2 = boxR0 + variant.boxRows;
-    const STROKE = '#1a2540';   // чёрный (var(--grid-line-thick))
+    // Берём цвет из CSS var --grid-line-thick для поддержки темы (dark mode).
+    const STROKE = (typeof window !== 'undefined' && window.getComputedStyle)
+      ? (window.getComputedStyle(document.documentElement).getPropertyValue('--grid-line-thick').trim() || '#1a2540')
+      : '#1a2540';
     const W = '0.035';           // ≈ 1.9px (тоньше прежних 0.05/2.7px)
     const HALF = 0.0175;
     // Сдвиг для внешних краёв (касающихся края доски):

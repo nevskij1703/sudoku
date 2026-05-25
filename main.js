@@ -132,10 +132,53 @@
   // показываем НИКОГДА. См. shouldShowRateModal().
   let rateModalShownThisSession = false;
 
+  // === Тема (light/dark) ===
+  //
+  // Source of truth: Storage.settings.theme:
+  //   null   — следовать системному prefers-color-scheme.
+  //   'light' / 'dark' — явный выбор юзера в Settings.
+  // applyTheme проставляет data-theme на <html> и обновляет
+  // <meta name="theme-color"> для status bar. Подписывается на
+  // prefers-color-scheme change — если user выбрал «следовать системе»,
+  // переключение темы на устройстве сразу применится в app.
+  function applyTheme() {
+    const s = window.Storage.getSettings();
+    let theme = s.theme;
+    if (theme !== 'light' && theme !== 'dark') {
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      theme = prefersDark ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', theme);
+    // Обновляем status-bar цвет (используется на Android когда страница
+    // встроена в WebView — html2apk оставляет meta theme-color).
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', theme === 'dark' ? '#161a26' : '#f3f5fb');
+  }
+
   function init() {
     // ===== 1. Storage =====
     window.Storage.load();
     window.RuStoreReviewClient.configure('com.terekh.sudoku');
+
+    // ===== 1.5. Тема =====
+    applyTheme();
+    if (window.matchMedia) {
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+      // Слушаем смену темы устройства — но реагируем только если юзер
+      // НЕ переопределил тему явно. Если settings.theme === null,
+      // прогоняем applyTheme заново и тема обновится.
+      const onChange = function () {
+        const s = window.Storage.getSettings();
+        if (s.theme !== 'light' && s.theme !== 'dark') applyTheme();
+      };
+      if (mql.addEventListener) mql.addEventListener('change', onChange);
+      else if (mql.addListener) mql.addListener(onChange);
+    }
 
     // ===== 2. Маунт игровых компонентов =====
     window.Board.mount(document.getElementById('board'), function (idx) {
@@ -406,6 +449,18 @@
     wireSettingsToggle('setting-vibration', 'vibration');
     wireSettingsToggle('setting-highlighter', 'highlighter', function () { window.Game._renderAll && window.Game._renderAll(); });
     wireSettingsToggle('setting-auto-notes', 'autoNotesClean');
+    // Тема — особенный case: setting'у мы пишем 'light'/'dark', а не bool.
+    // Поэтому обходим wireSettingsToggle и подключаем напрямую.
+    const themeToggle = document.getElementById('setting-theme');
+    if (themeToggle) {
+      themeToggle.addEventListener('change', function () {
+        window.Storage.setSettings({ theme: themeToggle.checked ? 'dark' : 'light' });
+        applyTheme();
+        // Заставляем board перерендериться чтобы SVG-overlays (block-highlight,
+        // sugur/chain edges) перечитали --grid-line-thick из новой темы.
+        if (window.Game && window.Game._renderAll) window.Game._renderAll();
+      });
+    }
 
     // ===== 10. Универсальные кнопки закрытия модалок + click-outside =====
     document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
@@ -519,6 +574,11 @@
     document.getElementById('setting-vibration').checked   = !!s.vibration;
     document.getElementById('setting-highlighter').checked = !!s.highlighter;
     document.getElementById('setting-auto-notes').checked  = !!s.autoNotesClean;
+    // Toggle темы: «вкл» = dark. Если theme === null (следовать системе) —
+    // отображаем текущее реальное состояние data-theme.
+    const themeChecked = (s.theme === 'dark') ||
+                         (s.theme !== 'light' && document.documentElement.getAttribute('data-theme') === 'dark');
+    document.getElementById('setting-theme').checked = themeChecked;
     window.UI.showModal('settings');
   }
 

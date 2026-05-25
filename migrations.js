@@ -87,8 +87,19 @@ window.Migrations = (function () {
       if (typeof state.templateIndices.sugur !== 'number') state.templateIndices.sugur = 0;
       if (typeof state.templateIndices.chain !== 'number') state.templateIndices.chain = 0;
       return state;
+    },
+    6: function (state) {
+      // v5 → v6: добавлен settings.theme (null|'light'|'dark') — выбор темы.
+      // null = «следовать системе» (prefers-color-scheme), для существующих
+      // пользователей оставляем null чтобы они не получили неожиданно
+      // другую тему при апдейте.
+      if (!state.settings) state.settings = {};
+      if (state.settings.theme !== 'light' && state.settings.theme !== 'dark') {
+        state.settings.theme = null;
+      }
+      return state;
     }
-    // 6: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 7: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {

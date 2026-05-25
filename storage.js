@@ -42,7 +42,10 @@ window.Storage = (function () {
         sound: window.GAME_CONFIG.enableSound,
         vibration: window.GAME_CONFIG.enableVibration,
         highlighter: true,
-        autoNotesClean: true
+        autoNotesClean: true,
+        // Тема: null = «следовать системе» (prefers-color-scheme),
+        // 'light' / 'dark' — явный выбор юзера через toggle в Settings.
+        theme: null
       },
 
       // Dev / служебное

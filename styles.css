@@ -39,6 +39,45 @@
   --grid-line-thick: #1a2540;
   --shadow:       0 6px 20px rgba(26, 37, 64, 0.10);
   --shadow-lg:    0 12px 30px rgba(26, 37, 64, 0.25);
+  /* Дополнительные тематические цвета (зональные подсветки, dots Kropki). */
+  --zone-bg:          #f0f0f5;    /* серая зона: диагональ/центр/виндоку */
+  --zone-peer-blend:  #c8d4ec;    /* зона + peer */
+  --zone-same-blend:  #9fb2d4;    /* зона + same-digit */
+  --dot-light:        #ffffff;    /* пустая точка Kropki (consecutive) */
+  --dot-dark:         #444444;    /* закрашенная точка Kropki (double) */
+  --num-pad-text:     var(--user);
+}
+
+/* Тёмная тема. Активируется через [data-theme="dark"] на <html>.
+   main.js при загрузке выбирает тему: storage.settings.theme либо
+   prefers-color-scheme от устройства, если пользователь не выбрал явно. */
+[data-theme="dark"] {
+  --bg:           #161a26;
+  --bg-soft:      #232a3d;
+  --panel:        rgba(35, 42, 61, 0.92);
+  --text:         #e8ecf5;
+  --text-dim:     #9aa3bf;
+  --text-faded:   #5d6685;
+  --accent:       #5a7fe8;
+  --accent-soft:  #2a3358;
+  --accent-strong:#7a99ff;
+  --highlight:    #2c3a5a;        /* peer row/col */
+  --highlight-strong: #4f6396;    /* same-digit */
+  --select:       #4d6cb8;        /* selected cell */
+  --error:        #ef6262;
+  --error-bg:     #4a1e1e;
+  --given:        #e8ecf5;
+  --user:         #8aa6ff;
+  --hint:         #2dd4be;
+  --grid-line:    #3a4259;
+  --grid-line-thick: #b8c0d6;
+  --shadow:       0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg:    0 12px 30px rgba(0, 0, 0, 0.7);
+  --zone-bg:          #283146;    /* серая зона на dark */
+  --zone-peer-blend:  #364c75;    /* зона + peer на dark */
+  --zone-same-blend:  #5a6f9e;    /* зона + same-digit на dark */
+  --dot-light:        #d8dcea;    /* пустая точка на dark */
+  --dot-dark:         #b8c0d6;    /* закрашенная точка на dark */
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -426,7 +465,7 @@ input { font: inherit; color: inherit; }
 .cell.on-main-diag,
 .cell.on-anti-diag,
 .cell.center-cell,
-.cell.windoku-zone         { background: #f0f0f5; }
+.cell.windoku-zone         { background: var(--zone-bg); }
 /* центр пересечения двух диагоналей раньше выделялся темнее — убрано:
    теперь центральная клетка такая же как остальные диагональные. */
 
@@ -545,8 +584,8 @@ input { font: inherit; color: inherit; }
   z-index: 5;
   pointer-events: none;
 }
-.cell.dot-right-consec::after { background: #fff; border: 1px solid #444; }
-.cell.dot-right-double::after { background: #444; border: 1px solid #444; }
+.cell.dot-right-consec::after { background: var(--dot-light); border: 1px solid var(--dot-dark); }
+.cell.dot-right-double::after { background: var(--dot-dark); border: 1px solid var(--dot-dark); }
 
 .cell.dot-bottom-consec::before,
 .cell.dot-bottom-double::before {
@@ -558,8 +597,8 @@ input { font: inherit; color: inherit; }
   z-index: 5;
   pointer-events: none;
 }
-.cell.dot-bottom-consec::before { background: #fff; border: 1px solid #444; }
-.cell.dot-bottom-double::before { background: #444; border: 1px solid #444; }
+.cell.dot-bottom-consec::before { background: var(--dot-light); border: 1px solid var(--dot-dark); }
+.cell.dot-bottom-double::before { background: var(--dot-dark); border: 1px solid var(--dot-dark); }
 .cell.error { color: var(--error); background: var(--error-bg); }
 .cell.hint  { color: var(--hint); font-weight: 700; }
 
@@ -578,14 +617,14 @@ input { font: inherit; color: inherit; }
 .cell.on-anti-diag.peer,
 .cell.center-cell.peer,
 .cell.windoku-zone.peer {
-  background: #c8d4ec;
+  background: var(--zone-peer-blend);
 }
 /* То же для same-digit — ещё тёмнее, чтобы выделялось среди peer'ов. */
 .cell.on-main-diag.same-digit,
 .cell.on-anti-diag.same-digit,
 .cell.center-cell.same-digit,
 .cell.windoku-zone.same-digit {
-  background: #9fb2d4;
+  background: var(--zone-same-blend);
 }
 
 /* Заметки карандашом */
