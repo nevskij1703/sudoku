@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Мастер</title>
-  <link rel="stylesheet" href="styles.css?v=36" />
+  <link rel="stylesheet" href="styles.css?v=37" />
 </head>
 <body>
 
@@ -159,8 +159,8 @@
         <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
-        <!-- только центральная ячейка 3×3 закрашена (по аналогии с Windoku) -->
-        <rect x="10.2" y="10.2" width="3.6" height="3.6" fill="currentColor" opacity="0.7"/>
+        <!-- только центральная ячейка 3×3 полностью закрашена -->
+        <rect x="10.2" y="10.2" width="3.6" height="3.6" fill="currentColor"/>
       </symbol>
       <symbol id="icon-windoku" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
@@ -186,15 +186,16 @@
       <symbol id="icon-chain" viewBox="0 0 24 24">
         <!-- Chain: 4 круга в 2×2 с горизонтальными edges и диагональным
              X-cross — характерный визуал режима «цепочки могут идти и
-             по диагонали, и линии пересекаются». -->
-        <line x1="8"  y1="8"  x2="16" y2="8"  stroke="currentColor" stroke-width="1.5"/>
-        <line x1="8"  y1="16" x2="16" y2="16" stroke="currentColor" stroke-width="1.5"/>
-        <line x1="8"  y1="8"  x2="16" y2="16" stroke="currentColor" stroke-width="1.5"/>
-        <line x1="16" y1="8"  x2="8"  y2="16" stroke="currentColor" stroke-width="1.5"/>
-        <circle cx="8"  cy="8"  r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="16" cy="8"  r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="8"  cy="16" r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="16" cy="16" r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
+             по диагонали, и линии пересекаются». Круги раздвинуты пошире
+             и меньше радиусом — чтобы соединительные линии были видны. -->
+        <line x1="6"  y1="6"  x2="18" y2="6"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="6"  y1="18" x2="18" y2="18" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="6"  y1="6"  x2="18" y2="18" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="6"  x2="6"  y2="18" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="6"  cy="6"  r="2.4" fill="white" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="18" cy="6"  r="2.4" fill="white" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="6"  cy="18" r="2.4" fill="white" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="18" cy="18" r="2.4" fill="white" stroke="currentColor" stroke-width="1.8"/>
       </symbol>
 
       <!-- Rules pictograms -->
@@ -567,22 +568,22 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=36"></script>
-  <script src="migrations.js?v=36"></script>
-  <script src="storage.js?v=36"></script>
-  <script src="sudokuCore.js?v=36"></script>
-  <script src="sudokuVariants.js?v=36"></script>
-  <script src="sudokuTechniques.js?v=36"></script>
-  <script src="sudokuGenerator.js?v=36"></script>
-  <script src="precomputedPools.js?v=36"></script>
-  <script src="ads.js?v=36"></script>
-  <script src="rustoreReview.js?v=36"></script>
-  <script src="audio.js?v=36"></script>
-  <script src="ui.js?v=36"></script>
-  <script src="board.js?v=36"></script>
-  <script src="numberPad.js?v=36"></script>
-  <script src="game.js?v=36"></script>
-  <script src="devPanel.js?v=36"></script>
-  <script src="main.js?v=36"></script>
+  <script src="config.js?v=37"></script>
+  <script src="migrations.js?v=37"></script>
+  <script src="storage.js?v=37"></script>
+  <script src="sudokuCore.js?v=37"></script>
+  <script src="sudokuVariants.js?v=37"></script>
+  <script src="sudokuTechniques.js?v=37"></script>
+  <script src="sudokuGenerator.js?v=37"></script>
+  <script src="precomputedPools.js?v=37"></script>
+  <script src="ads.js?v=37"></script>
+  <script src="rustoreReview.js?v=37"></script>
+  <script src="audio.js?v=37"></script>
+  <script src="ui.js?v=37"></script>
+  <script src="board.js?v=37"></script>
+  <script src="numberPad.js?v=37"></script>
+  <script src="game.js?v=37"></script>
+  <script src="devPanel.js?v=37"></script>
+  <script src="main.js?v=37"></script>
 </body>
 </html>
