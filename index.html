@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Мастер</title>
-  <link rel="stylesheet" href="styles.css?v=34" />
+  <link rel="stylesheet" href="styles.css?v=35" />
 </head>
 <body>
 
@@ -159,16 +159,8 @@
         <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
-        <!-- 9 centre cells highlighted -->
-        <circle cx="6"  cy="6"  r="1.7" fill="currentColor"/>
-        <circle cx="12" cy="6"  r="1.7" fill="currentColor"/>
-        <circle cx="18" cy="6"  r="1.7" fill="currentColor"/>
-        <circle cx="6"  cy="12" r="1.7" fill="currentColor"/>
-        <circle cx="12" cy="12" r="1.7" fill="currentColor"/>
-        <circle cx="18" cy="12" r="1.7" fill="currentColor"/>
-        <circle cx="6"  cy="18" r="1.7" fill="currentColor"/>
-        <circle cx="12" cy="18" r="1.7" fill="currentColor"/>
-        <circle cx="18" cy="18" r="1.7" fill="currentColor"/>
+        <!-- только центральная ячейка 3×3 закрашена (по аналогии с Windoku) -->
+        <rect x="10.2" y="10.2" width="3.6" height="3.6" fill="currentColor" opacity="0.7"/>
       </symbol>
       <symbol id="icon-windoku" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
@@ -183,23 +175,26 @@
         <rect x="16.2" y="16.2" width="3.5" height="3.5" fill="currentColor" opacity="0.45"/>
       </symbol>
       <symbol id="icon-snake" viewBox="0 0 24 24">
-        <!-- Минималистичная змейка: S-образная горизонтальная полоса с
-             двумя петлями. Линии — только 90° углы, без шумных деталей. -->
-        <path d="M4 6 H 14 V 12 H 10 V 18 H 20"
-              fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Sugur: квадрат разбитый на 4 неравных змейки внутренними
+             перегородками. Зигзаг-форма — характерный визуал режима. -->
+        <rect x="3" y="3" width="18" height="18" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="3"  y1="10" x2="14" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="14" y1="3"  x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="14" x2="21" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="14" x2="10" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </symbol>
       <symbol id="icon-chain" viewBox="0 0 24 24">
-        <!-- Круги-узлы в zigzag-цепочке: 4 круга, последовательно связаны
-             диагональными линиями. Никаких X-крестов — каждая связь идёт
-             к следующему узлу в цепочке. -->
-        <line x1="4"  y1="18" x2="10" y2="9"  stroke="currentColor" stroke-width="1.5"/>
-        <line x1="10" y1="9"  x2="17" y2="15" stroke="currentColor" stroke-width="1.5"/>
-        <line x1="17" y1="15" x2="21" y2="5"  stroke="currentColor" stroke-width="1.5"/>
-        <circle cx="4"  cy="18" r="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
-        <circle cx="10" cy="9"  r="2.3" fill="currentColor"/>
-        <circle cx="17" cy="15" r="2.3" fill="currentColor"/>
-        <circle cx="21" cy="5"  r="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <!-- Chain: 4 круга в 2×2 с горизонтальными edges и диагональным
+             X-cross — характерный визуал режима «цепочки могут идти и
+             по диагонали, и линии пересекаются». -->
+        <line x1="8"  y1="8"  x2="16" y2="8"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="8"  y1="16" x2="16" y2="16" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="8"  y1="8"  x2="16" y2="16" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="16" y1="8"  x2="8"  y2="16" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="8"  cy="8"  r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="16" cy="8"  r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="8"  cy="16" r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="16" cy="16" r="3.2" fill="white" stroke="currentColor" stroke-width="1.8"/>
       </symbol>
 
       <!-- Rules pictograms -->
@@ -572,22 +567,22 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=34"></script>
-  <script src="migrations.js?v=34"></script>
-  <script src="storage.js?v=34"></script>
-  <script src="sudokuCore.js?v=34"></script>
-  <script src="sudokuVariants.js?v=34"></script>
-  <script src="sudokuTechniques.js?v=34"></script>
-  <script src="sudokuGenerator.js?v=34"></script>
-  <script src="precomputedPools.js?v=34"></script>
-  <script src="ads.js?v=34"></script>
-  <script src="rustoreReview.js?v=34"></script>
-  <script src="audio.js?v=34"></script>
-  <script src="ui.js?v=34"></script>
-  <script src="board.js?v=34"></script>
-  <script src="numberPad.js?v=34"></script>
-  <script src="game.js?v=34"></script>
-  <script src="devPanel.js?v=34"></script>
-  <script src="main.js?v=34"></script>
+  <script src="config.js?v=35"></script>
+  <script src="migrations.js?v=35"></script>
+  <script src="storage.js?v=35"></script>
+  <script src="sudokuCore.js?v=35"></script>
+  <script src="sudokuVariants.js?v=35"></script>
+  <script src="sudokuTechniques.js?v=35"></script>
+  <script src="sudokuGenerator.js?v=35"></script>
+  <script src="precomputedPools.js?v=35"></script>
+  <script src="ads.js?v=35"></script>
+  <script src="rustoreReview.js?v=35"></script>
+  <script src="audio.js?v=35"></script>
+  <script src="ui.js?v=35"></script>
+  <script src="board.js?v=35"></script>
+  <script src="numberPad.js?v=35"></script>
+  <script src="game.js?v=35"></script>
+  <script src="devPanel.js?v=35"></script>
+  <script src="main.js?v=35"></script>
 </body>
 </html>
