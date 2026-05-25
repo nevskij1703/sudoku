@@ -527,16 +527,21 @@ window.Game = (function () {
 
   function handleCellClick(idx) {
     if (!active) return;
-    // === Быстрый режим: тап по ячейке с единственным candidate =====
-    // Если включён Быстрый режим и в выбранной ячейке (пустая, не-given,
-    // не-hint) осталась ровно ОДНА possible цифра в заметках — мы её
-    // ставим автоматически, без необходимости вводить цифру через num-pad.
-    // Это и есть «полу-ручной» каскад: каждый ход требует тапа игрока.
+    // === Быстрый режим: тап по ячейке с гарантированной цифрой =====
+    // Две стратегии auto-fill для fast-mode (порядок проверки важен):
+    //   1. singleCandidate — в notes ячейки осталась РОВНО ОДНА цифра.
+    //      Это очевидный naked single — других вариантов нет.
+    //   2. hiddenSingleCandidate — одна из цифр в notes ячейки уникальна
+    //      для какого-то unit (row/col/box/snake/chain): нигде среди
+    //      других пустых ячеек unit'а её нет в notes и она не стоит.
+    //      Тогда эта цифра гарантированно должна быть здесь.
+    // Если ни одна стратегия не сработала — обычный select.
     if (active.fastModeActive
         && active.board[idx] === 0
         && !active.givens[idx]
         && !(active.hintCells && active.hintCells[idx])) {
-      const d = singleCandidate(idx);
+      let d = singleCandidate(idx);
+      if (d === 0) d = hiddenSingleCandidate(idx);
       if (d > 0) {
         // Делегируем handleNumber — он всё сделает чисто: place, auto-clean
         // peers' notes, mistake-check, win-check, persist, render, audio.
@@ -881,6 +886,46 @@ window.Game = (function () {
     if (m === 0) return 0;
     if ((m & (m - 1)) !== 0) return 0;
     for (let b = 0; b < 9; b++) if (m & (1 << b)) return b + 1;
+    return 0;
+  }
+
+  // Hidden single для fast-mode: проверяем — есть ли цифра d из notes
+  // ячейки idx такая, что в каком-то unit (row/col/box/snake/chain),
+  // в который входит idx, она в notes ТОЛЬКО у idx (среди всех пустых
+  // ячеек unit'а)? Если да — эта цифра гарантированно в idx, ставим её.
+  //
+  // Это сильнее singleCandidate (там нужна единственная цифра в самой
+  // ячейке). Hidden single работает когда ячейка имеет несколько
+  // кандидатов, но один из них уникален в рамках unit'а.
+  function hiddenSingleCandidate(idx) {
+    if (!active) return 0;
+    const cellNotes = active.notes[idx] | 0;
+    if (cellNotes === 0) return 0;
+    const variant = activeVariant();
+    const units = variant.unitsForCell(idx);
+    // Перебираем биты cellNotes (digits в notes ячейки idx)
+    for (let b = 0; b < 9; b++) {
+      const bit = 1 << b;
+      if ((cellNotes & bit) === 0) continue;
+      const d = b + 1;
+      // Для каждого unit'а проверяем: есть ли среди пустых cells unit'а
+      // (не идx), кто-нибудь с этой цифрой в notes ИЛИ кто-нибудь у кого
+      // уже стоит эта цифра (board === d). Если ни того, ни другого нет
+      // — d уникален для idx в этом unit'е → hidden single.
+      for (let u = 0; u < units.length; u++) {
+        const unit = units[u];
+        let foundElsewhere = false;
+        for (let k = 0; k < unit.length; k++) {
+          const j = unit[k];
+          if (j === idx) continue;
+          if (active.board[j] === d) { foundElsewhere = true; break; }
+          if (active.board[j] === 0 && (active.notes[j] & bit)) {
+            foundElsewhere = true; break;
+          }
+        }
+        if (!foundElsewhere) return d;
+      }
+    }
     return 0;
   }
 
