@@ -439,6 +439,15 @@ input { font: inherit; color: inherit; }
   pointer-events: none;
   z-index: 3;
 }
+/* SVG-overlay accent-периметра выбранного блока для Classic/Mini/etc. */
+.block-highlight-overlay {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+  z-index: 3;
+}
 
 /* ===== Chain — цепочки с диагональной связностью =====
    Визуально каждая ячейка — круглый узел; между связанными ячейками одной

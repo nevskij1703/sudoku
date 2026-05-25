@@ -24,6 +24,7 @@ window.Board = (function () {
   let cells = [];           // массив DOM-нодов (N×N длиной)
   let chainSvg = null;      // <svg> overlay для chain-режима (линии между ячейками)
   let sugurSvg = null;      // <svg> overlay для sugur (границы между змейками)
+  let blockSvg = null;      // <svg> overlay для accent-периметра выбранного блока
   let onClickCb = null;
   let currentSize = 0;
 
@@ -134,8 +135,36 @@ window.Board = (function () {
         if (k !== r) peers.add(k * size + c);
       }
     } else {
+      // Classic / Diagonal / Center / Windoku / Kropki / Mini — peers
+      // включают весь блок, диагональ, центры и зоны. Сам блок 3×3 (2×2 для
+      // Mini) НЕ красим как peer-fill — для него рисуется accent-периметр
+      // через renderBlockHighlight. Это даёт визуально чистую картину:
+      // блок отделён акцентной рамкой, а пересечения row/col и спецзон
+      // (диагональ/центр/виндоку) подсвечены как peer.
       peers = new Set(variant.peersForCell(sel));
+      if (variant.boxRows > 0 && variant.boxCols > 0) {
+        const r = Math.floor(sel / size), c = sel % size;
+        const boxR0 = Math.floor(r / variant.boxRows) * variant.boxRows;
+        const boxC0 = Math.floor(c / variant.boxCols) * variant.boxCols;
+        for (let br = boxR0; br < boxR0 + variant.boxRows; br++) {
+          for (let bc = boxC0; bc < boxC0 + variant.boxCols; bc++) {
+            peers.delete(br * size + bc);
+          }
+        }
+        // Возвращаем row/col cells блока — они должны оставаться peers.
+        for (let k = 0; k < size; k++) {
+          if (k !== c) peers.add(r * size + k);
+          if (k !== r) peers.add(k * size + c);
+        }
+      }
     }
+    // Accent-периметр выбранного блока для variants с boxes (Classic, Mini,
+    // Diagonal, Center, Windoku, Kropki). Sugur/Chain используют свой
+    // overlay (см. renderSugurOverlay / renderChainOverlay).
+    const showBlockHighlight = !isChain && !isSugur
+                            && sel != null && useHighlight
+                            && variant.boxRows > 0 && variant.boxCols > 0;
+    renderBlockHighlight(state, size, variant, sel, showBlockHighlight);
 
     for (let i = 0; i < N; i++) {
       const cell = cells[i];
@@ -350,15 +379,19 @@ window.Board = (function () {
       }
     }
     // Внешние границы доски для cells выбранной змейки — чтобы accent-
-    // граница была непрерывной даже если змейка касается края.
+    // граница была непрерывной даже если змейка касается края. Сдвигаем
+    // координату вглубь на HALF_SEL (половина толщины stroke), иначе
+    // половина линии оказывается за viewBox и обрезается — внешние
+    // границы выглядят тоньше внутренних.
     if (selSnakeId >= 0) {
+      const HALF_SEL = 0.04;
       for (let i = 0; i < size * size; i++) {
         if (snake[i] !== selSnakeId) continue;
         const r = Math.floor(i / size), c = i % size;
-        if (r === 0)        selEdges.push([c, 0, c + 1, 0, selSnakeId, selSnakeId]);
-        if (r === size - 1) selEdges.push([c, size, c + 1, size, selSnakeId, selSnakeId]);
-        if (c === 0)        selEdges.push([0, r, 0, r + 1, selSnakeId, selSnakeId]);
-        if (c === size - 1) selEdges.push([size, r, size, r + 1, selSnakeId, selSnakeId]);
+        if (r === 0)        selEdges.push([c, HALF_SEL, c + 1, HALF_SEL, selSnakeId, selSnakeId]);
+        if (r === size - 1) selEdges.push([c, size - HALF_SEL, c + 1, size - HALF_SEL, selSnakeId, selSnakeId]);
+        if (c === 0)        selEdges.push([HALF_SEL, r, HALF_SEL, r + 1, selSnakeId, selSnakeId]);
+        if (c === size - 1) selEdges.push([size - HALF_SEL, r, size - HALF_SEL, r + 1, selSnakeId, selSnakeId]);
       }
     }
     // Поверх — accent-рёбра выбранной змейки.
@@ -366,6 +399,60 @@ window.Board = (function () {
       const e = selEdges[k];
       drawEdge(e[0], e[1], e[2], e[3], e[4], e[5]);
     }
+  }
+
+  // SVG-overlay accent-периметра вокруг блока выбранной ячейки.
+  // Используется для всех variants с boxRows/boxCols > 0 (Classic, Mini,
+  // Diagonal, Center, Windoku, Kropki). Рисует 4 линии по периметру
+  // блока в синий цвет accent. Внешние границы (которые касаются краёв
+  // доски) сдвигаются вглубь на половину stroke-width — иначе обрезаются
+  // viewBox-ом и выглядят тоньше внутренних.
+  function renderBlockHighlight(state, size, variant, sel, enabled) {
+    if (!enabled) {
+      if (blockSvg) { blockSvg.remove(); blockSvg = null; }
+      return;
+    }
+    const NS = 'http://www.w3.org/2000/svg';
+    if (!blockSvg) {
+      blockSvg = document.createElementNS(NS, 'svg');
+      blockSvg.setAttribute('class', 'block-highlight-overlay');
+      blockSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+      blockSvg.setAttribute('preserveAspectRatio', 'none');
+      boardEl.appendChild(blockSvg);
+    } else {
+      blockSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+      while (blockSvg.firstChild) blockSvg.removeChild(blockSvg.firstChild);
+    }
+    const r = Math.floor(sel / size), c = sel % size;
+    const boxR0 = Math.floor(r / variant.boxRows) * variant.boxRows;
+    const boxC0 = Math.floor(c / variant.boxCols) * variant.boxCols;
+    const x1 = boxC0;
+    const x2 = boxC0 + variant.boxCols;
+    const y1 = boxR0;
+    const y2 = boxR0 + variant.boxRows;
+    const STROKE = '#3157d3';   // var(--accent)
+    const W = '0.075';
+    const HALF = 0.04;
+    // Сдвиг для внешних краёв (касающихся края доски):
+    const ty = (y1 === 0)    ? HALF        : y1;
+    const by = (y2 === size) ? size - HALF : y2;
+    const lx = (x1 === 0)    ? HALF        : x1;
+    const rx = (x2 === size) ? size - HALF : x2;
+    function line(x1, y1, x2, y2) {
+      const ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', String(x1));
+      ln.setAttribute('y1', String(y1));
+      ln.setAttribute('x2', String(x2));
+      ln.setAttribute('y2', String(y2));
+      ln.setAttribute('stroke', STROKE);
+      ln.setAttribute('stroke-width', W);
+      ln.setAttribute('stroke-linecap', 'square');
+      blockSvg.appendChild(ln);
+    }
+    line(lx, ty, rx, ty);   // top
+    line(lx, by, rx, by);   // bottom
+    line(lx, ty, lx, by);   // left
+    line(rx, ty, rx, by);   // right
   }
 
   function setSelected(idx) {
