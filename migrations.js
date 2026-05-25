@@ -75,8 +75,20 @@ window.Migrations = (function () {
       }
       state.activeByMode = newMap;
       return state;
+    },
+    5: function (state) {
+      // v4 → v5: добавлено поле templateIndices = { sugur, chain } —
+      // курсор по pre-baked pool болванок для Sugur/Chain. Игроки v4
+      // получают стартовые нули, и при первом старте уровня будут брать
+      // template #0.
+      if (!state.templateIndices || typeof state.templateIndices !== 'object') {
+        state.templateIndices = { sugur: 0, chain: 0 };
+      }
+      if (typeof state.templateIndices.sugur !== 'number') state.templateIndices.sugur = 0;
+      if (typeof state.templateIndices.chain !== 'number') state.templateIndices.chain = 0;
+      return state;
     }
-    // 5: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 6: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {

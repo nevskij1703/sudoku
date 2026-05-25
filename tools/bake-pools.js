@@ -394,38 +394,12 @@ function bakeChainLayout(rng) {
   return null;
 }
 
-// ===== Carve puzzle =====
-// Удаляем cells пока решение единственно. countSolutions с timeout
-// — если за лимит не нашли определённости, считаем cell обязательной
-// (conservative — не теряем uniqueness). Это даёт чуть больше givens
-// чем targetGivens (приемлемо для оффлайн bake).
-
-function carvePuzzle(solution, variant, targetGivens, rng) {
-  rng = rng || Math.random;
-  const puzzle = solution.slice();
-  const idxs = shuffle(
-    Array.from({ length: 81 }, function (_, i) { return i; }),
-    rng
-  );
-  let givens = 81;
-  for (let k = 0; k < idxs.length && givens > targetGivens; k++) {
-    const i = idxs[k];
-    if (puzzle[i] === 0) continue;
-    const backup = puzzle[i];
-    puzzle[i] = 0;
-    const cnt = Core.countSolutions(puzzle, 2, variant, { maxMs: 3000 });
-    if (cnt !== 1) {
-      puzzle[i] = backup;
-    } else {
-      givens--;
-    }
-  }
-  return { puzzle: puzzle, finalGivens: givens };
-}
-
 // ===== Bake-runner =====
+// Bakery теперь ПРОЩЕ: только solution + layout (без carve). Game.startNewLevel
+// делает random relabel + random carve на лету. Это даёт unlimited unique
+// puzzles из конечного пула болванок.
 
-function bakeOne(mode, difficulty, rng) {
+function bakeOne(mode, rng) {
   for (let layoutTry = 0; layoutTry < 30; layoutTry++) {
     const layout = (mode === 'sugur') ? bakeSugurLayout(rng) : bakeChainLayout(rng);
     if (!layout) continue;
@@ -442,25 +416,12 @@ function bakeOne(mode, difficulty, rng) {
     });
     const solveMs = Date.now() - t0;
     if (!sol) {
-      console.log('  layout ' + layoutTry + ' UNSOLVABLE in ' + solveMs + 'ms (variant too constrained), retry');
+      console.log('  layout ' + layoutTry + ' UNSOLVABLE in ' + solveMs + 'ms, retry');
       continue;
     }
     console.log('  layout ' + layoutTry + ' solved in ' + solveMs + 'ms');
 
-    const targets = { easy: 45, medium: 35, hard: 28 };
-    const targetGivens = targets[difficulty] || 35;
-    const t1 = Date.now();
-    const carved = carvePuzzle(sol, variant, targetGivens, rng);
-    const carveMs = Date.now() - t1;
-    console.log('  carved to ' + carved.finalGivens + ' givens (target ' + targetGivens + ') in ' + carveMs + 'ms');
-
-    const result = {
-      puzzle: carved.puzzle,
-      solution: sol,
-      givens: carved.puzzle.map(function (v) { return v !== 0; }),
-      difficulty: difficulty,
-      mode: mode
-    };
+    const result = { solution: sol, mode: mode };
     if (mode === 'sugur') {
       result.cellSnake = layout.cellSnake;
       result.snakeCells = layout.snakeCells;
@@ -475,29 +436,21 @@ function bakeOne(mode, difficulty, rng) {
 }
 
 function bakeAll() {
-  const pools = {
-    sugur: { easy: [], medium: [], hard: [] },
-    chain: { easy: [], medium: [], hard: [] }
-  };
-  const COUNT_PER_DIFF = 3;
-  const modes = ['sugur', 'chain'];
-  const diffs = ['easy', 'medium', 'hard'];
-  for (const mode of modes) {
-    for (const diff of diffs) {
-      console.log('=== Baking ' + mode + ' / ' + diff + ' ===');
-      for (let n = 0; n < COUNT_PER_DIFF; n++) {
-        console.log('puzzle ' + (n + 1) + '/' + COUNT_PER_DIFF + '...');
-        const t0 = Date.now();
-        const puzzle = bakeOne(mode, diff, Math.random);
-        const t1 = Date.now();
-        if (!puzzle) {
-          console.error('  FAILED');
-          continue;
-        }
-        console.log('  done in ' + (t1 - t0) + 'ms (' +
-          puzzle.givens.filter(Boolean).length + ' givens)');
-        pools[mode][diff].push(puzzle);
+  const pools = { sugur: [], chain: [] };
+  const COUNT = 25;
+  for (const mode of ['sugur', 'chain']) {
+    console.log('=== Baking ' + mode + ' (' + COUNT + ' templates) ===');
+    for (let n = 0; n < COUNT; n++) {
+      console.log('template ' + (n + 1) + '/' + COUNT + '...');
+      const t0 = Date.now();
+      const tpl = bakeOne(mode, Math.random);
+      const t1 = Date.now();
+      if (!tpl) {
+        console.error('  FAILED');
+        continue;
       }
+      console.log('  done in ' + (t1 - t0) + 'ms');
+      pools[mode].push(tpl);
     }
   }
   return pools;
@@ -506,23 +459,23 @@ function bakeAll() {
 function writeOutput(pools) {
   const outPath = path.join(PROJECT_ROOT, 'precomputedPools.js');
   const header = `/**
- * precomputedPools.js — пре-сгенерированный пул уровней для Sugur и Chain.
+ * precomputedPools.js — пре-сгенерированные ШАБЛОНЫ для Sugur и Chain.
  *
  * Создан скриптом tools/bake-pools.js (см. его docstring).
  *
  * Структура:
  *   PrecomputedPools = {
- *     sugur: { easy: [...], medium: [...], hard: [...] },
- *     chain: { easy: [...], medium: [...], hard: [...] }
+ *     sugur: [25 шаблонов],
+ *     chain: [25 шаблонов]
  *   }
- * Каждый puzzle:
- *   { puzzle: number[81], solution: number[81], givens: bool[81],
- *     difficulty: string, mode: string,
+ * Каждый шаблон:
+ *   { solution: number[81], mode: string,
  *     cellSnake/cellChain: number[81], snakeCells/chainCells: array[9][9],
  *     edges?: array<[number,number]>  // только для chain }
  *
- * Game.startNewLevel выбирает случайный puzzle из соответствующего слота
- * и подаёт его как есть, без on-the-fly генерации.
+ * Game.startNewLevel берёт шаблон по очереди (counter в Storage), делает
+ * random relabel цифр (perm 1-9) и случайно открывает N cells по сложности.
+ * Это даёт практически unlimited unique puzzles из конечного пула.
  */
 window.PrecomputedPools = `;
   const body = JSON.stringify(pools, null, 2);
@@ -537,9 +490,7 @@ const pools = bakeAll();
 const totalMs = Date.now() - totalStart;
 console.log('\n=== Summary ===');
 for (const mode of Object.keys(pools)) {
-  for (const diff of Object.keys(pools[mode])) {
-    console.log(mode + '/' + diff + ': ' + pools[mode][diff].length + ' puzzles');
-  }
+  console.log(mode + ': ' + pools[mode].length + ' templates');
 }
 console.log('Total time: ' + (totalMs / 1000).toFixed(1) + 's');
 writeOutput(pools);

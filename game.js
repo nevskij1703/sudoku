@@ -188,41 +188,71 @@ window.Game = (function () {
     let gen, dots = null, snakeCells = null, cellSnake = null;
     let cellChain = null, chainEdges = null;
 
-    // ===== Sugur/Chain: используем pre-baked pool =====
-    // Sugur и Chain — режимы с произвольной геометрией регионов. On-the-fly
-    // generation требует variant-solver, который на random layouts уходит в
-    // долгий поиск (особенно с 8-связностью для chain). Поэтому пул уровней
-    // сгенерирован оффлайн через tools/bake-pools.js и подсовывается тут как
-    // готовый puzzle. Это даёт настоящие змейчатые/цепочные раскладки разных
-    // форм, мгновенный старт, и гарантию solvable+unique.
+    // ===== Sugur/Chain: pre-baked pool болванок + on-the-fly relabel-carve =====
+    // Sugur и Chain — режимы с произвольной геометрией регионов. Generation
+    // на лету (variant-solver) уходит в долгий поиск, особенно с 8-связностью.
+    // Поэтому 25 болванок (solution+layout) пред-сгенерены оффлайн в
+    // tools/bake-pools.js → precomputedPools.js. При каждом старте уровня:
+    //   1. Берём template по индексу (Storage.getNextTemplateIndex, циклично).
+    //   2. Делаем random relabel — permutation 1..9 (например 3→7, 7→9, 9→3).
+    //      Это сохраняет valid solution и даёт визуально разные цифры на тех
+    //      же layouts.
+    //   3. Случайно открываем N cells (puzzle = solution с дырами): 45/35/28
+    //      givens для easy/medium/hard. Без uniqueness check — UX trade-off
+    //      приемлемый, layouts уже валидные.
     //
-    // При выходе пула (нет данных или пустой) — fallback на старую логику
-    // с classic blocks (sugur) / random walk + chain-variant solve (chain).
+    // Это даёт практически unlimited unique puzzles из 25 болванок: 25 × 9!
+    // (≈9 миллионов) комбинаций для одного режима.
+    //
+    // При недоступности пула — fallback на старую логику (classic blocks для
+    // sugur, random walk для chain).
     if ((mode === 'sugur' || mode === 'chain')
         && window.PrecomputedPools
         && window.PrecomputedPools[mode]
-        && window.PrecomputedPools[mode][difficulty]
-        && window.PrecomputedPools[mode][difficulty].length) {
-      const pool = window.PrecomputedPools[mode][difficulty];
-      const pick = pool[Math.floor(Math.random() * pool.length)];
+        && window.PrecomputedPools[mode].length) {
+      const pool = window.PrecomputedPools[mode];
+      const idx = window.Storage.getNextTemplateIndex(mode, pool.length);
+      const tpl = pool[idx];
+      // Random relabel — permutation цифр 1..9
+      const perm = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      for (let i = perm.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = perm[i]; perm[i] = perm[j]; perm[j] = t;
+      }
+      // map[d] = новая цифра для d (d ∈ 1..9). perm[d-1] = новая цифра.
+      const relabeled = tpl.solution.map(function (v) {
+        return v >= 1 && v <= 9 ? perm[v - 1] : 0;
+      });
+      // Случайный carve до target givens по сложности
+      const givensTarget = { easy: 45, medium: 35, hard: 28 }[difficulty] || 35;
+      const puzzle = relabeled.slice();
+      const idxs = Array.from({ length: 81 }, function (_, i) { return i; });
+      for (let i = idxs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
+      }
+      const removeCount = Math.max(0, 81 - givensTarget);
+      for (let k = 0; k < removeCount; k++) puzzle[idxs[k]] = 0;
+
       gen = {
-        puzzle:    pick.puzzle.slice(),
-        solution:  pick.solution.slice(),
-        givens:    pick.givens.slice(),
+        puzzle:    puzzle,
+        solution:  relabeled,
+        givens:    puzzle.map(function (v) { return v !== 0; }),
         difficulty: difficulty,
-        score:     pick.puzzle.filter(function (v) { return v === 0; }).length,
+        score:     removeCount,
         techniques: {},
         elapsedMs: 0,
         attempts:  1
       };
       if (mode === 'sugur') {
-        snakeCells = pick.snakeCells.map(function (s) { return s.slice(); });
-        cellSnake  = pick.cellSnake.slice();
+        snakeCells = tpl.snakeCells.map(function (s) { return s.slice(); });
+        cellSnake  = tpl.cellSnake.slice();
       } else {
-        cellChain  = pick.cellChain.slice();
-        chainEdges = (pick.edges || []).map(function (e) { return e.slice(); });
+        cellChain  = tpl.cellChain.slice();
+        chainEdges = (tpl.edges || []).map(function (e) { return e.slice(); });
       }
-      console.log('[game] ' + mode + ' loaded from pool (pool size=' + pool.length + ')');
+      console.log('[game] ' + mode + ' template #' + idx + '/' + pool.length +
+                  ' relabeled (perm=' + perm.join('') + ') carved to ' + givensTarget + ' givens');
     } else if (mode === 'kropki' && SV && SV.computeKropkiDots) {
       // Kropki: classic puzzle + dots computed from solution
       gen = Gen.generate(difficulty, { variant: SV.Classic });

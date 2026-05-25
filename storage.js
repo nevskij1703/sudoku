@@ -30,6 +30,13 @@ window.Storage = (function () {
       // после просмотра rewarded ad. См. migrations[2].
       hints: window.GAME_CONFIG.BALANCE.hintsPerLevel,
 
+      // Счётчик «следующий шаблон» для sugur/chain. Game.startNewLevel
+      // берёт шаблон по этому индексу из PrecomputedPools[mode], затем
+      // инкрементит и заворачивает по pool.length. Это даёт цикличное
+      // прохождение всех 25 болванок (на каждой будет разный relabel +
+      // carve, так что игрок не замечает повтор формы). См. migration v5.
+      templateIndices: { sugur: 0, chain: 0 },
+
       // Настройки
       settings: {
         sound: window.GAME_CONFIG.enableSound,
@@ -93,13 +100,14 @@ window.Storage = (function () {
 
       // Мердж с дефолтами на случай, если новые поля добавились без миграции
       // (например, settings.highlighter появилось позже). settings,
-      // completedByDifficulty и activeByMode мерджим вглубь.
+      // completedByDifficulty, activeByMode и templateIndices мерджим вглубь.
       const defaults = DEFAULTS();
       cached = Object.assign({}, defaults, state, {
         schemaVersion: target,
         settings: Object.assign({}, defaults.settings, state.settings || {}),
         completedByDifficulty: Object.assign({}, defaults.completedByDifficulty, state.completedByDifficulty || {}),
-        activeByMode: Object.assign({}, defaults.activeByMode, state.activeByMode || {})
+        activeByMode: Object.assign({}, defaults.activeByMode, state.activeByMode || {}),
+        templateIndices: Object.assign({}, defaults.templateIndices, state.templateIndices || {})
       });
       persist();
       return cached;
@@ -224,6 +232,23 @@ window.Storage = (function () {
     persist();
   }
 
+  // === Template index (для pool болванок Sugur/Chain) ===
+  //
+  // Game.startNewLevel вызывает getNextTemplateIndex(mode) — он возвращает
+  // текущий index и сразу инкрементит его modulo pool size. Так все 25
+  // болванок проходят по очереди, и игрок не получает один и тот же
+  // template подряд. На каждой болванке делается random relabel +
+  // случайный carve, поэтому визуально каждый уровень новый.
+
+  function getNextTemplateIndex(mode, poolSize) {
+    const s = load();
+    if (!s.templateIndices) s.templateIndices = { sugur: 0, chain: 0 };
+    const idx = (s.templateIndices[mode] | 0) % Math.max(1, poolSize | 0);
+    s.templateIndices[mode] = (idx + 1) % Math.max(1, poolSize | 0);
+    persist();
+    return idx;
+  }
+
   // === Mock ads / rate / служебное ===
 
   function getMockAds()  { return !!load().mockAds; }
@@ -274,6 +299,8 @@ window.Storage = (function () {
     getHints: getHints,
     setHints: setHints,
     addHints: addHints,
+    // Template-index для pool болванок
+    getNextTemplateIndex: getNextTemplateIndex,
     // Настройки
     getSettings: getSettings,
     setSettings: setSettings,
