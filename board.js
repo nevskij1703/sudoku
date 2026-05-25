@@ -116,41 +116,23 @@ window.Board = (function () {
         cells[d.idx1].classList.add(cls);
       }
     }
-    // Peers выбранной ячейки определяет variant — для Diagonal это включает
-    // диагональ, для Center — центральные клетки, для Windoku — внутреннюю зону.
-    // Исключения для Chain и Sugur: peers по правилам игры включают всю
-    // цепочку/змейку, но визуально мы хотим подсветить ТОЛЬКО строку и
-    // столбец. Сама принадлежность к цепочке/змейке показывается через
-    // обводку (см. renderChainOverlay / renderSugurOverlay). Это позволяет
-    // игроку видеть «свою группу» как отдельный визуальный приём, а row/col
-    // — как обычную peer-подсветку.
+    // Peers (голубая подсветка) — ТОЛЬКО строка и столбец выбранной cell.
+    // Никакие extra-зоны (диагонали в Diagonal, центральные cells в Center,
+    // 4 внутренние 3×3-зоны в Windoku, змейки в Sugur, цепочки в Chain) НЕ
+    // добавляются в peer-set: их визуальная связь с выбранной cell
+    // показывается отдельно — через block-highlight rectangle (boxed
+    // variants), sugur-overlay (змейки) или chain-overlay (цепочки).
+    // Это даёт игроку чистое разделение: «голубой = row/col-conflict
+    // candidate», «рамка = вторая constraint-группа».
     let peers;
     if (sel == null || !useHighlight) {
       peers = null;
-    } else if (isChain || isSugur) {
+    } else {
       peers = new Set();
       const r = Math.floor(sel / size), c = sel % size;
       for (let k = 0; k < size; k++) {
         if (k !== c) peers.add(r * size + k);
         if (k !== r) peers.add(k * size + c);
-      }
-    } else {
-      // Classic / Diagonal / Center / Windoku / Kropki / Mini — peers
-      // включают весь блок, диагональ, центры и зоны. Сам блок 3×3 (2×2 для
-      // Mini) НЕ красим как peer-fill — для него рисуется акцентный периметр
-      // через renderBlockHighlight. Поэтому peers составляем явно из всех
-      // unit-ов sel, КРОМЕ box-unit. Так diagonal-/center-/windoku-cells
-      // (которые могут проходить и сквозь блок sel) остаются подсвечены
-      // как peers, а сам блок только обведён рамкой.
-      peers = new Set();
-      const myBox = findBoxUnitFor(sel, variant, size);
-      const units = variant.unitsForCell(sel);
-      for (let u = 0; u < units.length; u++) {
-        if (units[u] === myBox) continue;
-        const unit = units[u];
-        for (let k = 0; k < unit.length; k++) {
-          if (unit[k] !== sel) peers.add(unit[k]);
-        }
       }
     }
     // Accent-периметр выбранного блока для variants с boxes (Classic, Mini,
@@ -281,7 +263,7 @@ window.Board = (function () {
     const edges = state.chainEdges || [];
     const cellChain = state.cellChain || [];
     const NORMAL = '0.028';
-    const THICK  = '0.045';   // тоньше прежних 0.06
+    const THICK  = '0.035';   // тоньше прежних 0.045
     for (let k = 0; k < edges.length; k++) {
       const e = edges[k];
       const a = e[0], b = e[1];
@@ -331,7 +313,7 @@ window.Board = (function () {
     const STROKE_NORMAL = '#1a2540';
     const STROKE_SELECT = '#1a2540';
     const W_NORMAL = '0.022';   // ≈ 1.2px на 480-доске
-    const W_SELECT = '0.05';    // ≈ 2.7px на 480-доске (раньше 0.075/4px)
+    const W_SELECT = '0.035';   // ≈ 1.9px (тоньше прежних 0.05/2.7px)
 
     function drawEdge(x1, y1, x2, y2, sA, sB) {
       const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
@@ -458,8 +440,8 @@ window.Board = (function () {
     const y1 = boxR0;
     const y2 = boxR0 + variant.boxRows;
     const STROKE = '#1a2540';   // чёрный (var(--grid-line-thick))
-    const W = '0.05';            // ≈ 2.7px (раньше 0.075/4px)
-    const HALF = 0.025;
+    const W = '0.035';           // ≈ 1.9px (тоньше прежних 0.05/2.7px)
+    const HALF = 0.0175;
     // Сдвиг для внешних краёв (касающихся края доски):
     const ty = (y1 === 0)    ? HALF        : y1;
     const by = (y2 === size) ? size - HALF : y2;
