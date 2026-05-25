@@ -756,6 +756,16 @@ window.Game = (function () {
     // в эту пару не предложит «Продолжить». Слоты других difficulty этого
     // режима остаются.
     window.Storage.clearActiveByMode(active.mode || 'classic', active.difficulty || 'medium');
+    // Сбрасываем fast-mode флаги в текущем active, чтобы между win-modal
+    // и стартом нового уровня UI кнопки «Быстрый режим» не отображал
+    // активное состояние. NumberPad.setFastState вызывается из renderAll,
+    // но active.fastModeActive остался бы true до startNewLevel.
+    active.fastModeUnlocked = false;
+    active.fastModeActive = false;
+    if (window.NumberPad) {
+      window.NumberPad.setFastState({ unlocked: false, active: false });
+      window.NumberPad.setPencilEnabled(true);
+    }
     emit('win', data);
   }
 
@@ -849,11 +859,42 @@ window.Game = (function () {
   // Пересчитывает заметки для всех пустых не-given ячеек, основываясь на
   // правилах текущего variant. mistakes игнорируются (они «не считаются» как
   // финальные цифры). hint/given cells получают notes=0.
+  //
+  // Дополнительно для Kropki: если соседняя ячейка через dot уже заполнена,
+  // ограничиваем кандидаты идущим из dot constraint'а:
+  //   • consec (○): кандидаты = {v-1, v+1} (в диапазоне 1..9)
+  //   • double (●): кандидаты = {2·v, v/2} (только целые)
   function recomputeAllNotes() {
     if (!active) return;
     const variant = activeVariant();
     const ALL = variant.ALL_MASK || 0x1FF;
     const N = active.board.length;
+    // Префильтр dots: для каждой пустой cell собираем "обязательный" mask
+    // от соседних dots. Если нет dots → mask = ALL (всё разрешено).
+    function dotMaskFor(i) {
+      if (!active.dots || !active.dots.length) return ALL;
+      let m = ALL;
+      for (let k = 0; k < active.dots.length; k++) {
+        const dot = active.dots[k];
+        let other = -1;
+        if (dot.idx1 === i) other = dot.idx2;
+        else if (dot.idx2 === i) other = dot.idx1;
+        else continue;
+        const v = active.board[other];
+        if (v < 1 || v > 9) continue;        // сосед пустой → no constraint от этого dot
+        if (active.mistakes[other]) continue; // ошибочную цифру не учитываем
+        let allowed = 0;
+        if (dot.type === 'consec') {
+          if (v - 1 >= 1) allowed |= 1 << (v - 2);
+          if (v + 1 <= 9) allowed |= 1 << v;
+        } else if (dot.type === 'double') {
+          if (v * 2 <= 9) allowed |= 1 << (v * 2 - 1);
+          if (v % 2 === 0 && v / 2 >= 1) allowed |= 1 << (v / 2 - 1);
+        }
+        m &= allowed;
+      }
+      return m;
+    }
     for (let i = 0; i < N; i++) {
       if (active.givens[i] || (active.hintCells && active.hintCells[i]) || active.board[i] !== 0) {
         active.notes[i] = 0;
@@ -867,6 +908,9 @@ window.Game = (function () {
         const v = active.board[p];
         if (v >= 1 && v <= variant.size) mask &= ~(1 << (v - 1));
       }
+      // Дополнительное Kropki-ограничение (для других variants dots=null,
+      // dotMaskFor вернёт ALL и mask не изменится).
+      mask &= dotMaskFor(i);
       active.notes[i] = mask;
     }
   }
