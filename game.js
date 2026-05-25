@@ -91,9 +91,14 @@ window.Game = (function () {
   function persist() {
     if (!active) return;
     active.elapsedMs = getElapsedMs();
-    // Сохраняем в слот своего режима. Слоты других режимов не трогаем —
-    // юзер может переключаться между ними и каждый сохраняет своё состояние.
-    window.Storage.setActiveByMode(active.mode || 'classic', active);
+    // Сохраняем в слот текущей пары (режим, сложность). Любые другие
+    // слоты — другого режима ИЛИ другой сложности того же режима —
+    // остаются нетронутыми.
+    window.Storage.setActiveByMode(
+      active.mode || 'classic',
+      active.difficulty || 'medium',
+      active
+    );
   }
 
   function makeSnapshot() {
@@ -308,10 +313,10 @@ window.Game = (function () {
     emit('change');
   }
 
-  // Загружает в память сейв выбранного режима из Storage. Используется при
-  // нажатии «Продолжить» в save-modal на главном экране.
-  function resumeMode(mode) {
-    const stored = window.Storage.getActiveByMode(mode);
+  // Загружает в память сейв выбранной пары (режим, сложность) из Storage.
+  // Используется при нажатии «Продолжить» в save-modal на главном экране.
+  function resumeMode(mode, difficulty) {
+    const stored = window.Storage.getActiveByMode(mode, difficulty);
     if (!stored) return false;
     active = stored;
     selectedIdx = null;
@@ -344,9 +349,9 @@ window.Game = (function () {
   // Legacy: первый попавшийся сейв (если есть). Используется в обработчике
   // auto-resume на старте — он же показывает home-экран, если ничего не нашёл.
   function resumeActive() {
-    const modes = window.Storage.getAllActiveModes();
-    if (!modes.length) return false;
-    return resumeMode(modes[0]);
+    const slots = window.Storage.getAllActiveModes();
+    if (!slots.length) return false;
+    return resumeMode(slots[0].mode, slots[0].difficulty);
   }
 
   // Выходим из текущего уровня в меню. ВАЖНО: сейв НЕ удаляем — слот
@@ -367,9 +372,10 @@ window.Game = (function () {
   // game-over (юзер хочет именно свежий уровень, не продолжать старый).
   function abandon() {
     const m = active ? (active.mode || 'classic') : null;
+    const d = active ? (active.difficulty || 'medium') : null;
     stopTimer();
     clearFastTimer();
-    if (m) window.Storage.clearActiveByMode(m);
+    if (m) window.Storage.clearActiveByMode(m, d);
     active = null;
     selectedIdx = null;
     undoStack = [];
@@ -586,9 +592,10 @@ window.Game = (function () {
       mistakes: mistakesCount,
       hintsUsed: active.hintsUsed
     };
-    // Сейв пройденного режима удаляем — следующий заход в этот режим
-    // не предложит «Продолжить».
-    window.Storage.clearActiveByMode(active.mode || 'classic');
+    // Сейв пройденной пары (режим, сложность) удаляем — следующий заход
+    // в эту пару не предложит «Продолжить». Слоты других difficulty этого
+    // режима остаются.
+    window.Storage.clearActiveByMode(active.mode || 'classic', active.difficulty || 'medium');
     emit('win', data);
   }
 

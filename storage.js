@@ -130,54 +130,61 @@ window.Storage = (function () {
     persist();
   }
 
-  // === Активные уровни (per mode) ===
+  // === Активные уровни (per mode × difficulty) ===
   //
-  // Каждый режим имеет свой слот сейва — `activeByMode[mode]`. Это позволяет
-  // игроку играть в Классику, выйти в меню, начать Сугуру, вернуться в меню,
-  // а потом продолжить Классику с того же места. См. также Game.startNewLevel
-  // и main.js → btn-start-level (показывает модалку Продолжить/Начать заново
-  // если для выбранного режима есть сохранение).
+  // Каждая пара (режим, сложность) имеет свой слот сейва. Ключ —
+  // composite-string `"mode:difficulty"` в `activeByMode`. Это позволяет
+  // игроку держать одновременно начатую Классику-Простой и Классику-Средний,
+  // переключаясь между ними без потери прогресса. См. также migration v4.
 
-  function getActiveByMode(mode) {
-    const s = load();
-    return (s.activeByMode && s.activeByMode[mode]) || null;
+  function makeKey(mode, difficulty) {
+    return (mode || 'classic') + ':' + (difficulty || 'medium');
   }
 
-  function setActiveByMode(mode, activeState) {
+  function getActiveByMode(mode, difficulty) {
+    const s = load();
+    return (s.activeByMode && s.activeByMode[makeKey(mode, difficulty)]) || null;
+  }
+
+  function setActiveByMode(mode, difficulty, activeState) {
     const s = load();
     if (!s.activeByMode) s.activeByMode = {};
-    s.activeByMode[mode] = activeState;
+    s.activeByMode[makeKey(mode, difficulty)] = activeState;
     persist();
   }
 
-  function clearActiveByMode(mode) {
+  function clearActiveByMode(mode, difficulty) {
     const s = load();
-    if (s.activeByMode && s.activeByMode[mode]) {
-      delete s.activeByMode[mode];
+    const key = makeKey(mode, difficulty);
+    if (s.activeByMode && s.activeByMode[key]) {
+      delete s.activeByMode[key];
       persist();
     }
   }
 
+  // Возвращает массив объектов `{mode, difficulty}` для всех непустых слотов.
   function getAllActiveModes() {
     const s = load();
     if (!s.activeByMode) return [];
-    return Object.keys(s.activeByMode);
+    return Object.keys(s.activeByMode).map(function (k) {
+      const parts = k.split(':');
+      return { mode: parts[0] || 'classic', difficulty: parts[1] || 'medium' };
+    });
   }
 
-  // Legacy-aliases. До v3 сейв был single-slot; некоторые места (например
-  // dev-panel) могут ещё дёргать getActive/setActive/clearActive. Мапим их
-  // на «первый попавшийся» mode чтобы сохранить базовое поведение, но новый
-  // код должен использовать ByMode-API.
+  // Legacy-aliases. До v3 сейв был single-slot. Некоторые места (dev-panel)
+  // могут ещё дёргать getActive/setActive/clearActive — мапим их на
+  // «первый попавшийся» слот чтобы сохранить базовое поведение.
 
   function getActive() {
     const s = load();
-    const modes = Object.keys(s.activeByMode || {});
-    return modes.length ? s.activeByMode[modes[0]] : null;
+    const keys = Object.keys(s.activeByMode || {});
+    return keys.length ? s.activeByMode[keys[0]] : null;
   }
 
   function setActive(activeState) {
     if (!activeState || !activeState.mode) return;
-    setActiveByMode(activeState.mode, activeState);
+    setActiveByMode(activeState.mode, activeState.difficulty, activeState);
   }
 
   function clearActive() {

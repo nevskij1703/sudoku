@@ -235,10 +235,10 @@
     });
 
     document.getElementById('btn-start-level').addEventListener('click', function () {
-      // Старт с главного меню. Если для выбранного режима в Storage уже
-      // лежит сейв — спрашиваем «Продолжить» / «Начать заново» через
-      // модалку save-confirm. Без сейва — сразу новый уровень.
-      const existing = window.Storage.getActiveByMode(selectedMode);
+      // Старт с главного меню. Если для выбранной пары (режим, сложность)
+      // в Storage уже лежит сейв — спрашиваем «Продолжить» / «Начать
+      // заново» через модалку save-confirm. Без сейва — сразу новый уровень.
+      const existing = window.Storage.getActiveByMode(selectedMode, selectedDifficulty);
       if (existing) {
         pendingStartDifficulty = selectedDifficulty;
         pendingStartMode = selectedMode;
@@ -250,15 +250,15 @@
 
     // Save-confirm: «Продолжить» → загрузить сейв и сразу в игру (БЕЗ
     // interstitial — юзер уже в середине партии). «Начать заново» →
-    // удалить сейв и пройти штатный proceedToNextLevel (с cadence).
+    // удалить сейв этой пары и пройти штатный proceedToNextLevel (с cadence).
     document.getElementById('btn-save-continue').addEventListener('click', function () {
       window.UI.hideModal('save-confirm');
       const mode = pendingStartMode || selectedMode;
-      if (window.Game.resumeMode(mode)) {
+      const diff = pendingStartDifficulty || selectedDifficulty;
+      if (window.Game.resumeMode(mode, diff)) {
         window.UI.showScreen('game');
       } else {
-        // Сейв куда-то делся между показом модалки и кликом — fallback на новый.
-        proceedToNextLevel(pendingStartDifficulty || selectedDifficulty, mode);
+        proceedToNextLevel(diff, mode);
       }
       pendingStartDifficulty = null;
       pendingStartMode = null;
@@ -266,7 +266,7 @@
     document.getElementById('btn-save-restart').addEventListener('click', function () {
       const diff = pendingStartDifficulty || selectedDifficulty;
       const mode = pendingStartMode || selectedMode;
-      window.Storage.clearActiveByMode(mode);
+      window.Storage.clearActiveByMode(mode, diff);
       window.UI.hideModal('save-confirm');
       proceedToNextLevel(diff, mode);
       pendingStartDifficulty = null;

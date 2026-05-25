@@ -52,8 +52,31 @@ window.Migrations = (function () {
       }
       delete state.active;
       return state;
+    },
+    4: function (state) {
+      // v3 → v4: ключ слота расширен с `mode` до `mode:difficulty`. Теперь
+      // юзер может одновременно держать сейв «Классика-Простой» и
+      // «Классика-Средний». Старые ключи переименовываются по difficulty
+      // из самого сейва (или 'medium' если поле не задано).
+      if (!state.activeByMode || typeof state.activeByMode !== 'object') {
+        state.activeByMode = {};
+        return state;
+      }
+      const newMap = {};
+      const oldKeys = Object.keys(state.activeByMode);
+      for (let i = 0; i < oldKeys.length; i++) {
+        const k = oldKeys[i];
+        const slot = state.activeByMode[k];
+        if (!slot) continue;
+        // Если ключ уже в новом формате (содержит ':') — оставляем как есть.
+        if (k.indexOf(':') !== -1) { newMap[k] = slot; continue; }
+        const diff = slot.difficulty || 'medium';
+        newMap[k + ':' + diff] = slot;
+      }
+      state.activeByMode = newMap;
+      return state;
     }
-    // 4: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 5: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {
