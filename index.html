@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=18" />
 </head>
 <body>
 
@@ -462,14 +462,31 @@
     </div>
   </div>
 
-  <!-- Подтверждение выхода из активного уровня -->
+  <!-- Подтверждение выхода из активного уровня. Прогресс СОХРАНЯЕТСЯ в
+       слот режима — вернуться к нему можно через «Продолжить» на главном
+       экране (модалка save-confirm). -->
   <div id="modal-confirm-exit" class="modal hidden" data-modal-id="confirm-exit">
     <div class="modal-box">
       <h2 class="modal-title">Выйти в меню?</h2>
-      <p class="modal-text">Текущий уровень будет сброшен — вернуться к нему не получится.</p>
+      <p class="modal-text">Текущий прогресс сохранится — вы сможете продолжить с этого места, выбрав режим снова.</p>
       <div class="modal-actions">
         <button id="btn-confirm-exit-yes" class="btn btn-primary big">Да, выйти</button>
         <button id="btn-confirm-exit-no" class="btn btn-secondary">Продолжить игру</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save-confirm модалка. Показывается при клике «Начать» на главном экране,
+       если для выбранного режима уже есть сохранённый сейв. Кнопка «Продолжить»
+       загружает сохранение, «Начать заново» — удаляет старый сейв и генерит
+       новый уровень. -->
+  <div id="modal-save-confirm" class="modal hidden" data-modal-id="save-confirm">
+    <div class="modal-box">
+      <h2 class="modal-title">Сохранение</h2>
+      <p class="modal-text">В этом режиме есть начатый уровень. Хотите продолжить или начать заново?</p>
+      <div class="modal-actions">
+        <button id="btn-save-continue" class="btn btn-primary big">Продолжить</button>
+        <button id="btn-save-restart" class="btn btn-secondary">Начать заново</button>
       </div>
     </div>
   </div>
@@ -517,21 +534,21 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=17"></script>
-  <script src="migrations.js?v=17"></script>
-  <script src="storage.js?v=17"></script>
-  <script src="sudokuCore.js?v=17"></script>
-  <script src="sudokuVariants.js?v=17"></script>
-  <script src="sudokuTechniques.js?v=17"></script>
-  <script src="sudokuGenerator.js?v=17"></script>
-  <script src="ads.js?v=17"></script>
-  <script src="rustoreReview.js?v=17"></script>
-  <script src="audio.js?v=17"></script>
-  <script src="ui.js?v=17"></script>
-  <script src="board.js?v=17"></script>
-  <script src="numberPad.js?v=17"></script>
-  <script src="game.js?v=17"></script>
-  <script src="devPanel.js?v=17"></script>
-  <script src="main.js?v=17"></script>
+  <script src="config.js?v=18"></script>
+  <script src="migrations.js?v=18"></script>
+  <script src="storage.js?v=18"></script>
+  <script src="sudokuCore.js?v=18"></script>
+  <script src="sudokuVariants.js?v=18"></script>
+  <script src="sudokuTechniques.js?v=18"></script>
+  <script src="sudokuGenerator.js?v=18"></script>
+  <script src="ads.js?v=18"></script>
+  <script src="rustoreReview.js?v=18"></script>
+  <script src="audio.js?v=18"></script>
+  <script src="ui.js?v=18"></script>
+  <script src="board.js?v=18"></script>
+  <script src="numberPad.js?v=18"></script>
+  <script src="game.js?v=18"></script>
+  <script src="devPanel.js?v=18"></script>
+  <script src="main.js?v=18"></script>
 </body>
 </html>

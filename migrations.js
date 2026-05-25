@@ -34,8 +34,26 @@ window.Migrations = (function () {
                       : 5;
       }
       return state;
+    },
+    3: function (state) {
+      // v2 → v3: сейв теперь разделён на отдельные слоты для каждого режима
+      // (`activeByMode: { classic: state, sugur: state, ... }`). Это позволяет
+      // игроку выйти в меню и вернуться в тот же режим, продолжив начатый
+      // уровень. Старое поле `active` (single-slot) переезжает в свой слот
+      // по active.mode (или 'classic' если mode не указан).
+      if (!state.activeByMode || typeof state.activeByMode !== 'object') {
+        state.activeByMode = {};
+      }
+      if (state.active && typeof state.active === 'object') {
+        const m = state.active.mode || 'classic';
+        // Если уже был слот этого режима — не затираем (не должно случиться
+        // у v2-юзеров, но защищаемся defensive).
+        if (!state.activeByMode[m]) state.activeByMode[m] = state.active;
+      }
+      delete state.active;
+      return state;
     }
-    // 3: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 4: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {

@@ -31,6 +31,11 @@
   // в win-модалке (запускаем такой же ещё раз без захода на главный экран).
   let lastCompletedDifficulty = null;
   let lastCompletedMode = null;
+  // Параметры, которые будут применены после ответа в save-confirm модалке
+  // (если для выбранного режима есть сейв — мы показываем модалку и ждём
+  // выбора между «Продолжить» и «Начать заново»).
+  let pendingStartDifficulty = null;
+  let pendingStartMode = null;
 
   // Короткие caps-имена режимов для большого заголовка игрового экрана
   // (раньше там всегда было «СУДОКУ»; пользователь попросил показывать
@@ -229,9 +234,42 @@
     });
 
     document.getElementById('btn-start-level').addEventListener('click', function () {
-      // Старт с главного меню — без rate-modal (он только между уровнями
-      // после win). Обычная cadence-логика interstitial.
-      proceedToNextLevel(selectedDifficulty, selectedMode);
+      // Старт с главного меню. Если для выбранного режима в Storage уже
+      // лежит сейв — спрашиваем «Продолжить» / «Начать заново» через
+      // модалку save-confirm. Без сейва — сразу новый уровень.
+      const existing = window.Storage.getActiveByMode(selectedMode);
+      if (existing) {
+        pendingStartDifficulty = selectedDifficulty;
+        pendingStartMode = selectedMode;
+        window.UI.showModal('save-confirm');
+      } else {
+        proceedToNextLevel(selectedDifficulty, selectedMode);
+      }
+    });
+
+    // Save-confirm: «Продолжить» → загрузить сейв и сразу в игру (БЕЗ
+    // interstitial — юзер уже в середине партии). «Начать заново» →
+    // удалить сейв и пройти штатный proceedToNextLevel (с cadence).
+    document.getElementById('btn-save-continue').addEventListener('click', function () {
+      window.UI.hideModal('save-confirm');
+      const mode = pendingStartMode || selectedMode;
+      if (window.Game.resumeMode(mode)) {
+        window.UI.showScreen('game');
+      } else {
+        // Сейв куда-то делся между показом модалки и кликом — fallback на новый.
+        proceedToNextLevel(pendingStartDifficulty || selectedDifficulty, mode);
+      }
+      pendingStartDifficulty = null;
+      pendingStartMode = null;
+    });
+    document.getElementById('btn-save-restart').addEventListener('click', function () {
+      const diff = pendingStartDifficulty || selectedDifficulty;
+      const mode = pendingStartMode || selectedMode;
+      window.Storage.clearActiveByMode(mode);
+      window.UI.hideModal('save-confirm');
+      proceedToNextLevel(diff, mode);
+      pendingStartDifficulty = null;
+      pendingStartMode = null;
     });
 
     // ===== 6. Игровой экран =====
@@ -244,9 +282,11 @@
     document.getElementById('btn-game-settings').addEventListener('click', openSettings);
 
     // ===== 7. Подтверждение выхода =====
+    // Прогресс сохраняется (см. Game.leaveToMenu) — юзер может вернуться
+    // в этот режим и продолжить через save-confirm.
     document.getElementById('btn-confirm-exit-yes').addEventListener('click', function () {
       window.UI.hideModal('confirm-exit');
-      window.Game.abandon();
+      window.Game.leaveToMenu();
       window.UI.showScreen('home');
       updateHomeStats();
     });
@@ -395,17 +435,13 @@
 
     // ===== 12. Стартовый экран =====
     //
-    // Auto-resume: если в storage есть активный уровень — продолжаем его без
-    // показа главного меню. Активный уровень пишется при каждом действии
-    // (Game.persist()) и не теряется при закрытии приложения / перезагрузке
-    // страницы. Сбросить активный уровень можно только через подтверждение
-    // выхода в меню (модалка confirm-exit) или dev-panel.
+    // При запуске приложения — всегда показываем home. Сейвы лежат в
+    // activeByMode[mode]: если юзер кликнет «Начать» на режиме с сейвом,
+    // save-confirm модалка предложит «Продолжить» / «Начать заново».
+    // Это более consistent UX чем auto-resume первого попавшегося mode'а
+    // (теперь у нас сейв на каждый режим).
     updateHomeStats();
-    if (window.Storage.getActive() && window.Game.resumeActive()) {
-      window.UI.showScreen('game');
-    } else {
-      window.UI.showScreen('home');
-    }
+    window.UI.showScreen('home');
   }
 
   function backToHome() {

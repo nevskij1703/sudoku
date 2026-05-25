@@ -91,7 +91,9 @@ window.Game = (function () {
   function persist() {
     if (!active) return;
     active.elapsedMs = getElapsedMs();
-    window.Storage.setActive(active);
+    // Сохраняем в слот своего режима. Слоты других режимов не трогаем —
+    // юзер может переключаться между ними и каждый сохраняет своё состояние.
+    window.Storage.setActiveByMode(active.mode || 'classic', active);
   }
 
   function makeSnapshot() {
@@ -292,8 +294,10 @@ window.Game = (function () {
     emit('change');
   }
 
-  function resumeActive() {
-    const stored = window.Storage.getActive();
+  // Загружает в память сейв выбранного режима из Storage. Используется при
+  // нажатии «Продолжить» в save-modal на главном экране.
+  function resumeMode(mode) {
+    const stored = window.Storage.getActiveByMode(mode);
     if (!stored) return false;
     active = stored;
     selectedIdx = null;
@@ -313,9 +317,33 @@ window.Game = (function () {
     return true;
   }
 
-  function abandon() {
+  // Legacy: первый попавшийся сейв (если есть). Используется в обработчике
+  // auto-resume на старте — он же показывает home-экран, если ничего не нашёл.
+  function resumeActive() {
+    const modes = window.Storage.getAllActiveModes();
+    if (!modes.length) return false;
+    return resumeMode(modes[0]);
+  }
+
+  // Выходим из текущего уровня в меню. ВАЖНО: сейв НЕ удаляем — слот
+  // соответствующего режима остаётся в Storage, и юзер может вернуться к
+  // нему через «Продолжить» на home-экране. Это и есть «выйти в меню,
+  // потом продолжить» сценарий.
+  function leaveToMenu() {
+    if (active) persist();   // зафиксировать текущее состояние
     stopTimer();
-    window.Storage.clearActive();
+    active = null;
+    selectedIdx = null;
+    undoStack = [];
+  }
+
+  // Полный отказ от уровня — сейв этого режима удаляется. Используется при
+  // нажатии «Начать заново» (модалка save-confirm) и при «Новый уровень» в
+  // game-over (юзер хочет именно свежий уровень, не продолжать старый).
+  function abandon() {
+    const m = active ? (active.mode || 'classic') : null;
+    stopTimer();
+    if (m) window.Storage.clearActiveByMode(m);
     active = null;
     selectedIdx = null;
     undoStack = [];
@@ -403,11 +431,23 @@ window.Game = (function () {
     const idx = selectedIdx;
     if (active.givens[idx]) return;
     if (active.hintCells && active.hintCells[idx]) return;
-    if (active.board[idx] === 0 && active.notes[idx] === 0 && !active.mistakes[idx]) return;
+    const hasNotes  = active.notes[idx] !== 0;
+    const isMistake = !!active.mistakes[idx];
+    const hasValue  = active.board[idx] !== 0;
+    // Стереть НЕЛЬЗЯ если стоит правильная цифра (mistake=false при заполненной
+    // ячейке означает корректное значение). Так пользователь не сотрёт случайно
+    // свою же верную работу. Можно стереть только когда есть что-то «спорное»:
+    // заметки или ошибочная цифра.
+    if (!hasNotes && !isMistake) return;
     pushUndo();
-    active.board[idx] = 0;
-    active.notes[idx] = 0;
-    active.mistakes[idx] = false;
+    if (isMistake) {
+      active.board[idx] = 0;
+      active.mistakes[idx] = false;
+    }
+    // Заметки чистим всегда — даже если поверх стоит правильная цифра, чистая
+    // ячейка визуально удобнее. (При правильной цифре заметки и так не видны,
+    // но логически их лучше убрать, чтобы не остаться скрытыми.)
+    if (hasNotes) active.notes[idx] = 0;
     window.AudioFX.click();
     persist();
     renderAll();
@@ -492,7 +532,9 @@ window.Game = (function () {
       mistakes: mistakesCount,
       hintsUsed: active.hintsUsed
     };
-    window.Storage.clearActive();
+    // Сейв пройденного режима удаляем — следующий заход в этот режим
+    // не предложит «Продолжить».
+    window.Storage.clearActiveByMode(active.mode || 'classic');
     emit('win', data);
   }
 
@@ -531,6 +573,8 @@ window.Game = (function () {
     on: on,
     startNewLevel: startNewLevel,
     resumeActive: resumeActive,
+    resumeMode: resumeMode,
+    leaveToMenu: leaveToMenu,
     abandon: abandon,
     handleCellClick: handleCellClick,
     handleNumber: handleNumber,
