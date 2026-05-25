@@ -236,12 +236,13 @@ window.Board = (function () {
       const isPeer = peers ? peers.has(i) : false;
       cell.classList.toggle('peer', !!isPeer);
 
-      // Same-digit подсветка отключена в Chain и Sugur: в них правило
-      // «одинаковые цифры в одной группе» работает по змейке/цепочке, а
-      // не по 3×3 блоку, и same-digit-highlight весь board сбивал бы с
-      // толку. Принадлежность к группе показывается через обводку.
-      const isSameDigit = !isChain && !isSugur && useHighlight
-                       && selDigit !== 0 && value === selDigit && i !== sel;
+      // Same-digit подсветка — все ячейки с такой же цифрой как у sel
+      // подсвечиваются. Работает во всех режимах: классических, Mini,
+      // Diagonal, Center, Windoku, Kropki, Sugur, Chain. Включается также
+      // когда юзер ставит цифру в пустую selected — после handleNumber
+      // selDigit становится новой цифрой и same-digit cells подхватываются.
+      const isSameDigit = useHighlight && selDigit !== 0
+                       && value === selDigit && i !== sel;
       cell.classList.toggle('same-digit', !!isSameDigit);
 
       // Chain — особый маркер для ячеек выбранной цепочки: «жирная» обводка
@@ -280,7 +281,7 @@ window.Board = (function () {
     const edges = state.chainEdges || [];
     const cellChain = state.cellChain || [];
     const NORMAL = '0.028';
-    const THICK  = '0.06';
+    const THICK  = '0.045';   // тоньше прежних 0.06
     for (let k = 0; k < edges.length; k++) {
       const e = edges[k];
       const a = e[0], b = e[1];
@@ -326,12 +327,11 @@ window.Board = (function () {
     }
     const snake = state.cellSnake;
     // Все границы одного чёрного цвета. Выбранная змейка — толще,
-    // остальные — заметно тоньше: разница в толщине достаточна чтобы
-    // выделить selected, цвет везде одинаковый.
+    // остальные — заметно тоньше. Цвет везде одинаковый.
     const STROKE_NORMAL = '#1a2540';
     const STROKE_SELECT = '#1a2540';
-    const W_NORMAL = '0.022';   // ≈ 1.2px на 480-доске (раньше 0.035)
-    const W_SELECT = '0.075';   // ≈ 4px на 480-доске
+    const W_NORMAL = '0.022';   // ≈ 1.2px на 480-доске
+    const W_SELECT = '0.05';    // ≈ 2.7px на 480-доске (раньше 0.075/4px)
 
     function drawEdge(x1, y1, x2, y2, sA, sB) {
       const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
@@ -383,7 +383,7 @@ window.Board = (function () {
     // половина линии оказывается за viewBox и обрезается — внешние
     // границы выглядят тоньше внутренних.
     if (selSnakeId >= 0) {
-      const HALF_SEL = 0.04;
+      const HALF_SEL = 0.025;
       for (let i = 0; i < size * size; i++) {
         if (snake[i] !== selSnakeId) continue;
         const r = Math.floor(i / size), c = i % size;
@@ -458,8 +458,8 @@ window.Board = (function () {
     const y1 = boxR0;
     const y2 = boxR0 + variant.boxRows;
     const STROKE = '#1a2540';   // чёрный (var(--grid-line-thick))
-    const W = '0.075';
-    const HALF = 0.04;
+    const W = '0.05';            // ≈ 2.7px (раньше 0.075/4px)
+    const HALF = 0.025;
     // Сдвиг для внешних краёв (касающихся края доски):
     const ty = (y1 === 0)    ? HALF        : y1;
     const by = (y2 === size) ? size - HALF : y2;
