@@ -8,7 +8,7 @@
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
   <title>Судоку Классик</title>
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
 
@@ -126,10 +126,15 @@
         <line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="9"  x2="21" y2="9"  stroke="currentColor" stroke-width="1.2"/>
         <line x1="3"  y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.2"/>
-        <!-- empty white dot -->
+        <!-- empty white dot — сидит на середине вертикальной линии x=9
+             между ячейками (1,0) и (1,1) -->
         <circle cx="9"  cy="12" r="1.8" fill="#fff" stroke="currentColor" stroke-width="1.2"/>
-        <!-- filled dot -->
-        <circle cx="15" cy="9"  r="1.8" fill="currentColor"/>
+        <!-- filled black dot — на середине вертикальной линии x=15 между
+             ячейками (1,1) и (1,2). Ранее был cy=9 — это пересечение
+             вертикальной и горизонтальной линий (угол 4 ячеек), что в
+             реальной игре не бывает: точки строго между двумя соседними
+             ячейками. Подвинули вниз чтобы попасть на середину линии. -->
+        <circle cx="15" cy="12" r="1.8" fill="currentColor"/>
       </symbol>
       <symbol id="icon-center" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
@@ -231,131 +236,112 @@
 
   <!-- ================= Главный экран — выбор + статистика ================= -->
   <section id="screen-home" class="screen">
-    <header class="home-top">
-      <div class="title-block">
-        <div class="brand">СУДОКУ</div>
-        <div class="brand-sub">Классик</div>
-      </div>
-      <div class="home-top-actions">
-        <button id="btn-home-settings" class="icon-btn" aria-label="Настройки">
-          <svg class="icon"><use href="#icon-settings"/></svg>
-        </button>
-      </div>
-    </header>
+    <!-- Шапка и сложность/режимы — внутри scrollable области. Кнопка
+         «Начать» лежит ВНЕ scroll'а, остаётся видимой при любой прокрутке. -->
+    <div class="home-scroll">
+      <header class="home-top">
+        <div class="title-block">
+          <div class="brand">СУДОКУ</div>
+          <div class="brand-sub">Классик</div>
+        </div>
+        <div class="home-top-actions">
+          <button id="btn-home-settings" class="icon-btn" aria-label="Настройки">
+            <svg class="icon"><use href="#icon-settings"/></svg>
+          </button>
+        </div>
+      </header>
 
-    <!-- Статистика прохождений — на самом верху, до выбора сложности и режима.
-         Так юзер сразу видит свой прогресс при входе в меню. -->
-    <div class="stats-card">
-      <div class="stats-line">
-        <span>Пройдено уровней:</span>
-        <span id="stat-completed">0</span>
+      <h2 class="section-title">Сложность</h2>
+      <!-- Ползунок 0=easy / 1=medium / 2=hard. Слева/справа — иконки
+           «росток» (просто) и «огонёк» (сложно), под слайдером три
+           кликабельных ярлыка. selectedDifficulty живёт в main.js. -->
+      <div class="difficulty-slider">
+        <div class="diff-slider-row">
+          <svg class="diff-side-icon diff-side-icon-easy" viewBox="0 0 24 24"><use href="#icon-sprout"/></svg>
+          <input type="range" id="difficulty-range" class="diff-range"
+                 min="0" max="2" value="1" step="1" aria-label="Сложность">
+          <svg class="diff-side-icon diff-side-icon-hard" viewBox="0 0 24 24"><use href="#icon-fire"/></svg>
+        </div>
+        <div class="diff-labels">
+          <span class="diff-label" data-difficulty="easy">Простой</span>
+          <span class="diff-label active" data-difficulty="medium">Средний</span>
+          <span class="diff-label" data-difficulty="hard">Сложный</span>
+        </div>
       </div>
-      <div class="stats-line dim">
-        <span>Простой / Средний / Сложный</span>
-        <span id="stat-by-diff">0 / 0 / 0</span>
+
+      <h2 class="section-title">Режим</h2>
+      <!-- Режимы — сетка 3 ячейки в ширину. Внутри плитки: info-кнопка
+           в левом-верхнем углу, иконка по центру сверху, название и
+           краткое описание. -->
+      <div class="mode-grid">
+        <div class="mode-tile" data-mode="mini" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="mini" aria-label="Правила режима «Мини»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-mini"/></svg></div>
+          <div class="mode-label">Мини 4×4</div>
+          <div class="mode-sub">для начинающих</div>
+        </div>
+        <div class="mode-tile selected" data-mode="classic" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="classic" aria-label="Правила режима «Классика»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></div>
+          <div class="mode-label">Классика</div>
+          <div class="mode-sub">9×9, стандарт</div>
+        </div>
+        <div class="mode-tile" data-mode="diagonal" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="diagonal" aria-label="Правила режима «Диагональ»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-diagonal"/></svg></div>
+          <div class="mode-label">Диагональ</div>
+          <div class="mode-sub">+ диагонали</div>
+        </div>
+        <div class="mode-tile" data-mode="kropki" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="kropki" aria-label="Правила режима «Точки»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-kropki"/></svg></div>
+          <div class="mode-label">Точки</div>
+          <div class="mode-sub">подсказки на гранях</div>
+        </div>
+        <div class="mode-tile" data-mode="center" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="center" aria-label="Правила режима «Центр»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-center"/></svg></div>
+          <div class="mode-label">Центр</div>
+          <div class="mode-sub">центры блоков</div>
+        </div>
+        <div class="mode-tile" data-mode="windoku" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="windoku" aria-label="Правила режима «Виндоку»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-windoku"/></svg></div>
+          <div class="mode-label">Виндоку</div>
+          <div class="mode-sub">+ 4 внутр. зоны</div>
+        </div>
+        <div class="mode-tile" data-mode="sugur" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="sugur" aria-label="Правила режима «Сугуру»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-snake"/></svg></div>
+          <div class="mode-label">Сугуру</div>
+          <div class="mode-sub">змейки вместо 3×3</div>
+        </div>
+        <div class="mode-tile" data-mode="chain" role="button" tabindex="0">
+          <button class="mode-info-btn" data-mode-info="chain" aria-label="Правила режима «Цепочки»">
+            <svg class="icon"><use href="#icon-info"/></svg>
+          </button>
+          <div class="mode-emoji"><svg viewBox="0 0 24 24"><use href="#icon-chain"/></svg></div>
+          <div class="mode-label">Цепочки</div>
+          <div class="mode-sub">круги и линии</div>
+        </div>
       </div>
     </div>
 
-    <h2 class="section-title">Сложность</h2>
-    <!-- Ползунок сложности 0=easy / 1=medium / 2=hard.
-         Под ним метки-кликабельные ярлыки. Текущее значение храним
-         в main.js → selectedDifficulty. -->
-    <div class="difficulty-slider">
-      <input type="range" id="difficulty-range" class="diff-range"
-             min="0" max="2" value="1" step="1" aria-label="Сложность">
-      <div class="diff-labels">
-        <span class="diff-label" data-difficulty="easy">Простой</span>
-        <span class="diff-label active" data-difficulty="medium">Средний</span>
-        <span class="diff-label" data-difficulty="hard">Сложный</span>
-      </div>
-    </div>
-
-    <h2 class="section-title">Режим</h2>
-    <!-- Список режимов: каждая плитка во всю ширину, горизонтальная компоновка
-         (icon | name+desc | info), идут вертикально друг за другом. -->
-    <div class="mode-list">
-      <div class="mode-tile" data-mode="mini" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-mini"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Мини 4×4</div>
-          <div class="mode-tile-desc">для начинающих</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="mini" aria-label="Правила режима «Мини»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile selected" data-mode="classic" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Классика</div>
-          <div class="mode-tile-desc">9×9, стандарт</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="classic" aria-label="Правила режима «Классика»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile" data-mode="diagonal" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-diagonal"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Диагональ</div>
-          <div class="mode-tile-desc">+ диагонали</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="diagonal" aria-label="Правила режима «Диагональ»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile" data-mode="kropki" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-kropki"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Точки</div>
-          <div class="mode-tile-desc">подсказки на гранях</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="kropki" aria-label="Правила режима «Точки»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile" data-mode="center" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-center"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Центр</div>
-          <div class="mode-tile-desc">центры блоков</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="center" aria-label="Правила режима «Центр»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile" data-mode="windoku" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-windoku"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Виндоку</div>
-          <div class="mode-tile-desc">+ 4 внутр. зоны</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="windoku" aria-label="Правила режима «Виндоку»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile" data-mode="sugur" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-snake"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Сугуру</div>
-          <div class="mode-tile-desc">змейки вместо 3×3</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="sugur" aria-label="Правила режима «Сугуру»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-      <div class="mode-tile" data-mode="chain" role="button" tabindex="0">
-        <div class="mode-tile-icon"><svg viewBox="0 0 24 24"><use href="#icon-chain"/></svg></div>
-        <div class="mode-tile-text">
-          <div class="mode-tile-name">Цепочки</div>
-          <div class="mode-tile-desc">круги и линии</div>
-        </div>
-        <button class="mode-info-btn" data-mode-info="chain" aria-label="Правила режима «Цепочки»">
-          <svg class="icon"><use href="#icon-info"/></svg>
-        </button>
-      </div>
-    </div>
-
+    <!-- Кнопка «Начать» вне scroll-области — всегда видна над сейф-зоной. -->
     <button id="btn-start-level" class="btn btn-primary big">Начать</button>
   </section>
 
@@ -526,27 +512,26 @@
       <button class="modal-close-corner" data-close-modal="settings" aria-label="Закрыть">
         <svg class="icon"><use href="#icon-close"/></svg>
       </button>
-      <button id="btn-rate" class="btn btn-link">Оценить приложение</button>
       <button id="btn-privacy-policy" class="btn btn-link">Политика конфиденциальности</button>
     </div>
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
-  <script src="config.js?v=16"></script>
-  <script src="migrations.js?v=16"></script>
-  <script src="storage.js?v=16"></script>
-  <script src="sudokuCore.js?v=16"></script>
-  <script src="sudokuVariants.js?v=16"></script>
-  <script src="sudokuTechniques.js?v=16"></script>
-  <script src="sudokuGenerator.js?v=16"></script>
-  <script src="ads.js?v=16"></script>
-  <script src="rustoreReview.js?v=16"></script>
-  <script src="audio.js?v=16"></script>
-  <script src="ui.js?v=16"></script>
-  <script src="board.js?v=16"></script>
-  <script src="numberPad.js?v=16"></script>
-  <script src="game.js?v=16"></script>
-  <script src="devPanel.js?v=16"></script>
-  <script src="main.js?v=16"></script>
+  <script src="config.js?v=17"></script>
+  <script src="migrations.js?v=17"></script>
+  <script src="storage.js?v=17"></script>
+  <script src="sudokuCore.js?v=17"></script>
+  <script src="sudokuVariants.js?v=17"></script>
+  <script src="sudokuTechniques.js?v=17"></script>
+  <script src="sudokuGenerator.js?v=17"></script>
+  <script src="ads.js?v=17"></script>
+  <script src="rustoreReview.js?v=17"></script>
+  <script src="audio.js?v=17"></script>
+  <script src="ui.js?v=17"></script>
+  <script src="board.js?v=17"></script>
+  <script src="numberPad.js?v=17"></script>
+  <script src="game.js?v=17"></script>
+  <script src="devPanel.js?v=17"></script>
+  <script src="main.js?v=17"></script>
 </body>
 </html>

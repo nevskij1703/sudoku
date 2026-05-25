@@ -23,6 +23,7 @@ window.Board = (function () {
   let boardEl = null;
   let cells = [];           // массив DOM-нодов (N×N длиной)
   let chainSvg = null;      // <svg> overlay для chain-режима (линии между ячейками)
+  let sugurSvg = null;      // <svg> overlay для sugur (границы между змейками)
   let onClickCb = null;
   let currentSize = 0;
 
@@ -85,11 +86,16 @@ window.Board = (function () {
     const useHighlight = settings && settings.highlighter !== false;
 
     // Sugur: добавляем/убираем класс на board чтобы CSS приглушил block-borders
-    boardEl.classList.toggle('sugur-board', !!(state.cellSnake && state.cellSnake.length === 81));
+    const isSugur = !!(state.cellSnake && state.cellSnake.length === 81);
+    boardEl.classList.toggle('sugur-board', isSugur);
+    renderSugurOverlay(state, size, isSugur);
     // Chain: круглые ячейки + SVG-overlay с линиями + приглушённые grid-borders
-    const isChain = !!(state.cellChain && state.cellChain.length === 81);
+    var isChain = !!(state.cellChain && state.cellChain.length === 81);
     boardEl.classList.toggle('chain-board', isChain);
-    renderChainOverlay(state, size, isChain);
+    // Какая цепочка содержит выбранную ячейку (для увеличенной обводки/линий)
+    var selChainId = isChain && sel != null && state.cellChain[sel] >= 0
+      ? state.cellChain[sel] : -1;
+    renderChainOverlay(state, size, isChain, selChainId);
 
     // Сбрасываем Kropki-классы (могут остаться от предыдущего mode)
     for (let i = 0; i < N; i++) {
@@ -107,7 +113,23 @@ window.Board = (function () {
     }
     // Peers выбранной ячейки определяет variant — для Diagonal это включает
     // диагональ, для Center — центральные клетки, для Windoku — внутреннюю зону.
-    const peers = (sel != null && useHighlight) ? new Set(variant.peersForCell(sel)) : null;
+    // Исключение: для Chain peers по правилам игры включают всю цепочку, но
+    // визуально мы хотим подсветить ТОЛЬКО строку и столбец (chain отображается
+    // через увеличенную обводку, см. ниже). Поэтому в chain режиме peers
+    // составляем вручную из row+col.
+    let peers;
+    if (sel == null || !useHighlight) {
+      peers = null;
+    } else if (isChain) {
+      peers = new Set();
+      const r = Math.floor(sel / size), c = sel % size;
+      for (let k = 0; k < size; k++) {
+        if (k !== c) peers.add(r * size + k);
+        if (k !== r) peers.add(k * size + c);
+      }
+    } else {
+      peers = new Set(variant.peersForCell(sel));
+    }
 
     for (let i = 0; i < N; i++) {
       const cell = cells[i];
@@ -181,29 +203,36 @@ window.Board = (function () {
       const isPeer = peers ? peers.has(i) : false;
       cell.classList.toggle('peer', !!isPeer);
 
-      const isSameDigit = useHighlight && selDigit !== 0 && value === selDigit && i !== sel;
+      // Same-digit подсветка отключена в Chain: цепочки сами по себе уже
+      // подсвечиваются увеличенной обводкой при выделении, дополнительные
+      // одноцифровые ячейки только запутывали бы.
+      const isSameDigit = !isChain && useHighlight && selDigit !== 0 && value === selDigit && i !== sel;
       cell.classList.toggle('same-digit', !!isSameDigit);
+
+      // Chain — особый маркер для ячеек выбранной цепочки: «жирная» обводка
+      // вокруг каждого круга цепочки (см. CSS .in-selected-chain::after).
+      if (isChain && selChainId >= 0 && state.cellChain[i] === selChainId && i !== sel) {
+        cell.classList.add('in-selected-chain');
+      } else {
+        cell.classList.remove('in-selected-chain');
+      }
 
       cell.classList.toggle('selected', i === sel);
     }
   }
 
   // Монтирует/обновляет SVG-overlay с линиями для chain-режима.
-  // Виде: SVG поверх grid, координаты в "ячейках" (viewBox = "0 0 size size"),
-  // линии идут от центра ячейки a к центру ячейки b. Каждая линия покрашена
-  // в цвет своей цепочки (data-chain="0..8" → переменная-цвет из CSS).
-  // pointer-events: none — клики проходят сквозь и доходят до самих cell-DOM.
-  function renderChainOverlay(state, size, enabled) {
-    // Снимаем overlay если режим не chain
+  // viewBox = "0 0 size size", т.е. координаты в «единицах ячеек».
+  // pointer-events: none — клики проходят сквозь и достигают cell-DOM.
+  // Если selChainId >= 0, рисуем линии этой цепочки толще для визуальной
+  // подсветки выбранной цепочки.
+  function renderChainOverlay(state, size, enabled, selChainId) {
     if (!enabled) {
-      if (chainSvg) {
-        chainSvg.remove();
-        chainSvg = null;
-      }
+      if (chainSvg) { chainSvg.remove(); chainSvg = null; }
       return;
     }
+    const NS = 'http://www.w3.org/2000/svg';
     if (!chainSvg) {
-      const NS = 'http://www.w3.org/2000/svg';
       chainSvg = document.createElementNS(NS, 'svg');
       chainSvg.setAttribute('class', 'chain-overlay');
       chainSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
@@ -214,11 +243,10 @@ window.Board = (function () {
       while (chainSvg.firstChild) chainSvg.removeChild(chainSvg.firstChild);
     }
     const edges = state.chainEdges || [];
-    const NS = 'http://www.w3.org/2000/svg';
-    // Чёрные тонкие линии — точно такой же толщины и цвета, что и контуры
-    // кругов (CSS border 1.5px на ::after). Board имеет viewBox 0 0 9 9,
-    // т.е. 1 unit ≈ (board_px / 9). Для 480px-доски: 1 unit ≈ 53px, поэтому
-    // stroke-width 0.028 ≈ 1.5px CSS, что совпадает с border контура.
+    const cellChain = state.cellChain || [];
+    // Нормальная толщина ≈ 1.5px CSS, у selected цепочки — заметно толще.
+    const NORMAL = '0.028';
+    const THICK  = '0.06';
     for (let k = 0; k < edges.length; k++) {
       const e = edges[k];
       const a = e[0], b = e[1];
@@ -230,9 +258,70 @@ window.Board = (function () {
       line.setAttribute('x2', String(bc + 0.5));
       line.setAttribute('y2', String(br + 0.5));
       line.setAttribute('stroke', '#1a2540');
-      line.setAttribute('stroke-width', '0.028');
+      const inSel = (selChainId >= 0 && cellChain[a] === selChainId);
+      line.setAttribute('stroke-width', inSel ? THICK : NORMAL);
       line.setAttribute('stroke-linecap', 'round');
       chainSvg.appendChild(line);
+    }
+  }
+
+  // SVG-overlay границ змеек для Sugur. Рисуем КАЖДУЮ внутреннюю границу
+  // (вертикальную или горизонтальную) между двумя ячейками разных змеек
+  // одной непрерывной line — без CSS-border'ов на cell'ах, поэтому никаких
+  // micro-gap'ов в углах. Внешние границы доски не нужны — их рисует
+  // board-radius/shadow.
+  function renderSugurOverlay(state, size, enabled) {
+    if (!enabled) {
+      if (sugurSvg) { sugurSvg.remove(); sugurSvg = null; }
+      return;
+    }
+    const NS = 'http://www.w3.org/2000/svg';
+    if (!sugurSvg) {
+      sugurSvg = document.createElementNS(NS, 'svg');
+      sugurSvg.setAttribute('class', 'sugur-overlay');
+      sugurSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+      sugurSvg.setAttribute('preserveAspectRatio', 'none');
+      boardEl.appendChild(sugurSvg);
+    } else {
+      sugurSvg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+      while (sugurSvg.firstChild) sugurSvg.removeChild(sugurSvg.firstChild);
+    }
+    const snake = state.cellSnake;
+    // Жирная линия между змейками — равна 2.5px CSS на 480px-доске
+    // (2.5 / (480/9) ≈ 0.047).
+    const STROKE = '#1a2540';
+    const W = '0.05';
+    // Вертикальные внутренние границы
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size - 1; c++) {
+        const a = r * size + c, b = a + 1;
+        if (snake[a] === snake[b]) continue;
+        const ln = document.createElementNS(NS, 'line');
+        ln.setAttribute('x1', String(c + 1));
+        ln.setAttribute('y1', String(r));
+        ln.setAttribute('x2', String(c + 1));
+        ln.setAttribute('y2', String(r + 1));
+        ln.setAttribute('stroke', STROKE);
+        ln.setAttribute('stroke-width', W);
+        ln.setAttribute('stroke-linecap', 'square');
+        sugurSvg.appendChild(ln);
+      }
+    }
+    // Горизонтальные внутренние границы
+    for (let r = 0; r < size - 1; r++) {
+      for (let c = 0; c < size; c++) {
+        const a = r * size + c, b = a + size;
+        if (snake[a] === snake[b]) continue;
+        const ln = document.createElementNS(NS, 'line');
+        ln.setAttribute('x1', String(c));
+        ln.setAttribute('y1', String(r + 1));
+        ln.setAttribute('x2', String(c + 1));
+        ln.setAttribute('y2', String(r + 1));
+        ln.setAttribute('stroke', STROKE);
+        ln.setAttribute('stroke-width', W);
+        ln.setAttribute('stroke-linecap', 'square');
+        sugurSvg.appendChild(ln);
+      }
     }
   }
 

@@ -339,11 +339,9 @@
     });
 
     // ===== 9. Settings modal =====
-    document.getElementById('btn-rate').addEventListener('click', function () {
-      window.RuStoreReviewClient.launch().then(function (r) {
-        if (r.shown) window.Storage.setRateGiven(true);
-      });
-    });
+    // Кнопка «Оценить приложение» удалена из settings — оценивать игроки
+    // будут только через автоматическую rate-modal между уровнями (см.
+    // shouldShowRateModal в этом файле).
 
     // Политика конфиденциальности — внешняя ссылка на PDF в облаке.
     // URL единственная константа PRIVACY_URL ниже; меняется при обновлении
@@ -433,10 +431,16 @@
   }
 
   function updateHomeStats() {
-    const total = window.Storage.getCompletedLevels();
-    const byDiff = window.Storage.getCompletedByDifficulty();
-    window.UI.setText('stat-completed', String(total));
-    window.UI.setText('stat-by-diff', (byDiff.easy || 0) + ' / ' + (byDiff.medium || 0) + ' / ' + (byDiff.hard || 0));
+    // Блок статистики на home-экране убран — позже она появится в новом
+    // месте/виде. Сейчас просто no-op для сохранения вызовов из других
+    // функций (backToHome / win-flow и т.д.).
+    const c = document.getElementById('stat-completed');
+    const d = document.getElementById('stat-by-diff');
+    if (c) window.UI.setText('stat-completed', String(window.Storage.getCompletedLevels()));
+    if (d) {
+      const byDiff = window.Storage.getCompletedByDifficulty();
+      window.UI.setText('stat-by-diff', (byDiff.easy || 0) + ' / ' + (byDiff.medium || 0) + ' / ' + (byDiff.hard || 0));
+    }
   }
 
   function showInfoModal(modeKey) {

@@ -121,10 +121,32 @@ input { font: inherit; color: inherit; }
 .btn.big { padding: 16px 24px; font-size: 18px; width: 100%; }
 
 /* ============ Home ============ */
+/* Структура: внутренний контейнер .home-scroll забирает всё доступное
+   вертикальное пространство и скроллится. Кнопка «Начать» лежит вне
+   scroll'а и закреплена над нижней сейф-зоной. Это позволяет списку
+   режимов быть сколь угодно длинным — последние плитки можно
+   проскроллить выше кнопки. */
 #screen-home {
-  padding-top: max(env(safe-area-inset-top), 24px);
-  padding-bottom: max(env(safe-area-inset-bottom), 24px);
-  gap: 4px;
+  padding-top:    max(env(safe-area-inset-top), 24px);
+  padding-bottom: max(env(safe-area-inset-bottom), 56px);
+  gap: 0;
+  height: 100vh; height: 100dvh;
+}
+.home-scroll {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Внизу — отступ под кнопкой «Начать»: 16px (btn margin-top) + ~58px
+     (btn height incl. shadow) + 16px (воздух). */
+  padding-bottom: 90px;
+}
+/* Скрываем нативный scroll-bar — на мобильном он не нужен, на десктопе
+   мешает визуально. */
+.home-scroll::-webkit-scrollbar { width: 0; height: 0; }
+.home-scroll { scrollbar-width: none; }
+#screen-home #btn-start-level {
+  flex-shrink: 0;
+  margin-top: 16px;
 }
 .home-top {
   display: flex; justify-content: space-between; align-items: center;
@@ -139,67 +161,64 @@ input { font: inherit; color: inherit; }
 }
 .brand-sub { font-size: 18px; color: var(--text-dim); margin-top: 6px; letter-spacing: 2px; }
 
-.stats-card {
-  background: var(--bg-soft);
-  border-radius: 18px;
-  padding: 14px 16px;
-  box-shadow: var(--shadow);
-  margin-top: 6px;
-}
-.stats-line {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 16px;
-  padding: 6px 0;
-}
-.stats-line.dim { color: var(--text-dim); font-size: 14px; }
-#stat-completed { font-weight: 700; font-size: 22px; color: var(--accent); }
-
 .home-actions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 
-/* Кнопка «Начать» на home-экране имеет небольшой margin сверху */
-#screen-home #btn-start-level { margin-top: 14px; }
-
-/* ============ Difficulty (ползунок) ============ */
+/* ============ Difficulty (ползунок с иконками по бокам) ============ */
 .difficulty-slider {
   background: var(--bg-soft);
   border-radius: 18px;
-  padding: 16px 18px 12px;
+  padding: 14px 16px 12px;
   box-shadow: var(--shadow);
 }
+.diff-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.diff-side-icon {
+  width: 24px; height: 24px;
+  flex-shrink: 0;
+}
+.diff-side-icon-easy { color: #2fa974; }
+.diff-side-icon-hard { color: #e0581c; }
 .diff-range {
   -webkit-appearance: none;
   appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
+  flex: 1 1 auto;
+  height: 10px;
+  border-radius: 5px;
   background: linear-gradient(to right, #2fa974, #c9b026 50%, #e0581c);
   outline: none;
-  margin: 4px 0 14px;
+  margin: 0;
 }
 .diff-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   border-radius: 50%;
   background: var(--bg-soft);
-  border: 3px solid var(--accent);
-  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.25);
+  border: none;
+  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.30);
   cursor: pointer;
   transition: transform 0.08s ease;
 }
 .diff-range::-webkit-slider-thumb:active { transform: scale(0.94); }
 .diff-range::-moz-range-thumb {
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   border-radius: 50%;
   background: var(--bg-soft);
-  border: 3px solid var(--accent);
-  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.25);
+  border: none;
+  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.30);
   cursor: pointer;
 }
 .diff-labels {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Чтобы метки выравнивались под градиентом, делаем такие же отступы
+     как у градиента (учитывая 24px иконки + 10px gap по бокам). */
+  padding: 0 34px;
 }
 .diff-label {
   font-size: 13px;
@@ -214,54 +233,47 @@ input { font: inherit; color: inherit; }
   font-weight: 700;
 }
 
-/* ============ Mode list (вертикальный, full-width) ============ */
-.mode-list {
-  display: flex;
-  flex-direction: column;
+/* ============ Mode grid (сетка 3 колонки) ============ */
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+}
+@media (max-width: 360px) {
+  .mode-grid { grid-template-columns: repeat(2, 1fr); }
 }
 .mode-tile {
   position: relative;
   background: var(--bg-soft);
-  border-radius: 14px;
-  padding: 12px 14px;
+  border-radius: 16px;
+  padding: 14px 6px 10px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
+  text-align: center;
   transition: transform 0.08s ease;
   cursor: pointer;
-  display: grid;
-  grid-template-columns: 44px 1fr 32px;
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 14px;
-  row-gap: 2px;
+  min-height: 110px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
 }
 .mode-tile.selected { border-color: var(--accent); background: var(--accent-soft); }
 .mode-tile.locked { opacity: 0.4; cursor: not-allowed; }
-.mode-tile:active:not(.locked) { transform: scale(0.99); }
-.mode-tile-icon {
-  grid-row: 1 / 3;
-  grid-column: 1;
-  display: flex; align-items: center; justify-content: center;
-}
-.mode-tile-icon svg { width: 32px; height: 32px; color: var(--text); }
-.mode-tile-text {
-  grid-row: 1 / 3;
-  grid-column: 2;
-  display: flex; flex-direction: column;
-  align-items: flex-start; justify-content: center;
-}
-.mode-tile-name { font-weight: 700; font-size: 16px; color: var(--text); line-height: 1.1; }
-.mode-tile-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; line-height: 1.1; }
+.mode-tile:active:not(.locked) { transform: scale(0.96); }
+
+.mode-emoji { font-size: 32px; line-height: 1; height: 36px; display: flex; align-items: center; justify-content: center; }
+.mode-emoji svg { width: 32px; height: 32px; color: var(--text); }
+.mode-label { font-weight: 700; font-size: 14px; margin-top: 6px; line-height: 1.1; }
+.mode-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; line-height: 1.15; }
+
+/* Info-кнопка в левом-верхнем углу плитки (как было до v2). */
 .mode-info-btn {
-  grid-row: 1;
-  grid-column: 3;
-  align-self: start;
-  width: 28px; height: 28px;
+  position: absolute;
+  top: 6px; left: 6px;
+  width: 24px; height: 24px;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--text-dim);
   background: transparent;
   border-radius: 50%;
+  z-index: 2;
 }
 .mode-info-btn:active { color: var(--accent); transform: scale(0.88); }
 .mode-info-btn .icon { width: 18px; height: 18px; }
@@ -405,20 +417,21 @@ input { font: inherit; color: inherit; }
 /* центр пересечения двух диагоналей раньше выделялся темнее — убрано:
    теперь центральная клетка такая же как остальные диагональные. */
 
-/* Sugur — отделяем змейки толстыми границами вместо цветной заливки.
-   data-snake остаётся (для dev-инструментов) но фон не красим. Соседи в
-   разных змейках разделяются толстой линией; соседи внутри одной змейки —
-   тонкой. Жирные block-borders отключаем (они путали со змейками). */
+/* Sugur — границы змеек рисует SVG-overlay (см. board.js → renderSugurOverlay).
+   CSS-borders на cell остаются тонкими внутри змейки (1px grid-line),
+   жирные block-borders отключаем — иначе пересекались бы с overlay. */
 .board.sugur-board .cell[data-col="2"],
 .board.sugur-board .cell[data-col="5"] { border-right-color: var(--grid-line); border-right-width: 1px; }
 .board.sugur-board .cell.row-edge-bottom { border-bottom-color: var(--grid-line); border-bottom-width: 1px; }
-.board.sugur-board .cell.snake-edge-right {
-  border-right-color: var(--grid-line-thick);
-  border-right-width: 2.5px;
-}
-.board.sugur-board .cell.snake-edge-bottom {
-  border-bottom-color: var(--grid-line-thick);
-  border-bottom-width: 2.5px;
+
+/* SVG-overlay границ змеек. Лежит поверх grid, под cell-цифрами. */
+.sugur-overlay {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* ===== Chain — цепочки с диагональной связностью =====
@@ -455,15 +468,22 @@ input { font: inherit; color: inherit; }
    только начертание линий-связей в SVG-overlay (см. board.js), без цвета. */
 .board.chain-board .cell[data-chain] { --chain-fill: #ffffff; }
 
-/* Состояния — переопределяют цвет круга. selected ярче всего. */
-.board.chain-board .cell.peer::after        { background: var(--highlight); }
-.board.chain-board .cell.same-digit::after  { background: var(--highlight-strong); }
+/* Состояния — переопределяют цвет круга (НЕ самой cell — иначе был бы
+   синий квадрат позади круга). `!important` нужен потому что общий
+   `.cell.selected` правило с !important выше в каскаде заставлял бы
+   cell иметь фон-квадрат. */
+.board.chain-board .cell                     { background: transparent !important; }
+.board.chain-board .cell.peer::after         { background: var(--highlight); }
+.board.chain-board .cell.selected::after     { background: var(--select); }
+.board.chain-board .cell.error::after        { background: var(--error-bg); }
+.board.chain-board .cell.error               { color: var(--error); }
+
+/* Ячейки выбранной цепочки (не само selected) — увеличенная обводка.
+   Это и есть «подсветка цепочки», вместо цветного фона. */
+.board.chain-board .cell.in-selected-chain::after,
 .board.chain-board .cell.selected::after {
-  background: var(--select);
-  box-shadow: 0 0 0 2px var(--accent), 0 1px 4px rgba(20, 30, 50, 0.18);
+  border-width: 3px;
 }
-.board.chain-board .cell.error::after       { background: var(--error-bg); }
-.board.chain-board .cell.error              { color: var(--error); }
 
 /* Заметки внутри круга должны центрироваться красиво. inset 14% уменьшает
    3×3 mini-grid карандашных пометок чтобы они не вылазили за круг. */
@@ -583,6 +603,10 @@ input { font: inherit; color: inherit; }
 .tool-btn:active { transform: scale(0.94); }
 .tool-btn.active { background: var(--accent-soft); color: var(--accent); }
 .tool-glyph { width: 24px; height: 24px; display: block; }
+/* У ластика виду форма «длинного прямоугольника» — он визуально воспринимается
+   меньше квадратной иконки рядом. Чуть увеличиваем чтобы выровнять оптический
+   размер. */
+#btn-erase .tool-glyph { width: 30px; height: 30px; }
 .tool-label { font-size: 11px; color: var(--text-dim); }
 .tool-badge {
   position: absolute; top: 4px; right: 8px;
