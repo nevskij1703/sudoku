@@ -569,22 +569,23 @@ input { font: inherit; color: inherit; }
 .cell.selected    { background: var(--select) !important; }
 
 /* Если зональная ячейка (диагональ/центр/виндоку) одновременно peer —
-   используем «смесь» зонального серого `#f0f0f5` и highlight-голубого
-   `#e3ecff` (= среднее `#e9eefa`). Так зональный признак не теряется
-   при peer-подсветке, а игрок видит обе характеристики одновременно. */
+   подсвечиваем СИЛЬНЕЕ обычного peer, чтобы visually viден эффект
+   наложения двух подсветок. Простое усреднение зонального серого и
+   highlight-голубого даёт `#e9eefa`, что почти неотличимо от серого.
+   Поэтому используем более насыщенный синий с серым tint — игрок
+   сразу видит «здесь и зона, и peer одновременно». */
 .cell.on-main-diag.peer,
 .cell.on-anti-diag.peer,
 .cell.center-cell.peer,
 .cell.windoku-zone.peer {
-  background: #e9eefa;
+  background: #c8d4ec;
 }
-/* То же для same-digit — смешиваем серый зональный с насыщенным голубым.
-   #f0f0f5 + #b8caf0 ≈ #d4dde2 (серо-голубой более тёмный). */
+/* То же для same-digit — ещё тёмнее, чтобы выделялось среди peer'ов. */
 .cell.on-main-diag.same-digit,
 .cell.on-anti-diag.same-digit,
 .cell.center-cell.same-digit,
 .cell.windoku-zone.same-digit {
-  background: #d4dde2;
+  background: #9fb2d4;
 }
 
 /* Заметки карандашом */
