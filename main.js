@@ -224,30 +224,36 @@
     });
 
     document.getElementById('btn-start-level').addEventListener('click', function () {
-      // Старт с главного меню. Если для выбранной пары (режим, сложность)
-      // в Storage уже лежит сейв — спрашиваем «Продолжить» / «Начать
-      // заново» через модалку save-confirm. Без сейва — сразу новый уровень.
+      // Старт с главного меню. Если есть сейв для (mode, difficulty) — сразу
+      // загружаем сохранённое состояние и показываем доску, а модалку
+      // «Сохранение» открываем поверх него. Так игрок видит на что
+      // именно он будет возвращаться или начинать заново.
       const existing = window.Storage.getActiveByMode(selectedMode, selectedDifficulty);
       if (existing) {
         pendingStartDifficulty = selectedDifficulty;
         pendingStartMode = selectedMode;
+        if (window.Game.resumeMode(selectedMode, selectedDifficulty)) {
+          window.UI.showScreen('game');
+        }
         window.UI.showModal('save-confirm');
       } else {
         proceedToNextLevel(selectedDifficulty, selectedMode);
       }
     });
 
-    // Save-confirm: «Продолжить» → загрузить сейв и сразу в игру (БЕЗ
-    // interstitial — юзер уже в середине партии). «Начать заново» →
-    // удалить сейв этой пары и пройти штатный proceedToNextLevel (с cadence).
+    // Save-confirm: «Продолжить» → доска уже загружена (resume произошёл
+    // в btn-start-level), показываем interstitial по cadence-правилу и
+    // оставляем юзера на сохранённом уровне.
+    // «Начать заново» → удаляем сейв, новый уровень через proceedToNextLevel
+    // (он тоже триггерит interstitial по cadence). Оба варианта — триггер
+    // interstitial-рекламы.
     document.getElementById('btn-save-continue').addEventListener('click', function () {
       window.UI.hideModal('save-confirm');
-      const mode = pendingStartMode || selectedMode;
-      const diff = pendingStartDifficulty || selectedDifficulty;
-      if (window.Game.resumeMode(mode, diff)) {
-        window.UI.showScreen('game');
-      } else {
-        proceedToNextLevel(diff, mode);
+      // Game state уже восстановлен. Показываем рекламу по cadence — иначе
+      // просто остаёмся на загруженном уровне.
+      const completed = window.Storage.getCompletedLevels();
+      if (window.AdManager.shouldShowInterstitial(completed)) {
+        window.AdManager.showInterstitialAd();
       }
       pendingStartDifficulty = null;
       pendingStartMode = null;
@@ -257,6 +263,8 @@
       const mode = pendingStartMode || selectedMode;
       window.Storage.clearActiveByMode(mode, diff);
       window.UI.hideModal('save-confirm');
+      // proceedToNextLevel сам решает про cadence interstitial — нам не
+      // нужно делать show вручную, иначе будет double-ad.
       proceedToNextLevel(diff, mode);
       pendingStartDifficulty = null;
       pendingStartMode = null;
@@ -590,48 +598,68 @@
     });
   }
 
-  // Кастомный slider сложности с магнитной фиксацией к 3 значениям 0/1/2.
+  // Кастомный slider сложности с «резиновой» физикой.
   //
   // Поведение:
-  // * pointerdown в любом месте track'а — захват, thumb сразу под пальцем.
-  // * pointermove — thumb идёт плавно за пальцем (без snap, continuous-pos).
-  //   Если палец оказывается в радиусе MAGNET_RADIUS от snap-point — thumb
-  //   «залипает» к нему. Это даёт ощущение мягкого магнита: легко тянуть
-  //   по линии, но рядом со значением чувствуется фиксация.
-  // * pointerup — снапаем к ближайшему. CSS transition (0.22s ease-out)
-  //   делает анимацию подъезда.
-  // * При клике вне track — игнорируется (pointer capture зафиксирован).
-  //
-  // Возвращает { setValue(idx), getValue() }. setValue(idx) анимированно
-  // подъезжает к точке idx (используется при клике по ярлыкам / backToHome).
+  // * pointerdown — захват, thumb сразу под пальцем (никакого ease в этот
+  //   момент — лёгкий «snap-к-пальцу» при первом тапе ОК).
+  // * pointermove — thumb идёт за пальцем с нелинейной зависимостью
+  //   (ease-in power 1.5): чем дальше от текущего snap-point, тем сильнее
+  //   ускоряется. При движении на ~75% между двумя значениями визуальное
+  //   положение уже перевалит за середину и приблизится к новому
+  //   значению (но не залипнет — отслеживает курсор continuously).
+  //   При малейшем движении thumb уже отделяется — никакой «магнитной
+  //   точки залипания» нет.
+  // * pointerup — Math.round(rawCursor) даёт ближайший snap-point.
+  //   CSS transition анимированно подъезжает.
+  // * Клавиатура: ←/↓ Home / → ↑ End — обычный snap.
   function mountDiffSlider(opts) {
     const onChange = (opts && opts.onChange) || function () {};
     const track = document.getElementById('diff-track');
     if (!track) return { setValue: function(){}, getValue: function(){ return 1; } };
 
-    // Текущее «магнитное» значение, 0..2 float. continuousRaw — то, где
-    // реально палец (без snap), snapValue — последняя зафиксированная.
-    let continuousRaw = 1;
-    let snapValue = 1;
+    let continuousRaw = 1;         // позиция курсора в [0..2], float
+    let snapValue = 1;             // последний committed snap (0/1/2)
     let pointerId = null;
-    const MAGNET_RADIUS = 0.22;     // в единицах snap-points (0.22 от шага 1)
+
+    // Power параметра «резинки»: 1 = линейное движение (без сопротивления),
+    // 2 = квадратичное (классическая parabola), 1.5 — компромисс: малейшее
+    // движение видно, в середине пути отстаёт, ближе к новому snap-у
+    // быстро ускоряется.
+    const RESISTANCE_POWER = 1.5;
 
     function setPct(pct) {
       track.style.setProperty('--diff-pct', pct + '%');
     }
+    // Нелинейная функция «резинки». Принимает реальное смещение курсора
+    // относительно реперного snap-а и возвращает визуальное смещение.
+    // |rawDelta| ≤ 0.5 → easedAbs от 0 до 0.5 с ease-in кривой.
+    function easeRubber(rawDelta) {
+      const sign = rawDelta < 0 ? -1 : 1;
+      const absD = Math.abs(rawDelta);
+      // На дробной части ±0.5 = переход к следующему snap-у.
+      // Раскладываем абсолют на (целая_часть + дробь_в_±0.5).
+      const nearestInt = Math.round(absD);            // 0 / 1 / 2
+      const frac = absD - nearestInt;                 // в [-0.5, 0.5]
+      const easedFrac = (frac < 0 ? -1 : 1)
+                     * Math.pow(Math.abs(frac) * 2, RESISTANCE_POWER) / 2;
+      return sign * (nearestInt + easedFrac);
+    }
     function setVisualFromRaw(rawValue) {
-      // Magnetic snap: если рядом со snap-point — притягиваем визуально.
-      const nearest = Math.round(rawValue);
-      const dist = Math.abs(rawValue - nearest);
-      const visual = (dist < MAGNET_RADIUS) ? nearest : rawValue;
-      setPct((visual / 2) * 100);
+      // Реперный snap — последний committed (snapValue). Движение
+      // считается относительно него, ease применяется к разнице.
+      const delta = rawValue - snapValue;
+      const visual = snapValue + easeRubber(delta);
+      // Clamp до диапазона [0..2] на случай overshoot при отпускании курсора.
+      const clamped = Math.max(0, Math.min(2, visual));
+      setPct((clamped / 2) * 100);
     }
     function fromClientX(clientX) {
       const rect = track.getBoundingClientRect();
       if (rect.width === 0) return continuousRaw;
       const x = clientX - rect.left;
       const f = Math.max(0, Math.min(1, x / rect.width));
-      return f * 2;   // 0..2
+      return f * 2;
     }
     function commitSnap(value) {
       snapValue = value;
@@ -669,13 +697,13 @@
       track.classList.remove('dragging');
       try { track.releasePointerCapture(pointerId); } catch (err) {}
       pointerId = null;
-      // Snap к ближайшему. CSS transition в .diff-thumb сделает анимацию.
+      // Snap к ближайшему snap-point (Math.round). CSS transition
+      // в .diff-thumb сделает плавную анимацию.
       const nearest = Math.max(0, Math.min(2, Math.round(continuousRaw)));
       commitSnap(nearest);
     }
     track.addEventListener('pointerup',     endDrag);
     track.addEventListener('pointercancel', endDrag);
-    // Клавиатура (a11y): стрелки влево/вправо.
     track.addEventListener('keydown', function (e) {
       let next = snapValue;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')  next = Math.max(0, snapValue - 1);
@@ -688,7 +716,6 @@
       }
     });
 
-    // Инициализация по умолчанию = medium (1).
     commitSnap(1);
 
     return {
