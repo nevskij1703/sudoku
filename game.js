@@ -187,7 +187,43 @@ window.Game = (function () {
     // Mode-specific generation paths.
     let gen, dots = null, snakeCells = null, cellSnake = null;
     let cellChain = null, chainEdges = null;
-    if (mode === 'kropki' && SV && SV.computeKropkiDots) {
+
+    // ===== Sugur/Chain: используем pre-baked pool =====
+    // Sugur и Chain — режимы с произвольной геометрией регионов. On-the-fly
+    // generation требует variant-solver, который на random layouts уходит в
+    // долгий поиск (особенно с 8-связностью для chain). Поэтому пул уровней
+    // сгенерирован оффлайн через tools/bake-pools.js и подсовывается тут как
+    // готовый puzzle. Это даёт настоящие змейчатые/цепочные раскладки разных
+    // форм, мгновенный старт, и гарантию solvable+unique.
+    //
+    // При выходе пула (нет данных или пустой) — fallback на старую логику
+    // с classic blocks (sugur) / random walk + chain-variant solve (chain).
+    if ((mode === 'sugur' || mode === 'chain')
+        && window.PrecomputedPools
+        && window.PrecomputedPools[mode]
+        && window.PrecomputedPools[mode][difficulty]
+        && window.PrecomputedPools[mode][difficulty].length) {
+      const pool = window.PrecomputedPools[mode][difficulty];
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      gen = {
+        puzzle:    pick.puzzle.slice(),
+        solution:  pick.solution.slice(),
+        givens:    pick.givens.slice(),
+        difficulty: difficulty,
+        score:     pick.puzzle.filter(function (v) { return v === 0; }).length,
+        techniques: {},
+        elapsedMs: 0,
+        attempts:  1
+      };
+      if (mode === 'sugur') {
+        snakeCells = pick.snakeCells.map(function (s) { return s.slice(); });
+        cellSnake  = pick.cellSnake.slice();
+      } else {
+        cellChain  = pick.cellChain.slice();
+        chainEdges = (pick.edges || []).map(function (e) { return e.slice(); });
+      }
+      console.log('[game] ' + mode + ' loaded from pool (pool size=' + pool.length + ')');
+    } else if (mode === 'kropki' && SV && SV.computeKropkiDots) {
       // Kropki: classic puzzle + dots computed from solution
       gen = Gen.generate(difficulty, { variant: SV.Classic });
       dots = SV.computeKropkiDots(gen.solution);
