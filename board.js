@@ -88,7 +88,11 @@ window.Board = (function () {
     // Sugur: добавляем/убираем класс на board чтобы CSS приглушил block-borders
     const isSugur = !!(state.cellSnake && state.cellSnake.length === 81);
     boardEl.classList.toggle('sugur-board', isSugur);
-    renderSugurOverlay(state, size, isSugur);
+    // Выбранная змейка (id 0..8) — её граница рисуется ярче, у остальных
+    // тоньше. См. renderSugurOverlay.
+    var selSnakeId = isSugur && sel != null && state.cellSnake[sel] >= 0
+      ? state.cellSnake[sel] : -1;
+    renderSugurOverlay(state, size, isSugur, selSnakeId);
     // Chain: круглые ячейки + SVG-overlay с линиями + приглушённые grid-borders
     var isChain = !!(state.cellChain && state.cellChain.length === 81);
     boardEl.classList.toggle('chain-board', isChain);
@@ -113,14 +117,16 @@ window.Board = (function () {
     }
     // Peers выбранной ячейки определяет variant — для Diagonal это включает
     // диагональ, для Center — центральные клетки, для Windoku — внутреннюю зону.
-    // Исключение: для Chain peers по правилам игры включают всю цепочку, но
-    // визуально мы хотим подсветить ТОЛЬКО строку и столбец (chain отображается
-    // через увеличенную обводку, см. ниже). Поэтому в chain режиме peers
-    // составляем вручную из row+col.
+    // Исключения для Chain и Sugur: peers по правилам игры включают всю
+    // цепочку/змейку, но визуально мы хотим подсветить ТОЛЬКО строку и
+    // столбец. Сама принадлежность к цепочке/змейке показывается через
+    // обводку (см. renderChainOverlay / renderSugurOverlay). Это позволяет
+    // игроку видеть «свою группу» как отдельный визуальный приём, а row/col
+    // — как обычную peer-подсветку.
     let peers;
     if (sel == null || !useHighlight) {
       peers = null;
-    } else if (isChain) {
+    } else if (isChain || isSugur) {
       peers = new Set();
       const r = Math.floor(sel / size), c = sel % size;
       for (let k = 0; k < size; k++) {
@@ -203,10 +209,12 @@ window.Board = (function () {
       const isPeer = peers ? peers.has(i) : false;
       cell.classList.toggle('peer', !!isPeer);
 
-      // Same-digit подсветка отключена в Chain: цепочки сами по себе уже
-      // подсвечиваются увеличенной обводкой при выделении, дополнительные
-      // одноцифровые ячейки только запутывали бы.
-      const isSameDigit = !isChain && useHighlight && selDigit !== 0 && value === selDigit && i !== sel;
+      // Same-digit подсветка отключена в Chain и Sugur: в них правило
+      // «одинаковые цифры в одной группе» работает по змейке/цепочке, а
+      // не по 3×3 блоку, и same-digit-highlight весь board сбивал бы с
+      // толку. Принадлежность к группе показывается через обводку.
+      const isSameDigit = !isChain && !isSugur && useHighlight
+                       && selDigit !== 0 && value === selDigit && i !== sel;
       cell.classList.toggle('same-digit', !!isSameDigit);
 
       // Chain — особый маркер для ячеек выбранной цепочки: «жирная» обводка
@@ -267,12 +275,12 @@ window.Board = (function () {
     }
   }
 
-  // SVG-overlay границ змеек для Sugur. Рисуем КАЖДУЮ внутреннюю границу
-  // (вертикальную или горизонтальную) между двумя ячейками разных змеек
-  // одной непрерывной line — без CSS-border'ов на cell'ах, поэтому никаких
-  // micro-gap'ов в углах. Внешние границы доски не нужны — их рисует
-  // board-radius/shadow.
-  function renderSugurOverlay(state, size, enabled) {
+  // SVG-overlay границ змеек для Sugur. Рисует каждую внутреннюю границу
+  // (вертикальную или горизонтальную) между ячейками разных змеек одной
+  // непрерывной line — без CSS-border'ов на cell'ах, поэтому никаких
+  // micro-gap'ов в углах. Если selSnakeId >= 0, граница ВЫБРАННОЙ змейки
+  // рисуется толще и accent-цветом; остальные — тоньше и обычным цветом.
+  function renderSugurOverlay(state, size, enabled, selSnakeId) {
     if (!enabled) {
       if (sugurSvg) { sugurSvg.remove(); sugurSvg = null; }
       return;
@@ -289,41 +297,74 @@ window.Board = (function () {
       while (sugurSvg.firstChild) sugurSvg.removeChild(sugurSvg.firstChild);
     }
     const snake = state.cellSnake;
-    // Жирная линия между змейками — равна 2.5px CSS на 480px-доске
-    // (2.5 / (480/9) ≈ 0.047).
-    const STROKE = '#1a2540';
-    const W = '0.05';
+    // 1 unit = (board_px / size) ≈ 53px на 480px-доске.
+    // Обычная толщина 0.04 ≈ 2.1px (чуть тоньше прежних 2.5px),
+    // selected — 0.075 ≈ 4px + accent.
+    const STROKE_NORMAL = '#1a2540';
+    const STROKE_SELECT = '#3157d3';   // var(--accent)
+    const W_NORMAL = '0.035';
+    const W_SELECT = '0.075';
+
+    function drawEdge(x1, y1, x2, y2, sA, sB) {
+      const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
+      const ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', String(x1));
+      ln.setAttribute('y1', String(y1));
+      ln.setAttribute('x2', String(x2));
+      ln.setAttribute('y2', String(y2));
+      ln.setAttribute('stroke', isSel ? STROKE_SELECT : STROKE_NORMAL);
+      ln.setAttribute('stroke-width', isSel ? W_SELECT : W_NORMAL);
+      ln.setAttribute('stroke-linecap', 'square');
+      sugurSvg.appendChild(ln);
+    }
+
+    // Сначала «обычные» рёбра, потом selected — чтобы accent-границы
+    // рисовались поверх и не перекрывались соседними тёмными линиями.
+    const selEdges = [];
     // Вертикальные внутренние границы
     for (let r = 0; r < size; r++) {
       for (let c = 0; c < size - 1; c++) {
         const a = r * size + c, b = a + 1;
-        if (snake[a] === snake[b]) continue;
-        const ln = document.createElementNS(NS, 'line');
-        ln.setAttribute('x1', String(c + 1));
-        ln.setAttribute('y1', String(r));
-        ln.setAttribute('x2', String(c + 1));
-        ln.setAttribute('y2', String(r + 1));
-        ln.setAttribute('stroke', STROKE);
-        ln.setAttribute('stroke-width', W);
-        ln.setAttribute('stroke-linecap', 'square');
-        sugurSvg.appendChild(ln);
+        const sA = snake[a], sB = snake[b];
+        if (sA === sB) continue;
+        const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
+        if (isSel) {
+          selEdges.push([c + 1, r, c + 1, r + 1, sA, sB]);
+        } else {
+          drawEdge(c + 1, r, c + 1, r + 1, sA, sB);
+        }
       }
     }
     // Горизонтальные внутренние границы
     for (let r = 0; r < size - 1; r++) {
       for (let c = 0; c < size; c++) {
         const a = r * size + c, b = a + size;
-        if (snake[a] === snake[b]) continue;
-        const ln = document.createElementNS(NS, 'line');
-        ln.setAttribute('x1', String(c));
-        ln.setAttribute('y1', String(r + 1));
-        ln.setAttribute('x2', String(c + 1));
-        ln.setAttribute('y2', String(r + 1));
-        ln.setAttribute('stroke', STROKE);
-        ln.setAttribute('stroke-width', W);
-        ln.setAttribute('stroke-linecap', 'square');
-        sugurSvg.appendChild(ln);
+        const sA = snake[a], sB = snake[b];
+        if (sA === sB) continue;
+        const isSel = (selSnakeId >= 0) && (sA === selSnakeId || sB === selSnakeId);
+        if (isSel) {
+          selEdges.push([c, r + 1, c + 1, r + 1, sA, sB]);
+        } else {
+          drawEdge(c, r + 1, c + 1, r + 1, sA, sB);
+        }
       }
+    }
+    // Внешние границы доски для cells выбранной змейки — чтобы accent-
+    // граница была непрерывной даже если змейка касается края.
+    if (selSnakeId >= 0) {
+      for (let i = 0; i < size * size; i++) {
+        if (snake[i] !== selSnakeId) continue;
+        const r = Math.floor(i / size), c = i % size;
+        if (r === 0)        selEdges.push([c, 0, c + 1, 0, selSnakeId, selSnakeId]);
+        if (r === size - 1) selEdges.push([c, size, c + 1, size, selSnakeId, selSnakeId]);
+        if (c === 0)        selEdges.push([0, r, 0, r + 1, selSnakeId, selSnakeId]);
+        if (c === size - 1) selEdges.push([size, r, size, r + 1, selSnakeId, selSnakeId]);
+      }
+    }
+    // Поверх — accent-рёбра выбранной змейки.
+    for (let k = 0; k < selEdges.length; k++) {
+      const e = selEdges[k];
+      drawEdge(e[0], e[1], e[2], e[3], e[4], e[5]);
     }
   }
 
