@@ -21,26 +21,40 @@ window.Board = (function () {
   const Core = window.SudokuCore;
 
   let boardEl = null;
-  let cells = [];        // массив DOM-нодов длиной 81
+  let cells = [];           // массив DOM-нодов (N×N длиной)
   let onClickCb = null;
+  let currentSize = 0;
 
   function mount(rootEl, onCellClick) {
     boardEl = rootEl;
     onClickCb = onCellClick;
+    remount(9);
+  }
+
+  // Пересоздаёт grid под заданный размер (9 для классики и расширенных, 4 для Mini).
+  // Все cells заново создаются с правильными data-row/col, классами и обработчиками.
+  function remount(size) {
+    if (!boardEl) return;
+    if (size === currentSize) return;
+    currentSize = size;
+    boardEl.dataset.size = String(size);
     boardEl.innerHTML = '';
     cells = [];
-    for (let i = 0; i < 81; i++) {
+    const boxR = (size === 4) ? 2 : 3;
+    const boxC = (size === 4) ? 2 : 3;
+    const N = size * size;
+    for (let i = 0; i < N; i++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.dataset.idx = String(i);
-      const p = Core.rc(i);
-      cell.dataset.row = String(p.r);
-      cell.dataset.col = String(p.c);
-      cell.dataset.box = String(Core.boxOf(p.r, p.c));
-      if (p.r === 8) cell.classList.add('row-last');
-      if (p.c === 8) cell.classList.add('col-last');
-      // Жирная граница после 3-й и 6-й строки
-      if (p.r === 2 || p.r === 5) cell.classList.add('row-edge-bottom');
+      const r = Math.floor(i / size), c = i % size;
+      cell.dataset.row = String(r);
+      cell.dataset.col = String(c);
+      cell.dataset.box = String(Math.floor(r / boxR) * (size / boxC) + Math.floor(c / boxC));
+      if (r === size - 1) cell.classList.add('row-last');
+      if (c === size - 1) cell.classList.add('col-last');
+      // Жирная граница между блоками
+      if (((r + 1) % boxR) === 0 && r !== size - 1) cell.classList.add('row-edge-bottom');
       cell.addEventListener('click', function () {
         if (onClickCb) onClickCb(i);
       });
@@ -62,17 +76,20 @@ window.Board = (function () {
     if (!boardEl) return;
     const sel = state.selectedIdx;
     const variant = state.variant || Core.ClassicVariant;
+    const size = variant.size || 9;
+    const N = variant.cellCount || (size * size);
+    // Пересоздаём grid если variant сменил размер (Mini ↔ 9×9)
+    if (size !== currentSize) remount(size);
     const selDigit = sel != null ? state.board[sel] : 0;
     const useHighlight = settings && settings.highlighter !== false;
 
-    // Сначала сбрасываем все Kropki-классы (могут остаться от предыдущего mode).
-    for (let i = 0; i < 81; i++) {
+    // Сбрасываем Kropki-классы (могут остаться от предыдущего mode)
+    for (let i = 0; i < N; i++) {
       cells[i].classList.remove(
         'dot-right-consec', 'dot-right-double',
         'dot-bottom-consec', 'dot-bottom-double'
       );
     }
-    // Применяем dots если есть
     if (state.dots && state.dots.length) {
       for (let k = 0; k < state.dots.length; k++) {
         const d = state.dots[k];
@@ -84,7 +101,7 @@ window.Board = (function () {
     // диагональ, для Center — центральные клетки, для Windoku — внутреннюю зону.
     const peers = (sel != null && useHighlight) ? new Set(variant.peersForCell(sel)) : null;
 
-    for (let i = 0; i < 81; i++) {
+    for (let i = 0; i < N; i++) {
       const cell = cells[i];
       const value = state.board[i];
       const isGiven = state.givens[i];
@@ -139,9 +156,7 @@ window.Board = (function () {
   }
 
   function setSelected(idx) {
-    // Лёгкая версия — только обновить selected класс (без полного render).
-    // Использовать когда state не менялся, только выбор.
-    for (let i = 0; i < 81; i++) cells[i].classList.toggle('selected', i === idx);
+    for (let i = 0; i < cells.length; i++) cells[i].classList.toggle('selected', i === idx);
   }
 
   function flashError(idx) {
@@ -153,6 +168,7 @@ window.Board = (function () {
 
   return {
     mount: mount,
+    remount: remount,
     render: render,
     setSelected: setSelected,
     flashError: flashError

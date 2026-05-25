@@ -38,6 +38,18 @@ window.SudokuGenerator = (function () {
 
   function rateDifficulty(puzzle, variant) {
     if (!variant) variant = Core.ClassicVariant;
+    // Не-9×9 variants (Mini) — humanSolve hardcoded под 9×9.
+    // Возвращаем фиксированный «easy» рейтинг, проверяем только solvability.
+    if ((variant.size || 9) !== 9) {
+      const bt = Core.solve(puzzle, variant);
+      return {
+        score: ((variant.cellCount || 81) - countGivens(puzzle)) * 1.0,
+        label: 'easy',
+        techniques: {},
+        solvable: !!bt,
+        humanSolvable: true
+      };
+    }
     const result = Tech.humanSolve(puzzle, variant);
     const counts = Tech.summariseLog(result.log);
 
@@ -237,7 +249,9 @@ window.SudokuGenerator = (function () {
     opts = opts || {};
     const variant   = opts.variant || Core.ClassicVariant;
     const symmetry  = opts.symmetry || CONFIG.symmetry;
-    const givensRange = (CONFIG.givensTarget[targetDifficulty] || [30, 35]).slice();
+    // Variant может задать собственный givensTarget (например Mini 4×4 — 6-10 клеток).
+    const givensSource = variant.givensTarget || CONFIG.givensTarget;
+    const givensRange = (givensSource[targetDifficulty] || givensSource.medium || [30, 35]).slice();
     const timeBudget = opts.timeBudgetMs || CONFIG.timeBudgetMs;
     const maxRetries = opts.maxRetries || CONFIG.maxRetries;
     const seed = (typeof opts.seed === 'number') ? opts.seed : null;

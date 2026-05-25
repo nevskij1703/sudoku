@@ -167,6 +167,10 @@ window.Game = (function () {
     if (window.NumberPad) {
       window.NumberPad.setPencilMode(false);
       window.NumberPad.setUndoEnabled(false);
+      // Скрываем неподходящие цифры (Mini → 1-4, остальные 1-9)
+      const variantForLevel = (window.SudokuVariants && window.SudokuVariants.byMode)
+        ? window.SudokuVariants.byMode(active.mode || 'classic') : Core.ClassicVariant;
+      window.NumberPad.setMaxDigit(variantForLevel.size || 9);
     }
 
     persist();
@@ -186,6 +190,9 @@ window.Game = (function () {
     if (window.NumberPad) {
       window.NumberPad.setPencilMode(false);
       window.NumberPad.setUndoEnabled(false);
+      const variantForLevel = (window.SudokuVariants && window.SudokuVariants.byMode)
+        ? window.SudokuVariants.byMode(active.mode || 'classic') : Core.ClassicVariant;
+      window.NumberPad.setMaxDigit(variantForLevel.size || 9);
     }
     startTimer();
     renderAll();

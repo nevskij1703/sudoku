@@ -232,6 +232,80 @@ window.SudokuVariants = (function () {
     };
   }
 
+  // ===== Mini 4×4 — режим для начинающих =====
+  // Поле 4×4 = 16 ячеек, 4 блока 2×2, цифры 1-4. Совершенно другая геометрия:
+  // не extension Classic, а отдельный variant.
+  const Mini = (function () {
+    const SIZE = 4, BR = 2, BC = 2, N = SIZE * SIZE;
+    const ALL_MINI = 0xF;
+    const rowUnits = [], colUnits = [], boxUnits = [];
+    for (let i = 0; i < SIZE; i++) {
+      const row = [], col = [];
+      for (let j = 0; j < SIZE; j++) {
+        row.push(i * SIZE + j);
+        col.push(j * SIZE + i);
+      }
+      rowUnits.push(row);
+      colUnits.push(col);
+    }
+    for (let br = 0; br < SIZE; br += BR) {
+      for (let bc = 0; bc < SIZE; bc += BC) {
+        const box = [];
+        for (let dr = 0; dr < BR; dr++) {
+          for (let dc = 0; dc < BC; dc++) {
+            box.push((br + dr) * SIZE + (bc + dc));
+          }
+        }
+        boxUnits.push(box);
+      }
+    }
+    const all = rowUnits.concat(colUnits).concat(boxUnits);
+
+    const cellUnits = new Array(N);
+    const peers     = new Array(N);
+    for (let i = 0; i < N; i++) {
+      cellUnits[i] = [];
+      const peerSet = new Set();
+      for (let u = 0; u < all.length; u++) {
+        const unit = all[u];
+        if (unit.indexOf(i) !== -1) {
+          cellUnits[i].push(unit);
+          for (let k = 0; k < unit.length; k++) if (unit[k] !== i) peerSet.add(unit[k]);
+        }
+      }
+      peers[i] = Array.from(peerSet);
+    }
+
+    return {
+      name: 'mini',
+      size: SIZE, boxRows: BR, boxCols: BC, cellCount: N,
+      ALL_MASK: ALL_MINI,
+      digits: [1, 2, 3, 4],
+      // Для Mini поле 4×4 = 16 ячеек, всё проще: easy/medium/hard разделяем
+      // по количеству givens (открытых клеток).
+      givensTarget: {
+        easy:   [9, 11],
+        medium: [7, 8],
+        hard:   [5, 6]
+      },
+      unitsForCell: function (i) { return cellUnits[i]; },
+      peersForCell: function (i) { return peers[i]; },
+      allUnits: function () { return all; },
+      rowsAndCols: function () { return { rows: rowUnits, cols: colUnits, boxes: boxUnits }; },
+      isLegal: function (g, i, d) {
+        const us = cellUnits[i];
+        for (let u = 0; u < us.length; u++) {
+          const unit = us[u];
+          for (let k = 0; k < unit.length; k++) {
+            if (unit[k] !== i && g[unit[k]] === d) return false;
+          }
+        }
+        return true;
+      },
+      seedGrid: null
+    };
+  })();
+
   // Карта mode-key → variant. Используется в Game.startNewLevel
   // и в auto-resume при load active.
   // Для Kropki dots зависят от конкретного solution, поэтому byMode возвращает
@@ -243,9 +317,9 @@ window.SudokuVariants = (function () {
       case 'center':   return Center;
       case 'windoku':  return Windoku;
       case 'kropki':   return Classic;            // см. Game.startNewLevel kropki-path
+      case 'mini':     return Mini;
       // case 'sugur':   return Sugur;
       // case 'chain':   return Chain;
-      // case 'mini':    return Mini;
       case 'classic':
       default:         return Classic;
     }
@@ -256,6 +330,7 @@ window.SudokuVariants = (function () {
     Diagonal: Diagonal,
     Center: Center,
     Windoku: Windoku,
+    Mini: Mini,
     extendClassic: extendClassic,
     byMode: byMode,
     // Kropki API

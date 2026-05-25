@@ -50,6 +50,14 @@ window.NumberPad = (function () {
 
   function isPencilMode() { return pencilMode; }
 
+  // Скрывает кнопки старше maxDigit (для Mini 4×4 → maxDigit=4, кнопки 5-9 скрыты).
+  function setMaxDigit(max) {
+    document.querySelectorAll('.num-btn').forEach(function (btn) {
+      const d = parseInt(btn.dataset.num, 10);
+      btn.style.display = d <= max ? '' : 'none';
+    });
+  }
+
   function setPencilMode(v) {
     pencilMode = !!v;
     const pencilBtn = document.getElementById('btn-pencil');
@@ -108,6 +116,7 @@ window.NumberPad = (function () {
     // Алиас для совместимости со старым именованием:
     updateCounts: updateDepleted,
     setHintsLeft: setHintsLeft,
-    setUndoEnabled: setUndoEnabled
+    setUndoEnabled: setUndoEnabled,
+    setMaxDigit: setMaxDigit
   };
 })();

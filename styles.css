@@ -317,14 +317,21 @@ input { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--grid-line);
   transition: background 0.08s ease;
 }
-/* Жирные линии каждые 3 ячейки */
-.cell:nth-child(9n)  { border-right: none; }
-.cell:nth-child(3n)  { border-right-color: var(--grid-line-thick); border-right-width: 2px; }
-.cell:nth-child(9n)  { border-right-color: transparent; }
-/* Нижние жирные: 27-я и 54-я (после 3-й и 6-й строки) */
+/* Жирные линии между блоками — для 9×9 это col=2,5 / row=2,5 (после 3-й и 6-й).
+   Для 4×4 (mini) — col=1 / row=1 (после 2-й). Через data-атрибуты, не nth-child. */
+.board[data-size="9"] .cell[data-col="2"],
+.board[data-size="9"] .cell[data-col="5"] { border-right-color: var(--grid-line-thick); border-right-width: 2px; }
+.board[data-size="4"] .cell[data-col="1"] { border-right-color: var(--grid-line-thick); border-right-width: 2px; }
 .cell.row-edge-bottom { border-bottom-color: var(--grid-line-thick); border-bottom-width: 2px; }
 .cell.col-last { border-right: none; }
 .cell.row-last { border-bottom: none; }
+
+/* Mini-board: grid 4×4, цифры крупнее */
+.board[data-size="4"] {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows:    repeat(4, 1fr);
+}
+.board[data-size="4"] .cell { font-size: clamp(28px, 8vw, 44px); font-weight: 600; }
 
 .cell.given { color: var(--given); font-weight: 500; }
 
