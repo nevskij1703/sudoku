@@ -215,9 +215,10 @@ window.Board = (function () {
     }
     const edges = state.chainEdges || [];
     const NS = 'http://www.w3.org/2000/svg';
-    // Один нейтральный серый цвет для всех цепочек — по запросу пользователя.
-    // Различие цепочек считывается по их форме (последовательная верёвочка
-    // с двумя концами), а не по цвету.
+    // Чёрные тонкие линии — точно такой же толщины и цвета, что и контуры
+    // кругов (CSS border 1.5px на ::after). Board имеет viewBox 0 0 9 9,
+    // т.е. 1 unit ≈ (board_px / 9). Для 480px-доски: 1 unit ≈ 53px, поэтому
+    // stroke-width 0.028 ≈ 1.5px CSS, что совпадает с border контура.
     for (let k = 0; k < edges.length; k++) {
       const e = edges[k];
       const a = e[0], b = e[1];
@@ -228,10 +229,9 @@ window.Board = (function () {
       line.setAttribute('y1', String(ar + 0.5));
       line.setAttribute('x2', String(bc + 0.5));
       line.setAttribute('y2', String(br + 0.5));
-      line.setAttribute('stroke', '#8e94a3');
-      line.setAttribute('stroke-width', '0.10');
+      line.setAttribute('stroke', '#1a2540');
+      line.setAttribute('stroke-width', '0.028');
       line.setAttribute('stroke-linecap', 'round');
-      line.setAttribute('opacity', '0.9');
       chainSvg.appendChild(line);
     }
   }

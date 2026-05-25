@@ -144,8 +144,7 @@ input { font: inherit; color: inherit; }
   border-radius: 18px;
   padding: 14px 16px;
   box-shadow: var(--shadow);
-  margin-top: auto;     /* прижимаем к низу экрана */
-  margin-bottom: 0;
+  margin-top: 6px;
 }
 .stats-line {
   display: flex; justify-content: space-between; align-items: center;
@@ -160,71 +159,109 @@ input { font: inherit; color: inherit; }
 /* Кнопка «Начать» на home-экране имеет небольшой margin сверху */
 #screen-home #btn-start-level { margin-top: 14px; }
 
-/* ============ Difficulty / Mode ============ */
-.difficulty-grid { display: flex; gap: 10px; }
-.diff-tile {
-  flex: 1 1 0;
+/* ============ Difficulty (ползунок) ============ */
+.difficulty-slider {
   background: var(--bg-soft);
   border-radius: 18px;
-  padding: 18px 8px;
+  padding: 16px 18px 12px;
   box-shadow: var(--shadow);
-  border: 2px solid transparent;
-  text-align: center;
+}
+.diff-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #2fa974, #c9b026 50%, #e0581c);
+  outline: none;
+  margin: 4px 0 14px;
+}
+.diff-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  border: 3px solid var(--accent);
+  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.25);
+  cursor: pointer;
   transition: transform 0.08s ease;
 }
-.diff-tile.selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.diff-range::-webkit-slider-thumb:active { transform: scale(0.94); }
+.diff-range::-moz-range-thumb {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  border: 3px solid var(--accent);
+  box-shadow: 0 2px 6px rgba(26, 37, 64, 0.25);
+  cursor: pointer;
 }
-.diff-tile:active { transform: scale(0.96); }
-.diff-emoji { font-size: 32px; line-height: 1; height: 36px; display: flex; align-items: center; justify-content: center; }
-.diff-emoji svg { width: 36px; height: 36px; }
-.diff-easy   svg { color: #2fa974; }
-.diff-medium svg { color: #4a8b3e; }
-.diff-hard   svg { color: #e0581c; }
-.diff-label { font-weight: 700; font-size: 16px; margin-top: 6px; }
-.diff-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.diff-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.diff-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.diff-label.active {
+  color: var(--accent);
+  font-weight: 700;
+}
 
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+/* ============ Mode list (вертикальный, full-width) ============ */
+.mode-list {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-}
-@media (max-width: 500px) {
-  .mode-grid { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 360px) {
-  .mode-grid { grid-template-columns: repeat(2, 1fr); }
 }
 .mode-tile {
   position: relative;
   background: var(--bg-soft);
-  border-radius: 16px;
-  padding: 14px 6px 10px;
+  border-radius: 14px;
+  padding: 12px 14px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
-  text-align: center;
   transition: transform 0.08s ease;
   cursor: pointer;
-  min-height: 110px;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  display: grid;
+  grid-template-columns: 44px 1fr 32px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 2px;
 }
 .mode-tile.selected { border-color: var(--accent); background: var(--accent-soft); }
 .mode-tile.locked { opacity: 0.4; cursor: not-allowed; }
-.mode-tile:active:not(.locked) { transform: scale(0.96); }
-
-/* Info-кнопка в левом верхнем углу каждой mode-tile.
-   У каждого режима будут свои правила, и единый info-modal с правилами Sudoku
-   развернётся в variant-specific позже. */
+.mode-tile:active:not(.locked) { transform: scale(0.99); }
+.mode-tile-icon {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.mode-tile-icon svg { width: 32px; height: 32px; color: var(--text); }
+.mode-tile-text {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: center;
+}
+.mode-tile-name { font-weight: 700; font-size: 16px; color: var(--text); line-height: 1.1; }
+.mode-tile-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; line-height: 1.1; }
 .mode-info-btn {
-  position: absolute;
-  top: 6px; left: 6px;
+  grid-row: 1;
+  grid-column: 3;
+  align-self: start;
   width: 28px; height: 28px;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--text-dim);
   background: transparent;
   border-radius: 50%;
-  z-index: 2;
 }
 .mode-info-btn:active { color: var(--accent); transform: scale(0.88); }
 .mode-info-btn .icon { width: 18px; height: 18px; }
@@ -364,7 +401,7 @@ input { font: inherit; color: inherit; }
 .cell.on-main-diag,
 .cell.on-anti-diag,
 .cell.center-cell,
-.cell.windoku-zone         { background: #eceff3; }
+.cell.windoku-zone         { background: #f0f0f5; }
 /* центр пересечения двух диагоналей раньше выделялся темнее — убрано:
    теперь центральная клетка такая же как остальные диагональные. */
 
@@ -402,15 +439,16 @@ input { font: inherit; color: inherit; }
   position: relative;
   z-index: 2;
 }
-/* Сам круг — отдельный псевдоэлемент. Это позволяет сделать круг чуть
-   меньше grid-ячейки (inset 8%) и сохранить большую hit-area вокруг него. */
+/* Сам круг — отдельный псевдоэлемент. Контур такой же тонкий и чёрный,
+   как и линии-связи в SVG-overlay (см. board.js → renderChainOverlay).
+   inset 8% оставляет небольшой воздух вокруг круга для hit-area. */
 .board.chain-board .cell::after {
   content: '';
   position: absolute;
   inset: 8%;
   border-radius: 50%;
   background: var(--chain-fill, #ffffff);
-  box-shadow: 0 1px 2px rgba(20, 30, 50, 0.10);
+  border: 1.5px solid #1a2540;
   z-index: -1;
 }
 /* Все цепочки — одного нейтрального белого тона. Различает цепочки
@@ -516,7 +554,7 @@ input { font: inherit; color: inherit; }
   padding: 18px 0;
   font-size: 28px;
   font-weight: 700;
-  color: var(--accent-strong);
+  color: #3954bb;
   box-shadow: var(--shadow);
   display: flex; align-items: center; justify-content: center;
   min-height: 64px;

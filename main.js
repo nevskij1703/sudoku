@@ -188,11 +188,34 @@
       });
     });
 
-    document.querySelectorAll('.diff-tile').forEach(function (tile) {
-      tile.addEventListener('click', function () {
-        document.querySelectorAll('.diff-tile').forEach(function (t) { t.classList.remove('selected'); });
-        tile.classList.add('selected');
-        selectedDifficulty = tile.dataset.difficulty;
+    // Difficulty — ползунок 0..2 (easy/medium/hard). Поддерживаем синхронно
+    // три ярлыка (Простой/Средний/Сложный) под ним: они кликабельны и
+    // подсвечиваются как «активный».
+    const DIFF_ORDER = ['easy', 'medium', 'hard'];
+    const diffRange = document.getElementById('difficulty-range');
+    function updateDiffLabels(idx) {
+      document.querySelectorAll('.diff-label').forEach(function (lbl) {
+        const v = lbl.dataset.difficulty;
+        lbl.classList.toggle('active', DIFF_ORDER.indexOf(v) === idx);
+      });
+    }
+    function setDifficultyByIndex(idx) {
+      diffRange.value = String(idx);
+      selectedDifficulty = DIFF_ORDER[idx];
+      updateDiffLabels(idx);
+    }
+    if (diffRange) {
+      diffRange.addEventListener('input', function () {
+        const idx = parseInt(diffRange.value, 10);
+        selectedDifficulty = DIFF_ORDER[idx];
+        updateDiffLabels(idx);
+      });
+    }
+    document.querySelectorAll('.diff-label').forEach(function (lbl) {
+      lbl.addEventListener('click', function () {
+        const v = lbl.dataset.difficulty;
+        const idx = DIFF_ORDER.indexOf(v);
+        if (idx >= 0) setDifficultyByIndex(idx);
       });
     });
 
@@ -388,11 +411,16 @@
   }
 
   function backToHome() {
-    // Главный экран совмещён с выбором сложности — просто обновляем статистику
-    // и подсветку плиток в соответствии с сохранённым выбором.
-    document.querySelectorAll('.diff-tile').forEach(function (t) {
-      t.classList.toggle('selected', t.dataset.difficulty === selectedDifficulty);
-    });
+    // Главный экран совмещён с выбором сложности — обновляем статистику
+    // и подсветку выбранного режима/сложности.
+    const idx = ['easy', 'medium', 'hard'].indexOf(selectedDifficulty);
+    if (idx >= 0) {
+      const range = document.getElementById('difficulty-range');
+      if (range) range.value = String(idx);
+      document.querySelectorAll('.diff-label').forEach(function (lbl) {
+        lbl.classList.toggle('active', lbl.dataset.difficulty === selectedDifficulty);
+      });
+    }
     document.querySelectorAll('.mode-tile').forEach(function (t) {
       t.classList.toggle('selected', t.dataset.mode === selectedMode);
     });
