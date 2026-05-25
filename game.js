@@ -241,47 +241,64 @@ window.Game = (function () {
         }
       }
     } else if (mode === 'chain' && SV && SV.generateChainLayout) {
-      // Chain: 9 цепочек с 8-связностью. Genгенерируем layout (block-based,
-      // ≤250ms), затем решаем пустую сетку как CLASSIC (потому что chains
-      // в текущей реализации = классические 3×3 блоки + ham-path внутри
-      // для рисования визуальных связей). Solve классики — гарантированно
-      // быстрый. Constraint-wise результат эквивалентен chain'у.
-      const layout = SV.generateChainLayout();
-      if (!layout) {
-        console.warn('[game] chain layout generation failed, fallback to classic');
+      // Chain: настоящие path-shape цепочки с 8-связностью (диагональные
+      // связи). Каждая цепочка — линейная верёвочка из 9 cells разной
+      // формы. Алгоритм: генерируем layout (random walk + Warnsdorff,
+      // ≤300ms), затем решаем пустую сетку через chain-variant solver
+      // с iteration limit (защита от exponential). Если решение не
+      // найдено за лимит — пробуем новый layout (до 5 attempts). Если
+      // все попытки fail — fallback на classic.
+      const t0 = Date.now();
+      let layout = null;
+      let sol = null;
+      let usedChainVariant = null;
+      // Solve лимиты: maxNodes защищает от глубокого backtracking,
+      // maxMs — от любых slow-paths. 200ms на попытку × 5 попыток =
+      // worst-case 1 секунда (но fail-fast — обычно первый layout solves
+      // за <100ms если он solvable).
+      const SOLVE_NODE_LIMIT = 800000;
+      const SOLVE_MS_LIMIT = 400;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const ly = SV.generateChainLayout();
+        if (!ly) continue;
+        const chainVariant = SV.makeChain(ly.chainCells, ly.cellChain, ly.edges);
+        const ts = Date.now();
+        const s = Core.solve(new Array(81).fill(0), chainVariant, Math.random,
+                              { maxNodes: SOLVE_NODE_LIMIT, maxMs: SOLVE_MS_LIMIT });
+        const solveMs = Date.now() - ts;
+        console.log('[chain] attempt ' + attempt + ' solve=' + solveMs + 'ms result=' + (s ? 'ok' : 'aborted'));
+        if (s) {
+          layout = ly;
+          sol = s;
+          usedChainVariant = chainVariant;
+          break;
+        }
+      }
+      if (!layout || !sol) {
+        console.warn('[game] chain layout/solve failed after retries, fallback to classic');
         gen = Gen.generate(difficulty, { variant: SV.Classic });
       } else {
-        const t1 = Date.now();
-        const sol = Core.solve(new Array(81).fill(0), SV.Classic, Math.random);
-        const t2 = Date.now();
-        if (!sol) {
-          console.warn('[game] chain solve failed, fallback to classic');
-          gen = Gen.generate(difficulty, { variant: SV.Classic });
-        } else {
-          const removeMap = { easy: 35, medium: 45, hard: 52 };
-          const targetRemove = removeMap[difficulty] || 40;
-          const puzzle = sol.slice();
-          const idxs = Array.from({ length: 81 }, function (_, i) { return i; });
-          for (let i = idxs.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
-          }
-          for (let k = 0; k < targetRemove; k++) puzzle[idxs[k]] = 0;
-          gen = {
-            puzzle: puzzle, solution: sol,
-            givens: puzzle.map(function (v) { return v !== 0; }),
-            difficulty: difficulty,
-            score: targetRemove,
-            techniques: {},
-            elapsedMs: Date.now() - t1,
-            attempts: 1
-          };
-          console.log('[game] chain built: solveMs=' + (t2 - t1) + ' totalMs=' + (Date.now() - t1));
+        const removeMap = { easy: 35, medium: 45, hard: 52 };
+        const targetRemove = removeMap[difficulty] || 40;
+        const puzzle = sol.slice();
+        const idxs = Array.from({ length: 81 }, function (_, i) { return i; });
+        for (let i = idxs.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = idxs[i]; idxs[i] = idxs[j]; idxs[j] = t;
         }
-        if (gen) {
-          cellChain  = layout.cellChain;
-          chainEdges = layout.edges;
-        }
+        for (let k = 0; k < targetRemove; k++) puzzle[idxs[k]] = 0;
+        gen = {
+          puzzle: puzzle, solution: sol,
+          givens: puzzle.map(function (v) { return v !== 0; }),
+          difficulty: difficulty,
+          score: targetRemove,
+          techniques: {},
+          elapsedMs: Date.now() - t0,
+          attempts: 1
+        };
+        console.log('[game] chain built in ' + (Date.now() - t0) + 'ms');
+        cellChain  = layout.cellChain;
+        chainEdges = layout.edges;
       }
     } else {
       const variant = (SV && SV.byMode) ? SV.byMode(mode) : Core.ClassicVariant;

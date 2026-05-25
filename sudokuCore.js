@@ -227,14 +227,31 @@ window.SudokuCore = (function () {
     return { unitMask: unitMask, cellToUnits: cellToUnits };
   }
 
-  function _solveImpl(g, maxSolutions, randomize, rng, variant) {
+  // opts (optional):
+  //   maxNodes — predict-abort limit на количество узлов backtracking-дерева.
+  //   maxMs    — hard wall-clock deadline в миллисекундах.
+  // Применяется чтобы variant с exponential search не вешал UI thread.
+  // При превышении любого из лимитов solve возвращает то что нашёл (или пусто).
+  function _solveImpl(g, maxSolutions, randomize, rng, variant, opts) {
     if (!variant) variant = ClassicVariant;
     const N = variant.cellCount || g.length;
     const masks = buildGenericMasks(g, variant);
     const solutions = [];
     const hasExtra = typeof variant.extraConstraintsOk === 'function';
+    const maxNodes = (opts && typeof opts.maxNodes === 'number') ? opts.maxNodes : Infinity;
+    const deadline = (opts && typeof opts.maxMs === 'number') ? (Date.now() + opts.maxMs) : Infinity;
+    let nodes = 0;
+    let aborted = false;
+    // Проверка таймаута дорогая, поэтому делаем её редко (раз в 1024 ноды).
+    const TIME_CHECK_INTERVAL = 1024;
 
     function recurse() {
+      if (aborted) return;
+      nodes++;
+      if (nodes > maxNodes) { aborted = true; return; }
+      if ((nodes & (TIME_CHECK_INTERVAL - 1)) === 0 && Date.now() > deadline) {
+        aborted = true; return;
+      }
       if (solutions.length >= maxSolutions) return;
 
       // MRV: ячейка с минимальным числом кандидатов.
@@ -292,16 +309,16 @@ window.SudokuCore = (function () {
     return solutions;
   }
 
-  function solve(grid, variant, rng) {
+  function solve(grid, variant, rng, opts) {
     const g = cloneGrid(grid);
-    const sols = _solveImpl(g, 1, !!rng, rng || Math.random, variant);
+    const sols = _solveImpl(g, 1, !!rng, rng || Math.random, variant, opts);
     return sols.length ? sols[0] : null;
   }
 
-  function countSolutions(grid, max, variant) {
+  function countSolutions(grid, max, variant, opts) {
     if (typeof max !== 'number') max = 2;
     const g = cloneGrid(grid);
-    const sols = _solveImpl(g, max, false, Math.random, variant);
+    const sols = _solveImpl(g, max, false, Math.random, variant, opts);
     return sols.length;
   }
 

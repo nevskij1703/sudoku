@@ -604,31 +604,134 @@ window.SudokuVariants = (function () {
   //      3×3 блоке с 8-conn — там полный граф).
   // На всё — hard deadline 250ms. Backtracking из прошлой реализации
   // мог уходить в экспоненту на bad-luck комбинациях, теперь это исключено.
+  // Растит линейную цепочку из ровно 9 cells, начиная от seed.
+  // 8-связность + Warnsdorff (next-cell с min free degree снижает шанс
+  // изоляции остальных). При тупике делает 1-шаг backtrack.
+  // Дополнительное ограничение: в одной строке/столбце не более 3 cells
+  // одной цепочки — это исключает «вырожденные» layouts типа «вся
+  // цепочка в одной row», которые делают chain-constraint конфликтующим
+  // с row/col и солвер не находит решения за reasonable time.
+  function growChainPath(occupied, seed, rng) {
+    const DR = [-1, -1, -1,  0, 0,  1, 1, 1];
+    const DC = [-1,  0,  1, -1, 1, -1, 0, 1];
+    const MAX_PER_ROW = 3;
+    const MAX_PER_COL = 3;
+    function freeNbrs(cell) {
+      const r = Math.floor(cell / 9), c = cell % 9;
+      const out = [];
+      for (let d = 0; d < 8; d++) {
+        const nr = r + DR[d], nc = c + DC[d];
+        if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+        const n = nr * 9 + nc;
+        if (!occupied[n]) out.push(n);
+      }
+      return out;
+    }
+    const path = [seed];
+    occupied[seed] = true;
+    // Счётчики cells цепочки по строкам и столбцам.
+    const rowCount = new Array(9).fill(0);
+    const colCount = new Array(9).fill(0);
+    rowCount[Math.floor(seed / 9)] = 1;
+    colCount[seed % 9] = 1;
+
+    let steps = 0;
+    while (path.length < 9 && steps < 60) {
+      steps++;
+      const head = path[path.length - 1];
+      const rawCands = freeNbrs(head);
+      const cands = [];
+      for (let k = 0; k < rawCands.length; k++) {
+        const n = rawCands[k];
+        const nr = Math.floor(n / 9), nc = n % 9;
+        if (rowCount[nr] >= MAX_PER_ROW) continue;
+        if (colCount[nc] >= MAX_PER_COL) continue;
+        cands.push(n);
+      }
+      if (cands.length === 0) {
+        // тупик — снимаем head и backtrack
+        occupied[head] = false;
+        rowCount[Math.floor(head / 9)]--;
+        colCount[head % 9]--;
+        path.pop();
+        if (path.length === 0) return null;
+        continue;
+      }
+      // Warnsdorff: minimum free degree
+      let minDeg = 99;
+      for (let k = 0; k < cands.length; k++) {
+        const d = freeNbrs(cands[k]).length;
+        if (d < minDeg) minDeg = d;
+      }
+      const best = [];
+      for (let k = 0; k < cands.length; k++) {
+        if (freeNbrs(cands[k]).length === minDeg) best.push(cands[k]);
+      }
+      const pick = best[Math.floor(rng() * best.length)];
+      path.push(pick);
+      occupied[pick] = true;
+      rowCount[Math.floor(pick / 9)]++;
+      colCount[pick % 9]++;
+    }
+    return path.length === 9 ? path : null;
+  }
+
+  // Chain layout — настоящие path-shape цепочки с 8-связностью (включая
+  // диагональные связи). Каждая цепочка — 9 cells без ветвлений (один
+  // start + один end). Формы разные на каждом запуске.
+  //
+  // Алгоритм: sequential random walk от случайного seed, Warnsdorff's
+  // heuristic для выбора next-cell (избегаем изоляции остальных). Если
+  // одна цепочка не выросла до 9 — restart всей раскладки. Hard deadline
+  // 300ms; внутри одного path-grow есть step-cap чтобы не висеть.
   function generateChainLayout(rng) {
     rng = rng || Math.random;
-    const deadline = Date.now() + 250;
-    // Chain layout — чистые классические 3×3 блоки (без diversify swaps).
-    // Это гарантирует что chain-constraint эквивалентен block-constraint,
-    // и решение можно искать через classic solve (быстро, надёжно).
-    // Внутри каждого блока ищем Hamiltonian-путь по 8-связности — он
-    // даёт zigzag-цепочку для визуализации, не меняя set ячеек.
-    const regions = classicBlockRegions();
-    const paths = [];
-    for (let s = 0; s < 9; s++) {
+    const deadline = Date.now() + 300;
+    for (let attempt = 0; attempt < 200; attempt++) {
       if (Date.now() > deadline) return null;
-      const p = findHamPath(regions[s], '8', rng);
-      if (!p) return null;
-      paths.push(p);
+      const occupied = new Array(81).fill(false);
+      const chains = [];
+      let ok = true;
+      for (let s = 0; s < 9; s++) {
+        // Выбираем seed для следующей цепочки. Чтобы избегать изоляции
+        // оставшихся клеток, ищем cell с минимальным числом свободных
+        // соседей (corner-first) — это и есть Warnsdorff на старте.
+        let seed = -1;
+        let minDeg = 99;
+        for (let i = 0; i < 81; i++) {
+          if (occupied[i]) continue;
+          const r = Math.floor(i / 9), c = i % 9;
+          let deg = 0;
+          for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (nr < 0 || nr > 8 || nc < 0 || nc > 8) continue;
+            if (!occupied[nr * 9 + nc]) deg++;
+          }
+          if (deg < minDeg) { minDeg = deg; seed = i; }
+        }
+        if (seed < 0) { ok = false; break; }
+        const path = growChainPath(occupied, seed, rng);
+        if (!path) { ok = false; break; }
+        chains.push(path);
+      }
+      if (!ok || chains.length !== 9) continue;
+      // Полное покрытие?
+      let cnt = 0;
+      for (let i = 0; i < 81; i++) if (occupied[i]) cnt++;
+      if (cnt !== 81) continue;
+      // Готовим результат
+      const cellChain = new Array(81).fill(-1);
+      const chainCells = [];
+      const edges = [];
+      for (let s = 0; s < 9; s++) {
+        chainCells.push(chains[s].slice());
+        for (let k = 0; k < chains[s].length; k++) cellChain[chains[s][k]] = s;
+        for (let i = 1; i < chains[s].length; i++) edges.push([chains[s][i - 1], chains[s][i]]);
+      }
+      return { cellChain: cellChain, chainCells: chainCells, edges: edges };
     }
-    const cellChain = new Array(81).fill(-1);
-    const chainCells = [];
-    const edges = [];
-    for (let s = 0; s < 9; s++) {
-      chainCells.push(paths[s].slice());
-      for (let k = 0; k < paths[s].length; k++) cellChain[paths[s][k]] = s;
-      for (let i = 1; i < paths[s].length; i++) edges.push([paths[s][i - 1], paths[s][i]]);
-    }
-    return { cellChain: cellChain, chainCells: chainCells, edges: edges };
+    return null;
   }
 
   // Версия diversifyRegions с deadline — выходит из loop когда время вышло.
