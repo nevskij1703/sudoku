@@ -275,7 +275,13 @@
       window.UI.showModal('confirm-exit');
     });
     document.getElementById('btn-game-info').addEventListener('click', function () {
-      window.UI.showModal('info');
+      // ВАЖНО: содержимое info-модалки кешируется между вызовами (последняя
+      // нажатая info-кнопка перезаписывает #info-rules). На игровом экране
+      // надо явно перезагрузить контент под АКТИВНЫЙ режим, иначе показываются
+      // правила того режима, который последним просматривали на главной.
+      const a = window.Game.getActive();
+      const modeKey = (a && a.mode) ? a.mode : 'classic';
+      showInfoModal(modeKey);
     });
     document.getElementById('btn-game-settings').addEventListener('click', openSettings);
 
