@@ -1,7 +1,7 @@
 {
   "_comment": "Состояние последнего опубликованного релиза. Skill prepare-release-candidate обновляет этот файл после подтверждения отправки в стор.",
-  "lastPublishedSchemaVersion": null,
-  "lastPublishedVersionCode": null,
-  "lastPublishedVersionName": null,
-  "lastPublishedAt": null
+  "lastPublishedSchemaVersion": 6,
+  "lastPublishedVersionCode": 1262819,
+  "lastPublishedVersionName": "1.0.0.202605262259",
+  "lastPublishedAt": "2026-05-26T23:42:34Z"
 }
