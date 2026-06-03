@@ -9,6 +9,12 @@
   <meta http-equiv="expires" content="0" />
   <title>Судоку Мастер</title>
   <link rel="stylesheet" href="styles.css?v=45" />
+
+  <!-- HTML2APK:DEV_ONLY -->
+  <link rel="stylesheet" href="../_shared/visual-editor/dist/visual-editor.css" />
+  <script defer src="../_shared/visual-editor/dist/visual-editor.js"
+          data-edit-mode="dom" data-project="sudoku-classic"></script>
+  <!-- /HTML2APK:DEV_ONLY -->
 </head>
 <body>
 
@@ -251,17 +257,17 @@
   </svg>
 
   <!-- ================= Главный экран — выбор + статистика ================= -->
-  <section id="screen-home" class="screen">
+  <section id="screen-home" class="screen" data-fwindow="home">
     <!-- Шапка и сложность/режимы — внутри scrollable области. Кнопка
          «Начать» лежит ВНЕ scroll'а, остаётся видимой при любой прокрутке. -->
     <div class="home-scroll">
       <header class="home-top">
         <div class="title-block">
-          <div class="brand">СУДОКУ</div>
-          <div class="brand-sub">Мастер</div>
+          <div class="brand" data-fid="ui.home.brand">СУДОКУ</div>
+          <div class="brand-sub" data-fid="ui.home.brandSub">Мастер</div>
         </div>
         <div class="home-top-actions">
-          <button id="btn-home-settings" class="icon-btn" aria-label="Настройки">
+          <button id="btn-home-settings" class="icon-btn" aria-label="Настройки" data-fid="ui.home.settings">
             <svg class="icon"><use href="#icon-settings"/></svg>
           </button>
         </div>
@@ -369,7 +375,7 @@
   </section>
 
   <!-- ================= Игровой экран ================= -->
-  <section id="screen-game" class="screen">
+  <section id="screen-game" class="screen" data-fwindow="game">
     <header class="game-head">
       <button id="btn-game-home" class="icon-btn" aria-label="В главное меню">
         <svg class="icon"><use href="#icon-home"/></svg>
@@ -442,7 +448,7 @@
   <!-- ================= Модалки ================= -->
 
   <!-- Победа -->
-  <div id="modal-win" class="modal hidden" data-modal-id="win">
+  <div id="modal-win" class="modal hidden" data-modal-id="win" data-fwindow="win">
     <div class="modal-box">
       <div class="modal-emoji modal-emoji-trophy"><svg viewBox="0 0 24 24"><use href="#icon-trophy"/></svg></div>
       <h2 class="modal-title">Уровень пройден!</h2>
@@ -465,7 +471,7 @@
        При «Оценить» открывается нативный RuStore Review SDK (если bridge есть)
        или fallback на deep-link rustore.ru/catalog/app. Interstitial при «Оценить»
        не показывается; при «Может позже» — показывается по обычной cadence-логике. -->
-  <div id="modal-rate" class="modal hidden" data-modal-id="rate">
+  <div id="modal-rate" class="modal hidden" data-modal-id="rate" data-fwindow="rate">
     <div class="modal-box">
       <div class="modal-emoji">⭐</div>
       <h2 class="modal-title">Нравится игра?</h2>
@@ -479,7 +485,7 @@
   </div>
 
   <!-- Game over (кончились сердца) -->
-  <div id="modal-gameover" class="modal hidden" data-modal-id="gameover">
+  <div id="modal-gameover" class="modal hidden" data-modal-id="gameover" data-fwindow="gameover">
     <div class="modal-box">
       <div class="modal-emoji modal-emoji-broken"><svg viewBox="0 0 24 24"><use href="#icon-heart-broken"/></svg></div>
       <h2 class="modal-title">Сердца кончились</h2>
@@ -499,7 +505,7 @@
   <!-- Подтверждение выхода из активного уровня. Прогресс СОХРАНЯЕТСЯ в
        слот режима — вернуться к нему можно через «Продолжить» на главном
        экране (модалка save-confirm). -->
-  <div id="modal-confirm-exit" class="modal hidden" data-modal-id="confirm-exit">
+  <div id="modal-confirm-exit" class="modal hidden" data-modal-id="confirm-exit" data-fwindow="confirm-exit">
     <div class="modal-box">
       <h2 class="modal-title">Выйти в меню?</h2>
       <p class="modal-text">Текущий прогресс сохранится — вы сможете продолжить с этого места, выбрав режим снова.</p>
@@ -514,7 +520,7 @@
        если для выбранного режима уже есть сохранённый сейв. Кнопка «Продолжить»
        загружает сохранение, «Начать заново» — удаляет старый сейв и генерит
        новый уровень. -->
-  <div id="modal-save-confirm" class="modal hidden" data-modal-id="save-confirm">
+  <div id="modal-save-confirm" class="modal hidden" data-modal-id="save-confirm" data-fwindow="save-confirm">
     <div class="modal-box">
       <h2 class="modal-title">Сохранение</h2>
       <p class="modal-text">В этом режиме есть начатый уровень. Хотите продолжить или начать заново?</p>
@@ -527,7 +533,7 @@
 
   <!-- Инструкция (Info). Контент динамический — заполняется из main.js
        по data-mode-info того mode-info-btn, на котором кликнули. -->
-  <div id="modal-info" class="modal hidden" data-modal-id="info" data-close-outside="1">
+  <div id="modal-info" class="modal hidden" data-modal-id="info" data-close-outside="1" data-fwindow="info">
     <div class="modal-box modal-box-wide">
       <h2 class="modal-title">Как играть</h2>
       <div id="info-mode-name" class="info-mode-name">Классика</div>
@@ -539,7 +545,7 @@
   </div>
 
   <!-- Настройки -->
-  <div id="modal-settings" class="modal hidden" data-modal-id="settings" data-close-outside="1">
+  <div id="modal-settings" class="modal hidden" data-modal-id="settings" data-close-outside="1" data-fwindow="settings">
     <div class="modal-box">
       <h2 class="modal-title">Настройки</h2>
       <div class="settings-list">
@@ -589,5 +595,11 @@
   <script src="game.js?v=45"></script>
   <script src="devPanel.js?v=45"></script>
   <script src="main.js?v=45"></script>
+  <!-- HTML2APK:DEV_ONLY -->
+  <!-- Forward snapshotter v2 (Auto Layout — flex/grid/padding/gap) — F9 / __snapshotWindowV2(name) -->
+  <script src="figma-toolbox-v2/figma-snapshot-v2.js"></script>
+  <!-- Forward snapshotter v3 (flat-positioning, absolute coords + computed CSS stacking) — F9 / figmaSnapshotV3() -->
+  <script src="figma-toolbox-v3/figma-snapshot-v3.js"></script>
+  <!-- /HTML2APK:DEV_ONLY -->
 </body>
 </html>

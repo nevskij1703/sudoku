@@ -2,10 +2,26 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Python static server",
+      "name": "Sudoku dev-server (figma-tools)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/Александр/Desktop/Claude/_shared/figma-tools/dev-server/server.js",
+        "--port", "8776",
+        "--root", "."
+      ],
+      "port": 8776
+    },
+    {
+      "name": "Python static (legacy)",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8776"],
       "port": 8776
+    },
+    {
+      "name": "VE verify",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8779", "--directory", "C:/Users/Александр/Desktop/Claude"],
+      "port": 8779
     }
   ]
 }
