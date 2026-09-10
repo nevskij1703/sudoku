@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "games-device": {
+      "command": "node",
+      "args": ["../admin/mcp/server.mjs"]
+    }
+  }
+}

@@ -39,6 +39,7 @@ window.DevPanel = (function () {
       + '  <button class="dev-tab active" data-tab="game">Game</button>'
       + '  <button class="dev-tab" data-tab="generator">Generator</button>'
       + '  <button class="dev-tab" data-tab="progress">Progress</button>'
+      + '  <button class="dev-tab" data-tab="cloud">Облако</button>'
       + '</div>'
 
       // ── Tab: Game ─────────────────────────────────────────────────
@@ -82,6 +83,14 @@ window.DevPanel = (function () {
       + '  <button id="dev-toggle-ads">🎬 Toggle Mock Ads</button>'
       + '  <button id="dev-reset-progress">📉 Сбросить прогресс (счётчики)</button>'
       + '  <button id="dev-reset">🗑 Полный сброс (factory)</button>'
+      + '</div>'
+
+      // ── Tab: Облако ───────────────────────────────────────────────
+      // Список ВСЕХ параметров строит общий модуль админки: что крутится в
+      // админке, то же крутится здесь. Правки живут в локальном слое подмен —
+      // бакет от них не меняется.
+      + '<div class="dev-tab-content hidden" data-tab-content="cloud">'
+      + '  <div id="dev-cloud-params"></div>'
       + '</div>'
 
       + '<pre id="dev-output"></pre>';
@@ -291,8 +300,21 @@ window.DevPanel = (function () {
     });
   }
 
+  /** Список параметров строится ОДИН РАЗ: он сам следит за значениями. */
+  function mountCloudTab() {
+    const host = document.getElementById('dev-cloud-params');
+    if (!host || host.dataset.ready) return;
+    if (!window.RemoteConfig || !window.RemoteConfig.mountRcParams) {
+      host.textContent = 'Клиент конфига не загрузился — параметров нет.';
+      return;
+    }
+    window.RemoteConfig.mountRcParams(host);
+    host.dataset.ready = '1';
+  }
+
   function switchTab(tab) {
     activeTab = tab;
+    if (tab === 'cloud') mountCloudTab();
     panel.querySelectorAll('.dev-tab').forEach(function (b) {
       b.classList.toggle('active', b.dataset.tab === tab);
     });

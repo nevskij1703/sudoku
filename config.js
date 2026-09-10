@@ -8,6 +8,34 @@
  *   GAME_CONFIG.BALANCE     — игровой баланс (сердца, подсказки)
  *   GAME_CONFIG.DEV         — dev-only флаги
  */
+/**
+ * ЗНАЧЕНИЕ ИЗ УДАЛЁННОЙ КОНФИГУРАЦИИ, ИНАЧЕ КОНСТАНТА СБОРКИ.
+ *
+ * Живёт здесь, потому что config.js грузится первым и виден всем: до этого
+ * такой помощник был локальным в ads.js, и остальным файлам приходилось бы
+ * заводить свою копию — а копии расходятся.
+ *
+ * ЧИТАТЬ НАДО ПРИ ОБРАЩЕНИИ, а не запоминать при загрузке файла: конфиг
+ * приезжает из сети через секунду-две после старта, и снятое один раз значение
+ * застыло бы навсегда — правка в бакете не подействовала бы до перезапуска.
+ *
+ * КЛИЕНТ КОНФИГА НЕ ОБЯЗАН БЫТЬ: собранный файл написан на ES2020, и
+ * достаточно старый WebView его не разберёт — тогда `window.RemoteConfig` не
+ * появится вовсе, и игра обязана работать на значениях сборки.
+ */
+window.tuned = function tuned(key, fallback) {
+  var api = window.RemoteConfig;
+  var value = api ? api.rc(key) : undefined;
+  return typeof value === 'number' ? value : fallback;
+};
+
+/** То же для строковых настроек (симметрия генератора). */
+window.tunedText = function tunedText(key, fallback) {
+  var api = window.RemoteConfig;
+  var value = api ? api.rc(key) : undefined;
+  return typeof value === 'string' && value ? value : fallback;
+};
+
 window.GAME_CONFIG = {
   // Реклама. Реальные unit-IDs из RuStore партнёрки заполнит Александр перед первой публикацией.
   // Сейчас стоят placeholder'ы — в браузере и dev APK уйдём в mock backend (см. ads.js).
@@ -144,4 +172,50 @@ window.GAME_CONFIG = {
   enableSound: true,
   enableVibration: true,
   mockAds: false
+};
+
+/**
+ * СВЕРИТЬ ОБЪЯВЛЕНИЕ КОНФИГА С КОНСТАНТАМИ СБОРКИ. Только в дев-сборке.
+ *
+ * ЗАЧЕМ. У игр на чистом JS объявление (`remote-config.json`) пишется руками, а
+ * числа живут здесь. Разойтись они могут молча и с дорогими последствиями:
+ * дефолт в объявлении — это то, что игра применит, если бакет недоступен, и
+ * расхождение означает «без сети игра ведёт себя иначе, чем с ней». Проверить
+ * это глазами на семнадцати ключах нельзя, а тратить на это тест в игре без
+ * тестового окружения незачем — хватает одной строки в консоли при открытии.
+ *
+ * У Smash Banks и Hole этой проблемы нет: там объявление СОБИРАЕТСЯ из схем.
+ */
+window.checkDeclaredDefaults = function checkDeclaredDefaults() {
+  if (window.__BUILD_RELEASE__) return [];
+  var decl = window.RC_DECLARATION && window.RC_DECLARATION.defaults;
+  if (!decl) return [];
+  var C = window.GAME_CONFIG;
+  var I = C.ADS.interstitial;
+  var G = C.GENERATOR;
+  var actual = {
+    interstitial_enabled: I.enabled ? 1 : 0,
+    interstitial_skip_first_levels: I.skipFirstNLevels,
+    interstitial_cadence_levels: I.cadenceLevels,
+    interstitial_cooldown_sec: Math.round(I.cooldownMs / 1000),
+    interstitial_min_session_sec: Math.round(I.minSessionMs / 1000),
+    generator_symmetry: G.symmetry,
+    generator_time_budget_ms: G.timeBudgetMs,
+    generator_max_retries: G.maxRetries,
+    label_easy_max_score: G.labelThresholds.easy.maxScore,
+    label_easy_max_tech: G.labelThresholds.easy.maxTechWeight,
+    label_medium_max_score: G.labelThresholds.medium.maxScore,
+    label_medium_max_tech: G.labelThresholds.medium.maxTechWeight,
+    undo_stack_size: C.BALANCE.undoStackSize
+  };
+  var drift = [];
+  Object.keys(actual).forEach(function (key) {
+    if (String(decl[key]) !== String(actual[key])) {
+      drift.push(key + ': в объявлении ' + decl[key] + ', в сборке ' + actual[key]);
+    }
+  });
+  if (drift.length) {
+    console.warn('[remote-config] объявление разошлось со сборкой:\n  ' + drift.join('\n  '));
+  }
+  return drift;
 };

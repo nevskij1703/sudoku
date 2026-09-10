@@ -22,22 +22,8 @@ window.AdManager = (function () {
   const CFG = window.GAME_CONFIG.ADS;
   const CALLBACK_TIMEOUT_MS = 120000;
 
-  /**
-   * Значение из удалённой конфигурации, иначе константа сборки.
-   *
-   * Читается ПРИ ОБРАЩЕНИИ, а не запоминается при загрузке файла: конфиг
-   * приезжает из сети через секунду-две после старта, и значение, снятое
-   * здесь один раз, застыло бы навсегда — правка в бакете не подействовала бы
-   * до перезапуска игры.
-   *
-   * Резерв обязателен: `rc()` отдаёт undefined, пока игра не позвала
-   * configure, а браузерный dev-режим и dev-панель её не зовут.
-   */
-  function tuned(key, fallback) {
-    const api = window.RemoteConfig;
-    const value = api ? api.rc(key) : undefined;
-    return typeof value === 'number' ? value : fallback;
-  }
+  /** Помощник общий, живёт в config.js: см. пояснение там. */
+  const tuned = window.tuned;
 
   let backend = null;
   let pendingInterstitial = null;

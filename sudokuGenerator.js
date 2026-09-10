@@ -25,8 +25,14 @@ window.SudokuGenerator = (function () {
 
   function thresholdLabel(score, hardestWeight) {
     const T = CONFIG.labelThresholds;
-    if (score <= T.easy.maxScore && hardestWeight <= T.easy.maxTechWeight) return 'easy';
-    if (score <= T.medium.maxScore && hardestWeight <= T.medium.maxTechWeight) return 'medium';
+    // Пороги — из конфига: калибровка лейблов проверяется на живых уровнях
+    // («Стат. по 50 уровням» в дев-панели), и поправить её хочется без сборки.
+    const easyScore = window.tuned('label_easy_max_score', T.easy.maxScore);
+    const easyTech = window.tuned('label_easy_max_tech', T.easy.maxTechWeight);
+    const medScore = window.tuned('label_medium_max_score', T.medium.maxScore);
+    const medTech = window.tuned('label_medium_max_tech', T.medium.maxTechWeight);
+    if (score <= easyScore && hardestWeight <= easyTech) return 'easy';
+    if (score <= medScore && hardestWeight <= medTech) return 'medium';
     return 'hard';
   }
 
@@ -273,7 +279,7 @@ window.SudokuGenerator = (function () {
     targetDifficulty = targetDifficulty || 'medium';
     opts = opts || {};
     const variant   = opts.variant || Core.ClassicVariant;
-    const symmetry  = opts.symmetry || CONFIG.symmetry;
+    const symmetry  = opts.symmetry || window.tunedText('generator_symmetry', CONFIG.symmetry);
     // Per-mode пороги сложности (config.js → GAME_CONFIG.DIFFICULTY[mode]).
     // Учитывают extra-constraints: режимы с большей помощью (Windoku, Diagonal)
     // используют МЕНЬШЕ givens для той же difficulty. Если mode не задан в opts —
@@ -282,8 +288,17 @@ window.SudokuGenerator = (function () {
     const modeKey = opts.mode || (variant && variant.name) || 'classic';
     const givensSource = MODE_DIFFICULTY[modeKey] || variant.givensTarget || CONFIG.givensTarget;
     const givensRange = (givensSource[targetDifficulty] || givensSource.medium || [30, 35]).slice();
-    const timeBudget = opts.timeBudgetMs || CONFIG.timeBudgetMs;
-    const maxRetries = opts.maxRetries || CONFIG.maxRetries;
+    // СДВИГ ОТКРЫТЫХ КЛЕТОК — общая ручка сложности всей игры. Правится из
+    // облака одним числом на уровень трудности: меньше клеток — труднее.
+    // Таблица `DIFFICULTY` при этом остаётся авторской, сдвиг лишь двигает её
+    // целиком, и разница между режимами (windoku проще classic) сохраняется.
+    const shift = window.tuned('givens_shift_' + targetDifficulty, 0);
+    if (shift) {
+      givensRange[0] = Math.max(4, Math.round(givensRange[0] + shift));
+      givensRange[1] = Math.max(givensRange[0], Math.round(givensRange[1] + shift));
+    }
+    const timeBudget = opts.timeBudgetMs || window.tuned('generator_time_budget_ms', CONFIG.timeBudgetMs);
+    const maxRetries = opts.maxRetries || window.tuned('generator_max_retries', CONFIG.maxRetries);
     const seed = (typeof opts.seed === 'number') ? opts.seed : null;
 
     const rng = seed !== null ? makeSeededRng(seed) : Math.random;

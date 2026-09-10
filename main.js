@@ -179,6 +179,17 @@
    */
   function initRemoteSettings() {
     window.RemoteConfig.configure(window.RC_DECLARATION);
+    // Объявление против констант сборки — молча расходящаяся пара, см. config.js.
+    if (window.checkDeclaredDefaults) window.checkDeclaredDefaults();
+    // ТЕСТОВЫЙ МОСТ ДО ПЕРВОГО СОБЫТИЯ: он же перехватывает то, что игра
+    // отправляет в аналитику и в рекламу, а session_start уходит в первые
+    // секунды. Поднятый позже, он показал бы пустой список при полностью
+    // рабочей игре. Ни одной команды без подписи мост не исполняет — поэтому
+    // он остаётся и в релизной сборке, где дев-панели нет.
+    if (window.RemoteConfig.installTestBridge) {
+      window.RemoteConfig.installTestBridge({ appId: 'com.terekh.sudoku', versionBase: '1.0' });
+      if (window.TestActions) window.TestActions.install();
+    }
     window.RemoteConfig.initRemoteConfig({
       appId: 'com.terekh.sudoku',
       versionBase: '1.0',

@@ -159,7 +159,7 @@ window.Game = (function () {
 
   function pushUndo() {
     undoStack.push(makeSnapshot());
-    if (undoStack.length > CFG.BALANCE.undoStackSize) undoStack.shift();
+    if (undoStack.length > window.tuned('undo_stack_size', CFG.BALANCE.undoStackSize)) undoStack.shift();
     if (window.NumberPad) window.NumberPad.setUndoEnabled(true);
   }
 
