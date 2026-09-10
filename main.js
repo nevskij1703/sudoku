@@ -344,17 +344,6 @@
         hints_used: data.hintsUsed || 0
       });
 
-      // РУБЕЖНОЕ СОБЫТИЕ отдельным именем, а не параметром уровня. Иначе
-      // прохождение нельзя разрезать по группам A/B: параметры событий в
-      // отчётах плоские, и «номер уровня И группа» одной строкой не
-      // выражаются. Список рубежей — в remote-config.json, его же читает
-      // админка. Повтор безвреден: воронка считает разных людей.
-      const decl = window.RC_DECLARATION || {};
-      const milestone = window.RemoteConfig
-        ? window.RemoteConfig.milestoneEvent(levelNum, (decl.funnel || {}).milestones)
-        : null;
-      if (milestone) window.Analytics.event(milestone, { level_num: levelNum });
-
       // Push: переплан расписания с учётом нового прогресса. Permission
       // уже запросили при первом запуске app (см. init выше), здесь
       // только обновляем планы при наличии granted.
@@ -864,11 +853,16 @@
     const completed = window.Storage.getCompletedLevels();
     const shouldShow = window.AdManager.shouldShowInterstitial(completed);
     const launch = function () {
-      window.Analytics.event('level_start', {
+      // Уровень И группа A/B одной ВЛОЖЕННОЙ ветвью параметров: только так их
+      // можно пересечь в отчёте. Плоские `level_num` и `ab` рядом дают две
+      // соседние ветви, а соседние ветви не пересекаются.
+      window.Analytics.event('level_start', Object.assign({
         level_num: completed + 1,
         difficulty: diff,
         mode: mode || 'classic'
-      });
+      }, window.RemoteConfig
+        ? window.RemoteConfig.progressParams(completed + 1, window.RemoteConfig.rcCohorts())
+        : {}));
       window.Game.startNewLevel(diff, mode);
       window.UI.showScreen('game');
     };
