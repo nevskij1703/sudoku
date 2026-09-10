@@ -449,6 +449,13 @@ window.Game = (function () {
       window.NumberPad.setMaxDigit(variantForLevel.size || 9);
     }
 
+    // Запоминаем последний выбранный режим/сложность — при следующем
+    // запуске app main.js стартанёт новый уровень с теми же параметрами,
+    // даже если активный сейв был удалён (например, игрок прошёл win).
+    if (window.Storage.setLastPlayed) {
+      window.Storage.setLastPlayed(mode, difficulty);
+    }
+
     persist();
     startTimer();
     renderAll();
@@ -461,6 +468,11 @@ window.Game = (function () {
     const stored = window.Storage.getActiveByMode(mode, difficulty);
     if (!stored) return false;
     active = stored;
+    // Resume — тоже фиксируем как «последний сыгранный» (на случай
+    // если у юзера в Storage остался lastPlayed от другого режима).
+    if (window.Storage.setLastPlayed) {
+      window.Storage.setLastPlayed(mode, difficulty);
+    }
     selectedIdx = null;
     undoStack = [];
     timerBaseMs = active.elapsedMs || 0;
@@ -631,6 +643,22 @@ window.Game = (function () {
         active.hearts--;
         window.AudioFX.mistake();
         emit('heartLost', { hearts: active.hearts });
+        // Analytics: ошибка игрока. mistakes_total = сколько вообще mistake-cells
+        // на доске накоплено (включая текущую). Полезный proxy для difficulty
+        // воронок: «застрял на уровне» = много mistake_made одного level_num.
+        if (window.Analytics) {
+          var totalMistakes = 0;
+          for (var i = 0; i < active.mistakes.length; i++) {
+            if (active.mistakes[i]) totalMistakes++;
+          }
+          window.Analytics.event('mistake_made', {
+            remaining_hearts: active.hearts,
+            mistakes_total: totalMistakes,
+            level_num: window.Storage.getCompletedLevels() + 1,
+            difficulty: active.difficulty,
+            mode: active.mode || 'classic'
+          });
+        }
         if (active.hearts <= 0) {
           persist();
           renderAll();

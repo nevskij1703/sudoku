@@ -11,14 +11,33 @@
 
 ## Слоты рекламы
 
-| Слот | Когда показывается | Метод | unit-ID |
-|---|---|---|---|
-| **Interstitial** | Перед началом нового уровня после клика «Начать», если выполнены условия cadence | `AdManager.showInterstitialAd()` | `GAME_CONFIG.ADS.interstitial.unitId` |
-| **Rewarded** | По кнопке «Восстановить за рекламу (+1 ♥)» в модалке game-over | `AdManager.showRewardedAd(reward)` | `GAME_CONFIG.ADS.rewarded.unitId` |
+| Слот | Статус | Когда показывается | Метод | unit-ID |
+|---|---|---|---|---|
+| **Interstitial** | 🚫 **выключен** с 2026-06-04 | — (см. ниже) | `AdManager.showInterstitialAd()` | `GAME_CONFIG.ADS.interstitial.unitId` |
+| **Rewarded** | ✅ активен | По кнопке «Восстановить за рекламу (+1 ♥)» в модалке game-over | `AdManager.showRewardedAd(reward)` | `GAME_CONFIG.ADS.rewarded.unitId` |
 
 Точки вызова — [main.js](../main.js): обработчик `#btn-start-level` (interstitial) и `#btn-gameover-ad` (rewarded).
 
-**Каденс interstitial:**
+### Interstitial временно отключён
+
+`GAME_CONFIG.ADS.interstitial.enabled = false` в [config.js](../config.js).
+
+**Причина:** отзывы в РуСтор — межстраничная реклама фрустрирует игроков, при этом
+её доля в доходе мала на фоне rewarded (которую игрок запрашивает сам).
+
+**Где стоит гейт** ([ads.js](../ads.js)):
+- `shouldShowInterstitial()` → `false` первым же условием. Все call-site'ы
+  (`proceedToNextLevel`, `#btn-save-continue`) спрашивают её, так что показов нет.
+- `showInterstitialAd()` → `Promise.resolve({watched:false})` без показа —
+  защита от прямого вызова в обход гейта.
+- `ensureBackend()` не делает `preloadInterstitial` — не тратим трафик на
+  креатив, который не покажется.
+
+**Чтобы вернуть:** `enabled: true` в config.js. Параметры cadence ниже сохранены —
+переоткалибровывать не нужно. Отсутствие поля `enabled` трактуется как включённый
+(строгое сравнение `!== false`).
+
+**Каденс interstitial** (сохранён на случай возврата):
 - Первые `ADS.interstitial.skipFirstNLevels` пройденных уровней (по умолчанию 2) — без рекламы.
 - Дальше — после каждого N-го пройденного уровня, где N = `ADS.interstitial.cadenceLevels` (по умолчанию 2).
 - Минимальный cooldown между показами — `ADS.interstitial.cooldownMs` (по умолчанию 90 сек).
@@ -33,13 +52,14 @@ Unit-ID в [config.js](../config.js):
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\html2apk\html2apk.ps1" `
-  -ProjectFolder "C:\Users\Александр\Desktop\Claude\06_Sudoku" `
-  -AppName "Судоку Классик" `
-  -AppId "com.terekh.sudoku" `
-  -OutputFile "$env:USERPROFILE\Downloads\SudokuClassic.apk" `
-  -YandexAdsBridge `
-  -RuStoreReviewSdk
+  -ProjectFolder "C:\Users\Александр\Desktop\Claude\RuStore-games\06_Sudoku" `
+  -OutputFile "$env:USERPROFILE\Downloads\SudokuClassic.apk"
 ```
+
+`-YandexAdsBridge`, `-RuStoreReviewSdk`, `-AppName` и `-AppId` руками **не
+передавать**: они берутся из `.claude/build-config.json`. Источник правды один —
+конфиг. Флаг в командной строке терялся молча: команду копируют, забывают флаг,
+и сборка уезжает в стор без монетизации при полностью рабочем рекламном коде.
 
 html2apk автоматически добавляет gradle-зависимость, `ACCESS_NETWORK_STATE`, `YandexAdsBridge.java` и патчит MainActivity. Параметры из `.claude/build-config.json` подхватываются по умолчанию — `-AppName`/`-AppId` указывать необязательно если они там корректные.
 

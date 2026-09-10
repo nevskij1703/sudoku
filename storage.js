@@ -37,6 +37,14 @@ window.Storage = (function () {
       // carve, так что игрок не замечает повтор формы). См. migration v5.
       templateIndices: { sugur: 0, chain: 0 },
 
+      // Последний сыгранный режим/сложность. Записывается при каждом
+      // Game.startNewLevel и Game.resumeMode. При запуске app, если нет
+      // активного сейва и нет других условий — стартуем новый уровень
+      // с этими параметрами (чтобы игрок продолжил в том режиме, где
+      // последний раз играл). null означает «никогда не играл».
+      lastPlayedMode: null,
+      lastPlayedDifficulty: null,
+
       // Настройки
       settings: {
         sound: window.GAME_CONFIG.enableSound,
@@ -47,6 +55,20 @@ window.Storage = (function () {
         // 'light' / 'dark' — явный выбор юзера через toggle в Settings.
         theme: null
       },
+
+      // Push-уведомления (Local Notifications).
+      // pushEnabled — toggle в Settings. Default true; без permission всё равно
+      //               ничего не показывается, так что безопасно.
+      // pushPermissionAsked — спрашивали ли уже Android permission. Чтобы
+      //                       не доставать юзера повторно при каждом win.
+      // См. migration[8] и pushScheduler.js.
+      pushEnabled: true,
+      pushPermissionAsked: false,
+
+      // Аналитика AppMetrica. См. migration[9] и analytics.js.
+      // Стабильный UUID per-install. Миграция 9 генерирует при загрузке;
+      // для fresh install (без миграций) getUserId() генерирует лениво.
+      userId: null,
 
       // Dev / служебное
       mockAds: window.GAME_CONFIG.mockAds,
@@ -260,6 +282,14 @@ window.Storage = (function () {
   function getRateGiven()  { return !!load().rateGiven; }
   function setRateGiven(v) { const s = load(); s.rateGiven = !!v; persist(); }
 
+  // === Push-уведомления ===
+
+  function getPushEnabled() { return load().pushEnabled !== false; }  // default true
+  function setPushEnabled(v) { const s = load(); s.pushEnabled = !!v; persist(); }
+
+  function getPushPermissionAsked() { return !!load().pushPermissionAsked; }
+  function setPushPermissionAsked(v) { const s = load(); s.pushPermissionAsked = !!v; persist(); }
+
   // === Сброс ===
   //
   // Прогресс игрока (completedLevels + completedByDifficulty) сохраняется на
@@ -270,6 +300,28 @@ window.Storage = (function () {
   // Оба вызываются исключительно из dev-panel (см. devPanel.js).
   // На устройстве пользователя без dev-доступа единственный способ —
   // переустановка приложения (или «Очистить данные» в настройках Android).
+
+  // === Последний сыгранный режим/сложность ===
+  //
+  // Используется в main.js при старте app — если активного сейва нет,
+  // но игрок уже играл, стартуем новый уровень в последнем выбранном
+  // режиме (без выпадения на home). null = игрок ещё ни разу не играл,
+  // тогда main.js использует свой fallback (classic/medium).
+
+  function getLastPlayed() {
+    const s = load();
+    return {
+      mode: s.lastPlayedMode || null,
+      difficulty: s.lastPlayedDifficulty || null
+    };
+  }
+
+  function setLastPlayed(mode, difficulty) {
+    const s = load();
+    s.lastPlayedMode = mode || null;
+    s.lastPlayedDifficulty = difficulty || null;
+    persist();
+  }
 
   function resetProgress() {
     const s = load();
@@ -304,13 +356,31 @@ window.Storage = (function () {
     addHints: addHints,
     // Template-index для pool болванок
     getNextTemplateIndex: getNextTemplateIndex,
+    // Последний сыгранный режим/сложность (для auto-resume старта)
+    getLastPlayed: getLastPlayed,
+    setLastPlayed: setLastPlayed,
     // Настройки
     getSettings: getSettings,
     setSettings: setSettings,
     // Служебное
     getMockAds: getMockAds,    setMockAds: setMockAds,
     getRateGiven: getRateGiven, setRateGiven: setRateGiven,
+    getPushEnabled: getPushEnabled, setPushEnabled: setPushEnabled,
+    getPushPermissionAsked: getPushPermissionAsked, setPushPermissionAsked: setPushPermissionAsked,
+    getUserId: getUserId,
     resetProgress: resetProgress,
     resetAll: resetAll
   };
+
+  // ===== AppMetrica analytics (стабильный UUID per-install) =====
+  function getUserId() {
+    const s = load();
+    if (!s.userId) {
+      s.userId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'u-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      persist();
+    }
+    return s.userId;
+  }
 })();

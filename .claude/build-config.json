@@ -7,6 +7,11 @@
   "immersive": true,
   "statusBarStyle": "light",
   "rustoreReviewSdk": true,
+  "yandexAdsBridge": true,
+  "localNotifications": true,
+  "yandexAppMetrica": true,
+  "appMetricaApiKey": "f819bc73-52cb-4fc4-90df-042f23e3d000",
   "minSdk": null,
-  "targetSdk": null
+  "targetSdk": null,
+  "versionBase": "1.0"
 }

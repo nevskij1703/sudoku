@@ -390,6 +390,9 @@ input { font: inherit; color: inherit; }
   letter-spacing: clamp(0.3px, 0.2vw, 1.5px);
   line-height: 1;
   white-space: nowrap;
+  /* Цвет заголовка game = цвет .brand на home — единый тёмно-синий ink
+     (var(--text) = #1a2540). Раньше был #2354CC из Figma, откатили чтобы
+     не разнобоить home и game-заголовки. */
 }
 .game-subtitle {
   font-size: 12px; color: var(--text-dim);

@@ -13,6 +13,16 @@ window.GAME_CONFIG = {
   // Сейчас стоят placeholder'ы — в браузере и dev APK уйдём в mock backend (см. ads.js).
   ADS: {
     interstitial: {
+      // ВРЕМЕННО ОТКЛЮЧЕНА (2026-06-04). Причина: отзывы в РуСтор — межстраничная
+      // реклама фрустрирует игроков, при этом её доля в доходе мала на фоне
+      // rewarded. Rewarded остаётся включённой (её игрок запрашивает сам).
+      //
+      // Чтобы вернуть: enabled: true. Гейт стоит в ads.js →
+      // shouldShowInterstitial() + showInterstitialAd(), все call-site'ы
+      // (main.js: proceedToNextLevel, btn-save-continue) идут через них,
+      // так что правка одного флага возвращает поведение целиком.
+      // Параметры cadence ниже сохранены — не переоткалибровывать при возврате.
+      enabled: false,
       unitId: 'R-M-19325500-1',
       cooldownMs: 90 * 1000,          // не чаще раза в 90 секунд между показами
       minSessionMs: 60 * 1000,        // не показывать в первую минуту сессии (с момента запуска app)

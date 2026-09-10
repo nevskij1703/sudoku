@@ -36,8 +36,13 @@ config → migrations → storage → sudokuCore → sudokuTechniques → sudoku
 
 Yandex Mobile Ads (только в APK через `-YandexAdsBridge`). В браузере — mock-оверлей.
 
+⚠️ **Interstitial ВЫКЛЮЧЕН** с 2026-06-04 (`ADS.interstitial.enabled = false` в config.js) —
+фрустрировал игроков по отзывам в РуСтор при малой доле в доходе. Гейт в `ads.js` →
+`shouldShowInterstitial()` + `showInterstitialAd()`. Вернуть = `enabled: true`.
+Rewarded работает как раньше. Подробности — [docs/ADS.md](docs/ADS.md).
+
 **Точки вызова:**
-- Interstitial: `main.js` → `proceedToNextLevel(diff, mode)` (общая функция для `#btn-start-level`, `#btn-win-next` после rate-modal, `#btn-rate-later`).
+- Interstitial (сейчас no-op): `main.js` → `proceedToNextLevel(diff, mode)` (общая функция для `#btn-start-level`, `#btn-win-next` после rate-modal, `#btn-rate-later`).
 - Rewarded #1: `main.js` → `#btn-gameover-ad` (+1 сердце по запросу пользователя).
 - Rewarded #2: `main.js` → `requestHintRefill()` через `onHint` callback NumberPad при `Storage.getHints() === 0` (+1 подсказка после просмотра).
 
@@ -78,6 +83,35 @@ Yandex Mobile Ads (только в APK через `-YandexAdsBridge`). В бра
 - При `Storage.getHints() === 0` — кнопка «Подсказка» в `numberPad.js` показывает бэйдж **«+1 ▶»** (золотисто-оранжевый, пульсирующий). Клик в этом состоянии перенаправляется из `onHint` в `requestHintRefill()` → `AdManager.showRewardedAd({kind:'hint'})` → если `watched`, `Game.applyHintReward()` (+1 в Storage.hints).
 
 См. также migration 2 в [migrations.js](migrations.js) и [docs/SAVES.md](docs/SAVES.md).
+
+## Аналитика: Yandex AppMetrica
+
+Подключено через `-YandexAppMetrica` html2apk-flag (skill `~/.claude/skills/connect-appmetrica/SKILL.md`). SDK активируется в `MainActivity.onCreate` (до WebView), JS-обёртка — [analytics.js](analytics.js) (classic IIFE → `window.Analytics`).
+
+**API key**: `f819bc73-52cb-4fc4-90df-042f23e3d000` (в `.claude/build-config.json` → `appMetricaApiKey`).
+
+**Карта событий + где смотреть в дашборде** — [docs/ANALYTICS.md](docs/ANALYTICS.md).
+
+### Минимальный список событий (Sudoku)
+
+**Общие (как у других игр):**
+- `session_start`, `level_start`, `level_complete`, `level_fail`
+- `ad_interstitial_shown`, `ad_rewarded_shown` (placement: `hint_refill` / `fast_mode_unlock` / `extra_heart` / `level_transition`)
+- `hint_used` (source: 'free'), `settings_opened`, `rate_clicked`
+
+**Sudoku-специфичные:**
+- `difficulty_selected` `{ difficulty, mode }` — клик «Старт» с главного экрана
+- `mistake_made` `{ remaining_hearts, mistakes_total, level_num, difficulty, mode }` — неправильная цифра ([game.js](game.js) ~line 642)
+- `rewarded_hint_obtained` `{ level_num }` — успешный rewarded → +1 подсказка
+
+### Правила (для будущих сессий)
+
+- **НЕ дублируй имена событий** из общей таксономии — они должны совпадать one-to-one во всех 4 проектах мастерской.
+- **НЕ меняй имена опубликованных событий** — сломаешь воронки/retention в дашборде у живых юзеров.
+- **НЕ шли PII** (имя, email, точная геолокация) в event params — нарушение Privacy Policy.
+- **userId** генерируется один раз через `Storage.getUserId()` (UUID v4 / pseudo-UUID fallback). Стабилен между сессиями, теряется при чистке данных Android.
+- **НЕ меняй имя bridge'а** `window.AppMetrica` — оно зашито в `AppMetricaBridge.java`.
+- При добавлении новых событий — обязательно обнови [docs/ANALYTICS.md](docs/ANALYTICS.md).
 
 ## Dev panel
 
@@ -126,5 +160,91 @@ SudokuCore.countSolutions(grid, max=2) → integer
 
 - `prepare-release-candidate` — сборка release APK с проверкой миграций.
 - `build-apk-from-html` — обычная debug-сборка.
-- `connect-yandex-mobile-ads` — уже подключено через html2apk флаг `-YandexAdsBridge`.
+- `connect-yandex-mobile-ads` — уже подключено. Флаг `-YandexAdsBridge`
+  передавать руками **не нужно и не надо**: он берётся из
+  `"yandexAdsBridge": true` в `.claude/build-config.json`. Источник правды один —
+  конфиг. Руками флаг терялся молча: команду копируют, забывают флаг, и сборка
+  уезжает в стор без монетизации при рабочем рекламном коде. Гейт пяти
+  обязательных SDK в `prepare-release-candidate` смотрит тоже в конфиг.
 - `connect-rustore-review` — уже подключено через html2apk флаг `-RuStoreReviewSdk`.
+
+## Игра подчиняется админке (`../admin`)
+
+`RuStore-games/admin/` — **отдельный репозиторий**, общий для всех личных игр.
+Отсюда берутся удалённая конфигурация, A/B-тесты и вся аналитика в одном месте.
+Короткая инструкция — **[admin/docs/FOR_GAMES.md](../admin/docs/FOR_GAMES.md)**:
+что админка читает у игры, что менять при изменениях и на что она НЕ смотрит.
+
+### Что это меняет в работе здесь
+
+**Часть чисел игры больше не только в коде.** Главный выключатель межстраничной
+(`interstitial_enabled` — формат выключен с 04.06.2026, и включить его обратно
+теперь можно без сборки), все четыре гейта её показа и порог просьбы об оценке
+(`rateus_min_levels`) читаются в `ads.js` и `main.js`. Значение приезжает из
+файла в облаке и меняется **без выпуска обновления**.
+
+- Объявление — **[`remote-config.json`](remote-config.json)** в корне игры:
+  `defaults` (обязаны совпадать с константами сборки), `ranges` (ключ без рамки
+  игра не применит вовсе), `labels` (подписи в админке), `funnel` (шаги
+  воронки).
+- Значения, которые сейчас у игроков —
+  `admin/cloud/config/com.terekh.sudoku.json`. Правка файла без заливки
+  (`cloud/config-push.ps1`) не меняет ничего.
+- Читать значения — только через `tuned()` в `ads.js` и **при обращении**, а не
+  в константу при старте: иначе значение застынет и правка в облаке не
+  подействует до перезапуска.
+
+**Дефолты живут здесь, в игре.** Пустой, недоступный или битый конфиг обязан
+означать «игра работает как была». Сервер только перебивает значения. Здесь у
+этого правила есть и второй смысл: `remote/remoteConfig.iife.js` собран из
+ES2020-исходников, и достаточно старый WebView его не разберёт — тогда
+`window.RemoteConfig` не появится вовсе. Поэтому bootstrap проверяет наличие
+клиента, а `GAME_CONFIG.ADS.interstitial.*` остаётся резервом. **Не убирай эти
+константы.**
+
+Сердечки и подсказки в конфиг сознательно НЕ вынесены: их стартовые значения
+пишутся в сейв при создании уровня и участвуют в миграциях — правка из облака
+означала бы правку формата сейва задним числом.
+
+**Конфиги приурочены к версиям.** `versionBase` в
+[`.claude/build-config.json`](.claude/build-config.json) (сейчас `1.0`) — это
+ключ слоя `byVersion`: им новой сборке дают одни значения, а выпущенной
+оставляют прежние. Поднимаешь мажор или минор — новый слой в админке появится
+сам. Со `versionName` из магазина (`1.0.0.202606041000`) это **разные
+пространства имён**, сводить их нельзя.
+
+**Группы A/B уходят в аналитику.** `window.Analytics.setAbCohorts()` зовётся
+после загрузки конфига, и метка уходит параметром `ab` в каждом событии.
+`session_start` намеренно ЖДЁТ группу — иначе верх воронки размечен хуже низа.
+Без этого тест бессмыслен: разбиение есть, а сравнить группы нечем.
+
+**Рубежи прохождения — отдельные события `level_<N>_done`.** Список в
+`funnel.milestones`, отправляются из `main.js` по событию `win`. Именно
+отдельные события, а не параметр с номером уровня: параметры событий в отчётах
+плоские, и разрез прохождения по группам A/B иначе недостижим.
+
+### Что нужно обновить в админке, если правишь игру
+
+Админка **не разбирает код игры** — она знает только то, что написано в
+`remote-config.json` и `.claude/build-config.json`. Поэтому:
+
+| в игре поменялось | что сделать в `../admin` |
+|---|---|
+| новое число, которое хочется крутить из облака | ключ в `remote-config.json` (+`ranges`!), затем в `cloud/config/com.terekh.sudoku.json` со значением константы сборки |
+| ключ переименован или убран | поправить оба файла, иначе в бакете останется значение, которое игра молча отбрасывает |
+| новый рубеж прохождения | список `funnel.milestones` |
+| поднят мажор/минор | `versionBase` в `.claude/build-config.json` |
+| просят «завести A/B-тест» | **тест не пишется в код игры.** Он заводится в админке (вкладка «Ремоут») или в `cloud/config/com.terekh.sudoku.json`; от игры нужно только объявленный ключ. Значения группы приходят поверх общих сами |
+
+Клиент в `remote/` — **генерируемая копия** из `admin/client/`, править её здесь
+нельзя:
+
+```bash
+node tools/sync-client.mjs --write   # из папки admin
+```
+
+Проверить, что объявление игры и бакет не разошлись:
+
+```bash
+node tools/check-config.mjs          # из папки admin
+```

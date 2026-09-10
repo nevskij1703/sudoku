@@ -11,8 +11,8 @@
   <link rel="stylesheet" href="styles.css?v=45" />
 
   <!-- HTML2APK:DEV_ONLY -->
-  <link rel="stylesheet" href="../_shared/visual-editor/dist/visual-editor.css" />
-  <script defer src="../_shared/visual-editor/dist/visual-editor.js"
+  <link rel="stylesheet" href="../../_shared/visual-editor/dist/visual-editor.css" />
+  <script defer src="../../_shared/visual-editor/dist/visual-editor.js"
           data-edit-mode="dom" data-project="sudoku-classic"></script>
   <!-- /HTML2APK:DEV_ONLY -->
 </head>
@@ -569,6 +569,10 @@
           <span>Тёмная тема</span>
           <input id="setting-theme" type="checkbox" />
         </label>
+        <label class="setting-row">
+          <span>Уведомления</span>
+          <input id="setting-notifications" type="checkbox" />
+        </label>
       </div>
       <button class="modal-close-corner" data-close-modal="settings" aria-label="Закрыть">
         <svg class="icon"><use href="#icon-close"/></svg>
@@ -578,6 +582,11 @@
   </div>
 
   <!-- ================= Загрузка скриптов (порядок важен) ================= -->
+  <!-- Удалённая конфигурация (общий модуль ../admin, копии генерируемые).
+       ДО config.js: игровой код на первой же строке спрашивает значения, а
+       без window.RemoteConfig это была бы ошибка вместо значения сборки. -->
+  <script src="remote/remoteConfig.iife.js?v=45"></script>
+  <script src="remote/declaration.js?v=45"></script>
   <script src="config.js?v=45"></script>
   <script src="migrations.js?v=45"></script>
   <script src="storage.js?v=45"></script>
@@ -588,6 +597,9 @@
   <script src="precomputedPools.js?v=45"></script>
   <script src="ads.js?v=45"></script>
   <script src="rustoreReview.js?v=45"></script>
+  <script src="pushTemplates.js?v=45"></script>
+  <script src="pushScheduler.js?v=45"></script>
+  <script src="analytics.js?v=45"></script>
   <script src="audio.js?v=45"></script>
   <script src="ui.js?v=45"></script>
   <script src="board.js?v=45"></script>

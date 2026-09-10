@@ -15,9 +15,10 @@
   document.addEventListener('DOMContentLoaded', init);
 
   // URL политики конфиденциальности на Cloud.Mail.ru. Указывает на
-  // актуальный Store_Info/PRIVACY_POLICY.pdf, залитый на облако
-  // (привязано к почте terekh-spb@mail.ru). При обновлении .pdf файл
-  // перезаливается на тот же URL — ссылка не меняется.
+  // актуальный Store_Info/PRIVACY_POLICY.pdf, залитый на облако.
+  // (Cloud-аккаунт хостинга остался на terekh-spb@mail.ru — это internal,
+  // public support email юзерам теперь terekhsupport@atomicmail.io.)
+  // При обновлении .pdf файл перезаливается на тот же URL — ссылка не меняется.
   //
   // Эта константа должна быть в синхроне с `privacyUrl` в
   // Store_Info/STORE_LISTING.md. Пайплайн `prepare-release-candidate`
@@ -160,10 +161,123 @@
     meta.setAttribute('content', theme === 'dark' ? '#161a26' : '#f3f5fb');
   }
 
+  /**
+   * Удалённая конфигурация: объявить своё, забрать чужое, разметить группы.
+   *
+   * Объявление СИНХРОННО и первым делом: с этой секунды RemoteConfig.rc()
+   * отдаёт значения сборки, даже если сети нет вовсе.
+   *
+   * Загрузка первый экран НЕ блокирует: конфиг нужен между уровнями, а это
+   * минутами позже. У модуля свой таймаут 4 с — ждать сеть дольше игрок не
+   * должен.
+   *
+   * SESSION_START ЖДЁТ ГРУППУ. Событие, ушедшее до ответа сети, уходит без
+   * параметра `ab` — и тогда верх воронки размечен хуже низа, а доли по шагам
+   * перестают быть конверсией. Цена — потерянный session_start у того, кто
+   * закрыл игру в первые секунды; это меньшее искажение, чем неразмеченные
+   * группы во всех сессиях подряд.
+   */
+  function initRemoteSettings() {
+    window.RemoteConfig.configure(window.RC_DECLARATION);
+    window.RemoteConfig.initRemoteConfig({
+      appId: 'com.terekh.sudoku',
+      versionBase: '1.0',
+      // Идентификатор установки из сейва — тот же, что в аналитике. Из него
+      // считаются группы A/B, поэтому жребий не меняется от запуска к запуску.
+      installId: window.Storage.getUserId()
+    }).then(function () {
+      window.Analytics.setAbCohorts(window.RemoteConfig.rcCohorts().join(','));
+    }).catch(function () {
+      /* нет сети — играем на значениях сборки, это штатно */
+    }).then(function () {
+      window.Analytics.event('session_start');
+    });
+  }
+
   function init() {
     // ===== 1. Storage =====
     window.Storage.load();
     window.RuStoreReviewClient.configure('com.terekh.sudoku');
+
+    // ===== 1.2. AppMetrica analytics =====
+    // configure ДО первого event() — иначе userId не подхватится. SDK уже
+    // активирован в MainActivity.onCreate (html2apk -YandexAppMetrica), здесь
+    // только цепляем JS-обёртку и шлём session_start как маркер (auto-tracked
+    // app_open улетел сам).
+    window.Analytics.configure({
+      appName: 'sudoku',
+      appVersion: '1.0.0',
+      userId: window.Storage.getUserId()
+    });
+
+    // ===== 1.3. Удалённая конфигурация (общий модуль ../admin) =====
+    // Объявление СИНХРОННО и до всего остального: с этой секунды
+    // RemoteConfig.rc() отдаёт значения сборки, даже если сети нет вовсе.
+    //
+    // КЛИЕНТ КОНФИГА НЕ ОБЯЗАН БЫТЬ. Файл собран из ES2020-исходников, и
+    // достаточно старый WebView не разберёт его синтаксис — тогда
+    // window.RemoteConfig не появится вовсе. Игра в этом случае обязана
+    // работать на значениях сборки: иначе удалённая настройка из страховки
+    // превращается в новый способ уронить игру всем сразу.
+    if (window.RemoteConfig) initRemoteSettings();
+
+    // Загрузка НЕ блокирует первый экран: конфиг нужен между уровнями, а это
+    // минутами позже. У модуля свой таймаут 4 с — ждать сеть дольше игрок не
+    // должен.
+    //
+    // SESSION_START ЖДЁТ ГРУППУ. Событие, ушедшее до ответа сети, уходит без
+    // параметра `ab` — и тогда верх воронки размечен хуже низа, а доли по
+    // шагам перестают быть конверсией. Цена — потерянный session_start у
+    // того, кто закрыл игру в первые секунды; это меньшее искажение, чем
+    // неразмеченные группы во всех сессиях подряд.
+    else window.Analytics.event('session_start');
+
+    // ===== 1.4. Push-уведомления =====
+    // Источник правды enabled — Storage.getPushEnabled / setPushEnabled.
+    // Подключаем эти функции через global __getPushEnabled/__setPushEnabled,
+    // которые pushScheduler.js использует в isEnabled/setEnabled.
+    window.__getPushEnabled = function () { return window.Storage.getPushEnabled(); };
+    window.__setPushEnabled = function (v) { window.Storage.setPushEnabled(v); };
+    window.PushScheduler.configure({
+      appName: 'Судоку',
+      templates: window.PUSH_TEMPLATES || [],
+      maxPerDay: 4,
+      storageKey: 'sudoku_push_schedule'
+    });
+    // Permission запрашиваем СРАЗУ при первом запуске приложения
+    // (pushPermissionAsked === false). Юзер сразу понимает что игра
+    // будет напоминать о себе — это честнее чем выскакивать через
+    // несколько минут после старта.
+    if (!window.Storage.getPushPermissionAsked()
+        && window.Storage.getPushEnabled()) {
+      window.Storage.setPushPermissionAsked(true);
+      // Небольшая задержка — даём UI отрисоваться, чтобы системный dialog
+      // не наложился на splash/анимации главного экрана.
+      setTimeout(function () {
+        window.PushScheduler.requestPermission().then(function (result) {
+          console.log('[push] permission result:', result);
+          if (result === 'granted') window.PushScheduler.refresh();
+        });
+      }, 800);
+    } else if (window.PushScheduler.getPermissionState() === 'granted'
+               && window.Storage.getPushEnabled()) {
+      // Уже спрашивали и granted — сразу планируем.
+      window.PushScheduler.refresh();
+    }
+
+    // HTML2APK:DEV_ONLY_BEGIN
+    // Тест push attribution: через 30 сек после старта запланировать тестовый
+    // push с template_id='test-push-template'. Когда юзер тапнет нотификацию,
+    // app перезапустится → analytics.js → checkPushOpenedAttribution
+    // → push_opened event с этим template_id. Маркеры удаляются в release.
+    setTimeout(function () {
+      if (window.LocalNotifications && typeof window.LocalNotifications.schedule === 'function') {
+        var at = Date.now() + 30000;
+        window.LocalNotifications.schedule(987654, 'TEST PUSH', 'attribution test — tap me', at, 'test-push-template');
+        console.log('[push][DEV] scheduled TEST push at +30s with template_id=test-push-template');
+      }
+    }, 2000);
+    // HTML2APK:DEV_ONLY_END
 
     // ===== 1.5. Тема =====
     applyTheme();
@@ -193,7 +307,14 @@
         // обычное поведение. Если 0 — кнопка превращена в «+1 ▶» бэйдж
         // (см. numberPad.js setHintsLeft), и тот же клик уходит в
         // rewarded-ad branch: +1 подсказка после успешного просмотра.
+        const a = window.Game.getActive();
         if (window.Storage.getHints() > 0) {
+          window.Analytics.event('hint_used', {
+            level_num: window.Storage.getCompletedLevels() + 1,
+            difficulty: (a && a.difficulty) || 'unknown',
+            mode: (a && a.mode) || 'classic',
+            source: 'free'
+          });
           window.Game.handleHint();
         } else {
           requestHintRefill();
@@ -211,10 +332,47 @@
       window.UI.setText('win-mistakes', String(data.mistakes));
       window.UI.setText('win-hints', String(data.hintsUsed));
       window.UI.showModal('win');
+
+      // Analytics: level_complete + per-app stats. level_num = completedLevels
+      // counter ДО инкремента (Game._save() инкрементит позже в startNewLevel).
+      const levelNum = window.Storage.getCompletedLevels() + 1;
+      window.Analytics.event('level_complete', {
+        level_num: levelNum,
+        difficulty: data.difficulty,
+        mode: data.mode || 'classic',
+        mistakes: data.mistakes || 0,
+        hints_used: data.hintsUsed || 0
+      });
+
+      // РУБЕЖНОЕ СОБЫТИЕ отдельным именем, а не параметром уровня. Иначе
+      // прохождение нельзя разрезать по группам A/B: параметры событий в
+      // отчётах плоские, и «номер уровня И группа» одной строкой не
+      // выражаются. Список рубежей — в remote-config.json, его же читает
+      // админка. Повтор безвреден: воронка считает разных людей.
+      const decl = window.RC_DECLARATION || {};
+      const milestone = window.RemoteConfig
+        ? window.RemoteConfig.milestoneEvent(levelNum, (decl.funnel || {}).milestones)
+        : null;
+      if (milestone) window.Analytics.event(milestone, { level_num: levelNum });
+
+      // Push: переплан расписания с учётом нового прогресса. Permission
+      // уже запросили при первом запуске app (см. init выше), здесь
+      // только обновляем планы при наличии granted.
+      if (window.PushScheduler.getPermissionState() === 'granted'
+          && window.Storage.getPushEnabled()) {
+        window.PushScheduler.refresh();
+      }
     });
 
     window.Game.on('gameover', function () {
       window.UI.showModal('gameover');
+      const a = window.Game.getActive();
+      window.Analytics.event('level_fail', {
+        level_num: window.Storage.getCompletedLevels() + 1,
+        difficulty: (a && a.difficulty) || 'unknown',
+        mode: (a && a.mode) || 'classic',
+        reason: 'hearts_zero'
+      });
     });
 
     window.Game.on('change', function () {
@@ -271,6 +429,10 @@
       // загружаем сохранённое состояние и показываем доску, а модалку
       // «Сохранение» открываем поверх него. Так игрок видит на что
       // именно он будет возвращаться или начинать заново.
+      window.Analytics.event('difficulty_selected', {
+        difficulty: selectedDifficulty,
+        mode: selectedMode
+      });
       const existing = window.Storage.getActiveByMode(selectedMode, selectedDifficulty);
       if (existing) {
         pendingStartDifficulty = selectedDifficulty;
@@ -377,6 +539,7 @@
     // rateGiven=true чтобы больше никогда не показывать. Interstitial при
     // этом ПРОПУСКАЕМ — юзер сделал доброе дело, не теребим его рекламой.
     document.getElementById('btn-rate-now').addEventListener('click', function () {
+      window.Analytics.event('rate_clicked', { source: 'modal' });
       window.Storage.setRateGiven(true);
       window.UI.hideModal('rate');
       const diff = lastCompletedDifficulty || selectedDifficulty;
@@ -406,7 +569,14 @@
     document.getElementById('btn-gameover-ad').addEventListener('click', function () {
       window.AdManager.showRewardedAd({ kind: 'extra-heart' }).then(function (result) {
         window.UI.hideModal('gameover');
-        if (result.watched) {
+        const watched = !!(result && result.watched);
+        window.Analytics.adShown({
+          type: 'rewarded',
+          placement: 'extra_heart',
+          watched: watched,
+          rewardGiven: watched
+        });
+        if (watched) {
           window.Game.applyAdReward(result.reward);
         } else {
           window.UI.showModal('gameover');
@@ -462,6 +632,38 @@
       });
     }
 
+    // Уведомления — отдельный toggle: пишет в Storage.pushEnabled (не в settings),
+    // и при включении запрашивает permission если ещё не давали.
+    const notifToggle = document.getElementById('setting-notifications');
+    if (notifToggle) {
+      notifToggle.addEventListener('change', function () {
+        const on = notifToggle.checked;
+        window.Storage.setPushEnabled(on);
+        if (on) {
+          // При включении — если permission ещё нет, запрашиваем.
+          if (window.PushScheduler.getPermissionState() !== 'granted') {
+            window.Storage.setPushPermissionAsked(true);
+            window.PushScheduler.requestPermission().then(function (result) {
+              if (result === 'granted') window.PushScheduler.refresh();
+              else {
+                // Юзер отказал — снимаем toggle обратно.
+                notifToggle.checked = false;
+                window.Storage.setPushEnabled(false);
+              }
+            });
+          } else {
+            window.PushScheduler.refresh();
+          }
+        } else {
+          // Выключили — pushScheduler.setEnabled(false) внутри сам вызовет
+          // cancelAll, но у нас источник правды Storage — поэтому дублируем.
+          if (window.LocalNotifications && window.LocalNotifications.cancelAll) {
+            try { window.LocalNotifications.cancelAll(); } catch (e) {}
+          }
+        }
+      });
+    }
+
     // ===== 10. Универсальные кнопки закрытия модалок + click-outside =====
     document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -494,37 +696,52 @@
 
     // ===== 12. Стартовый экран =====
     //
-    // Логика стартового экрана:
-    //   1. Если есть активный сейв — открываем сразу этот уровень.
-    //      Игрок продолжает с того места, где вышел. Если несколько
-    //      сейвов — берём «самый свежий» (последний в порядке вставки).
-    //   2. Если сейвов нет, но игрок УЖЕ играл (completedLevels > 0) —
-    //      показываем home, чтобы он выбрал режим/сложность.
-    //   3. Если совсем новый игрок (sеейвов нет И completedLevels=0) —
-    //      сразу запускаем Классику/Средний, чтобы игрок не «выпал»
-    //      в незнакомое меню сразу после установки app. Home он
-    //      увидит когда дойдёт до неё через ← из игры.
+    // Логика стартового экрана (по приоритету):
+    //   1. Есть активный сейв (slot в activeByMode) — открываем этот уровень,
+    //      продолжаем с того места, где игрок вышел. Если slot'ов несколько,
+    //      берём «самый свежий» (последний в порядке вставки). Если slot
+    //      соответствует lastPlayedMode/Difficulty — приоритизируем его.
+    //
+    //   2. Нет активных сейвов, но в Storage есть lastPlayedMode/Difficulty —
+    //      стартуем НОВЫЙ уровень с теми же параметрами. Сценарий: игрок
+    //      выиграл уровень → активный сейв очистился → закрыл app → при
+    //      возврате должен сразу попасть на новый уровень того же режима+
+    //      сложности (а не на home).
+    //
+    //   3. Нет ни сейвов, ни lastPlayed (= совсем новый игрок) — стартуем
+    //      Классику/Средний, чтобы игрок не «выпал» в незнакомое меню
+    //      сразу после установки app. Home он увидит через ← из игры.
     updateHomeStats();
     const slots = window.Storage.getAllActiveModes();
-    const completedLevels = window.Storage.getCompletedLevels();
+    const lastPlayed = window.Storage.getLastPlayed ? window.Storage.getLastPlayed() : { mode: null, difficulty: null };
+
+    // Если есть сейв точно с теми же mode+difficulty что lastPlayed —
+    // resume его. Если нет, но есть какие-то slot'ы — берём последний.
+    let slotToResume = null;
     if (slots.length > 0) {
-      const last = slots[slots.length - 1];
-      if (window.Game.resumeMode(last.mode, last.difficulty)) {
-        selectedMode = last.mode;
-        selectedDifficulty = last.difficulty;
-        window.UI.showScreen('game');
-      } else {
-        window.UI.showScreen('home');
+      if (lastPlayed.mode && lastPlayed.difficulty) {
+        slotToResume = slots.find(s => s.mode === lastPlayed.mode && s.difficulty === lastPlayed.difficulty) || null;
       }
-    } else if (completedLevels === 0) {
-      // Новый игрок — сразу в игру с дефолтным режимом и сложностью.
+      if (!slotToResume) slotToResume = slots[slots.length - 1];
+    }
+
+    if (slotToResume && window.Game.resumeMode(slotToResume.mode, slotToResume.difficulty)) {
+      selectedMode = slotToResume.mode;
+      selectedDifficulty = slotToResume.difficulty;
+      window.UI.showScreen('game');
+    } else if (lastPlayed.mode && lastPlayed.difficulty) {
+      // Активного сейва нет, но игрок уже играл — стартуем новый
+      // уровень в его последнем выбранном режиме/сложности.
+      selectedMode = lastPlayed.mode;
+      selectedDifficulty = lastPlayed.difficulty;
+      window.Game.startNewLevel(lastPlayed.difficulty, lastPlayed.mode);
+      window.UI.showScreen('game');
+    } else {
+      // Совсем новый игрок (ни сейвов, ни lastPlayed) — Классика/Средний.
       selectedMode = 'classic';
       selectedDifficulty = 'medium';
       window.Game.startNewLevel('medium', 'classic');
       window.UI.showScreen('game');
-    } else {
-      // Игрок без активного сейва, но уже играл — показываем home.
-      window.UI.showScreen('home');
     }
   }
 
@@ -582,6 +799,7 @@
   }
 
   function openSettings() {
+    if (window.Analytics) window.Analytics.event('settings_opened');
     const s = window.Storage.getSettings();
     document.getElementById('setting-sound').checked       = !!s.sound;
     document.getElementById('setting-vibration').checked   = !!s.vibration;
@@ -592,6 +810,17 @@
     const themeChecked = (s.theme === 'dark') ||
                          (s.theme !== 'light' && document.documentElement.getAttribute('data-theme') === 'dark');
     document.getElementById('setting-theme').checked = themeChecked;
+    // Уведомления: показываем true если pushEnabled И permission granted.
+    // Если permission denied — даже при pushEnabled=true визуально off.
+    const notifEl = document.getElementById('setting-notifications');
+    if (notifEl) {
+      const effective = window.Storage.getPushEnabled()
+                        && window.PushScheduler.getPermissionState() === 'granted';
+      // Если permission ещё не давали — показываем pushEnabled как есть
+      // (юзер сам может включить = триггер запроса permission).
+      notifEl.checked = window.Storage.getPushEnabled()
+                        && window.PushScheduler.getPermissionState() !== 'denied';
+    }
     window.UI.showModal('settings');
   }
 
@@ -612,12 +841,15 @@
   //    После «Может позже» юзер увидит её снова при следующем запуске
   //    приложения — даём ещё одну попытку, но не назойливо.
   // 3. Показываем только когда юзер уже прошёл достаточно уровней чтобы
-  //    сформировать впечатление: completedLevels >= 3. Согласовано с
-  //    01_GlitterSort / 02_Words (L3 trigger).
+  //    сформировать впечатление: порог rateus_min_levels (по умолчанию 3).
+  //    Согласовано с 01_GlitterSort / 02_Words (L3 trigger).
   function shouldShowRateModal() {
     if (window.Storage.getRateGiven()) return false;
     if (rateModalShownThisSession) return false;
-    if (window.Storage.getCompletedLevels() < 3) return false;
+    // Порог — из удалённой конфигурации: окно оценки одноразовое, и цена
+    // ошибки в пороге — навсегда потерянная оценка, а не «покажем позже».
+    const minLevels = window.RemoteConfig ? window.RemoteConfig.rc('rateus_min_levels') : undefined;
+    if (window.Storage.getCompletedLevels() < (typeof minLevels === 'number' ? minLevels : 3)) return false;
     return true;
   }
 
@@ -632,10 +864,16 @@
     const completed = window.Storage.getCompletedLevels();
     const shouldShow = window.AdManager.shouldShowInterstitial(completed);
     const launch = function () {
+      window.Analytics.event('level_start', {
+        level_num: completed + 1,
+        difficulty: diff,
+        mode: mode || 'classic'
+      });
       window.Game.startNewLevel(diff, mode);
       window.UI.showScreen('game');
     };
     if (shouldShow) {
+      window.Analytics.adShown({ type: 'interstitial', placement: 'level_transition' });
       window.AdManager.showInterstitialAd().then(launch);
     } else {
       launch();
@@ -666,7 +904,14 @@
     }
     // Ещё не unlocked — запрашиваем rewarded ad. На watched: unlock + on.
     window.AdManager.showRewardedAd({ kind: 'fast-mode' }).then(function (result) {
-      if (result && result.watched) {
+      const watched = !!(result && result.watched);
+      window.Analytics.adShown({
+        type: 'rewarded',
+        placement: 'fast_mode_unlock',
+        watched: watched,
+        rewardGiven: watched
+      });
+      if (watched) {
         window.Game.unlockFastMode();
         window.Game.setFastModeActive(true);
       } else {
@@ -679,7 +924,17 @@
 
   function requestHintRefill() {
     window.AdManager.showRewardedAd({ kind: 'hint' }).then(function (result) {
-      if (result && result.watched) {
+      const watched = !!(result && result.watched);
+      window.Analytics.adShown({
+        type: 'rewarded',
+        placement: 'hint_refill',
+        watched: watched,
+        rewardGiven: watched
+      });
+      if (watched) {
+        window.Analytics.event('rewarded_hint_obtained', {
+          level_num: window.Storage.getCompletedLevels() + 1
+        });
         window.Game.applyHintReward();
       } else {
         console.log('[hint-refill] rewarded ad not watched, no reward granted');

@@ -98,8 +98,43 @@ window.Migrations = (function () {
         state.settings.theme = null;
       }
       return state;
+    },
+    7: function (state) {
+      // v6 → v7: добавлены lastPlayedMode / lastPlayedDifficulty — для
+      // auto-resume на старте app. main.js при наличии этих полей и
+      // отсутствии активного сейва запустит новый уровень с тем же
+      // режимом/сложностью, что игрок выбирал последний раз.
+      //
+      // Для существующих юзеров v6 значение null означает «никогда не
+      // выбирал явно» — fallback оставим в main.js (там стартует classic/
+      // medium если оба поля null И completedLevels=0; иначе остаёт home).
+      if (typeof state.lastPlayedMode !== 'string') state.lastPlayedMode = null;
+      if (typeof state.lastPlayedDifficulty !== 'string') state.lastPlayedDifficulty = null;
+      return state;
+    },
+    8: function (state) {
+      // v7 → v8: добавлены поля push-уведомлений.
+      //   pushEnabled — toggle в Settings. По умолчанию true (но без permission
+      //                  ничего не показывается, так что это безопасный дефолт).
+      //   pushPermissionAsked — флаг что мы уже спрашивали Android-permission,
+      //                         чтобы не доставать юзера повторно при каждом win.
+      if (typeof state.pushEnabled !== 'boolean') state.pushEnabled = true;
+      if (typeof state.pushPermissionAsked !== 'boolean') state.pushPermissionAsked = false;
+      return state;
+    },
+    9: function (state) {
+      // v8 → v9: добавлен userId для AppMetrica analytics.
+      //   UUID v4 (crypto.randomUUID на WebView 92+ / Android 8+), fallback
+      //   на pseudo-UUID на старых устройствах. Один раз — на всю жизнь
+      //   установки. Юзер при чистке данных приложения получит новый ID.
+      if (!state.userId) {
+        state.userId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : 'u-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+      return state;
     }
-    // 7: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 10: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {
