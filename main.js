@@ -186,7 +186,10 @@
       // считаются группы A/B, поэтому жребий не меняется от запуска к запуску.
       installId: window.Storage.getUserId()
     }).then(function () {
-      window.Analytics.setAbCohorts(window.RemoteConfig.rcCohorts().join(','));
+      // `cohortLabel`, а не `join`: вне тестов нужна метка `default`. Пустая
+      // строка означала бы «конфиг ещё не доехал», а это другое.
+      window.Analytics.setAbCohorts(
+        window.RemoteConfig.cohortLabel(window.RemoteConfig.rcCohorts()));
     }).catch(function () {
       /* нет сети — играем на значениях сборки, это штатно */
     }).then(function () {
