@@ -28,7 +28,14 @@ window.Storage = (function () {
       // режимами — потратил в Классике, останется меньше для Сугуру.
       // Уменьшается при использовании подсказки, увеличивается на +1
       // после просмотра rewarded ad. См. migrations[2].
+      // Значение СБОРКИ. Ключ `hints_start` правит его не здесь, а один раз
+      // после ответа сети — см. `applyStartGrant` ниже.
       hints: window.GAME_CONFIG.BALANCE.hintsPerLevel,
+
+      // Поправка стартового запаса подсказок из конфига ещё не применялась.
+      // `false` бывает только у свежего сейва: migrations[10] ставит уже
+      // играющим `true`, чтобы у них ничего не отняли и не добавили.
+      startAdjusted: false,
 
       // Счётчик «следующий шаблон» для sugur/chain. Game.startNewLevel
       // берёт шаблон по этому индексу из PrecomputedPools[mode], затем
@@ -257,6 +264,38 @@ window.Storage = (function () {
     persist();
   }
 
+  /**
+   * Довести стартовый запас подсказок до того, что сказал конфиг. Один раз за
+   * жизнь установки, сразу после ответа сети.
+   *
+   * ПОЧЕМУ НЕ `hints: tuned('hints_start', ...)` В DEFAULTS. Сейв рождается
+   * раньше конфига: `Storage.load()` — первый шаг `init()`, а у загрузки
+   * конфига свой таймаут в 4 секунды. Ключ, прочитанный там, вернул бы значение
+   * сборки у КАЖДОГО нового игрока — то есть ровно у тех, ради кого он заведён.
+   *
+   * ПРИБАВЛЯЕМ РАЗНИЦУ, А НЕ ПРИСВАИВАЕМ: пока отвечает сеть, игрок уже мог
+   * потратить подсказку. Присвоение вернуло бы её обратно, а при меньшем
+   * значении в бакете отняло бы лишнюю. Разница верна в любой момент — конфиг
+   * говорит не «столько у тебя сейчас», а «столько выдать на входе».
+   *
+   * Конфиг не доехал — `tuned` отдаёт значение сборки, разница нулевая, и
+   * функция не делает ничего.
+   */
+  function applyStartGrant() {
+    const s = load();
+    if (s.startAdjusted) return;
+    s.startAdjusted = true;
+    // Уровень уже пройден — стартовый запас своё отработал, и поправка
+    // означала бы правку кошелька играющего человека.
+    const played = getCompletedLevels() > 0;
+    if (!played) {
+      const build = window.GAME_CONFIG.BALANCE.hintsPerLevel;
+      const delta = window.tuned('hints_start', build) - build;
+      s.hints = Math.max(0, (s.hints | 0) + delta);
+    }
+    persist();
+  }
+
   // === Template index (для pool болванок Sugur/Chain) ===
   //
   // Game.startNewLevel вызывает getNextTemplateIndex(mode) — он возвращает
@@ -354,6 +393,7 @@ window.Storage = (function () {
     getHints: getHints,
     setHints: setHints,
     addHints: addHints,
+    applyStartGrant: applyStartGrant,
     // Template-index для pool болванок
     getNextTemplateIndex: getNextTemplateIndex,
     // Последний сыгранный режим/сложность (для auto-resume старта)

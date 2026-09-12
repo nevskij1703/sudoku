@@ -133,8 +133,20 @@ window.Migrations = (function () {
           : 'u-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
       }
       return state;
+    },
+    10: function (state) {
+      // v9 → v10: стартовый запас подсказок стал ключом конфига
+      // (`hints_start`), и его правка применяется ОДИН раз — отсюда флаг.
+      //
+      // Тем, кто уже играет, ставим `true`: свои стартовые подсказки они
+      // получили при установке, и поправка на разницу с бакетом отняла бы у них
+      // запас посреди игры. `false` бывает только у сейва из DEFAULTS(), то
+      // есть у настоящего нового игрока. Зачем это вообще — `applyStartGrant`
+      // в storage.js.
+      if (typeof state.startAdjusted !== 'boolean') state.startAdjusted = true;
+      return state;
     }
-    // 10: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
+    // 11: function (state) { ... }  ← добавляй сюда при следующих изменениях схемы
   };
 
   function getCurrentSchemaVersion() {

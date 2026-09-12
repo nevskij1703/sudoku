@@ -176,7 +176,9 @@ window.DevPanel = (function () {
       a.notes = new Array(81).fill(0);
       a.mistakes = new Array(81).fill(false);
       a.hintCells = new Array(81).fill(false);
-      a.hearts = window.GAME_CONFIG.BALANCE.heartsPerLevel;
+      a.hearts = typeof a.heartsAtStart === 'number'
+        ? a.heartsAtStart
+        : window.tuned('hearts_per_level', window.GAME_CONFIG.BALANCE.heartsPerLevel);
       a.hintsUsed = 0;
       a.elapsedMs = 0;
       window.Storage.setActive(a);

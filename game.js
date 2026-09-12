@@ -127,7 +127,16 @@ window.Game = (function () {
       if (active.notes[i] !== 0) return false;
       if (active.hintCells && active.hintCells[i]) return false;
     }
-    if (active.hearts !== CFG.BALANCE.heartsPerLevel) return false;
+    // Сравниваем с тем, сколько сердец выдали ИМЕННО ЭТОМУ уровню, а не с
+    // текущим значением настройки. Настройка крутится из облака и может
+    // измениться между запусками: уровень, начатый на трёх сердцах, при новом
+    // значении «пять» выглядел бы тронутым, хотя игрок к нему не прикасался, —
+    // и наоборот, потерянное сердце спряталось бы. Поле `heartsAtStart` есть не
+    // у всех сейвов: те, что записаны прежними сборками, читаем по-старому.
+    const atStart = typeof active.heartsAtStart === 'number'
+      ? active.heartsAtStart
+      : CFG.BALANCE.heartsPerLevel;
+    if (active.hearts !== atStart) return false;
     if (active.hintsUsed > 0) return false;
     if (active.fastModeUnlocked || active.fastModeActive) return false;
     return true;
@@ -200,7 +209,11 @@ window.Game = (function () {
       active:   !!active.fastModeActive
     });
     window.NumberPad.setPencilEnabled(!active.fastModeActive);
-    window.UI.setHearts(active.hearts, CFG.BALANCE.heartsPerLevel);
+    // Шкала рисуется по запасу ЭТОГО уровня, а не по текущей настройке: иначе
+    // у уровня, начатого до правки конфига, появилось бы пустое место в шкале
+    // («у тебя чего-то не хватает») при полном запасе.
+    window.UI.setHearts(active.hearts,
+      typeof active.heartsAtStart === 'number' ? active.heartsAtStart : CFG.BALANCE.heartsPerLevel);
   }
 
   // ===== Старт нового уровня =====
@@ -425,7 +438,11 @@ window.Game = (function () {
       notes:     new Array(81).fill(0),
       mistakes:  new Array(81).fill(false),
       hintCells: new Array(81).fill(false),
-      hearts:    CFG.BALANCE.heartsPerLevel,
+      hearts:    window.tuned('hearts_per_level', CFG.BALANCE.heartsPerLevel),
+      // Сколько сердец выдано ЭТОМУ уровню. Сохраняется вместе с ним, потому
+      // что по нему считается «уровень нетронут» и рисуется шкала: настройка
+      // могла измениться из облака, пока игрок не заходил.
+      heartsAtStart: window.tuned('hearts_per_level', CFG.BALANCE.heartsPerLevel),
       hintsUsed: 0,
       elapsedMs: 0,
       score:     gen.score,

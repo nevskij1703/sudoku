@@ -206,7 +206,9 @@ window.checkDeclaredDefaults = function checkDeclaredDefaults() {
     label_easy_max_tech: G.labelThresholds.easy.maxTechWeight,
     label_medium_max_score: G.labelThresholds.medium.maxScore,
     label_medium_max_tech: G.labelThresholds.medium.maxTechWeight,
-    undo_stack_size: C.BALANCE.undoStackSize
+    undo_stack_size: C.BALANCE.undoStackSize,
+    hearts_per_level: C.BALANCE.heartsPerLevel,
+    hints_start: C.BALANCE.hintsPerLevel
   };
   var drift = [];
   Object.keys(actual).forEach(function (key) {

@@ -1,5 +1,5 @@
 // СОБРАННЫЙ ФАЙЛ — НЕ ПРАВИТЬ РУКАМИ.
-// Источники: abTest.js, progress.js, params.js, remoteConfig.js, devParams.js, testBridgeKey.js, testBridge.js. Пересобрать: node client/build-iife.mjs
+// Источники: abTest.js, progress.js, params.js, curve.js, remoteConfig.js, devParams.js, testBridgeKey.js, testBridge.js. Пересобрать: node client/build-iife.mjs
 //
 // Для classic-JS игр без сборщика. Подключается обычным <script> ДО игрового
 // кода и кладёт всё в window.RemoteConfig:
@@ -410,12 +410,156 @@ function paramLabel(decl, key) {
 /** Рамка словами — одинаково в подсказке админки и в дев-панели. */
 function rangeText(range) {
   if (!range) return "рамки не объявлены";
+  if (range.kind === "curve") {
+    return `кривая: разгон и цикл в скобках, рейтинги ${range.min ?? 1}..${range.max ?? 10}`;
+  }
   if (range.oneOf) return `одно из: ${range.oneOf.join(", ")}`;
   const fractional = typeof range.step === "number" && !Number.isInteger(range.step);
   const kind = fractional ? "дробное" : "целое";
   if (range.min == null) return kind === "дробное" ? "дробное число" : "целое число";
   return `${kind} от ${range.min} до ${range.max}`;
 }
+
+
+// ===== curve.js =====
+// Кривая сложности строкой: `1-3-3-6-(4-4-7-4-4-10)`.
+//
+// До скобки — РАЗГОН: по одному рейтингу на уровень, с первого. В скобке —
+// ЦИКЛ: он начинается сразу после разгона и повторяется бесконечно. Пример
+// читается как «1, 3, 3, 6, потом 4-4-7-4-4-10 по кругу».
+//
+// ПОЧЕМУ СТРОКА, А НЕ ДВА СПИСКА ЧИСЕЛ. Конфиг умеет числа, а кривая — это
+// последовательность переменной длины, и разложить её по ключам можно только
+// заранее выбранным числом ключей (`curve_1`, `curve_2`, …). Тогда «добавить
+// уровень в цикл» упирается в потолок, выбранный однажды и наугад, а пустые
+// ключи в середине означают неизвестно что. Одна строка не имеет ни того, ни
+// другого ограничения, а от опечаток её страхует разбор ниже: строка, которую
+// не удалось разобрать, ОТБРАСЫВАЕТСЯ целиком, и игра остаётся на своей.
+//
+// ЦИКЛ ОБЯЗАТЕЛЕН, и это главная проверка. Строка `1-3-3-6` выглядит совершенно
+// нормально, но отвечает на вопрос «что играть на пятом уровне» пустотой — а
+// уровни в этих играх бесконечны. Такую кривую надо ловить в поле ввода, а не
+// на живом игроке, который дошёл до конца разгона.
+
+/** Сколько рейтингов разрешаем в одной строке — разгон и цикл вместе. */
+const MAX_STEPS = 64;
+
+/**
+ * Разобрать строку. Возвращает `{ prefix, cycle }` либо `null`, если строка
+ * негодная — причину словами даёт `curveError`.
+ *
+ * @param {string} text
+ * @param {object} [opts]
+ * @param {number} [opts.min=1]   — наименьший допустимый рейтинг
+ * @param {number} [opts.max=10]  — наибольший; у игры их ровно столько,
+ *                                  сколько заготовлено пресетов
+ * @param {number} [opts.maxSteps=64]
+ */
+function parseCurve(text, opts = {}) {
+  return read(text, opts).curve;
+}
+
+/**
+ * Почему строка негодная — одной фразой для человека. `null`, если годная.
+ *
+ * Отдельной функцией, а не вторым полем результата, потому что зовут их в
+ * разных местах: игре нужен только разбор, полю ввода в админке — только
+ * причина.
+ */
+function curveError(text, opts = {}) {
+  return read(text, opts).error;
+}
+
+/** Обратно в строку — нормализованную: без пробелов, со скобкой в конце. */
+function formatCurve(curve) {
+  if (!curve) return "";
+  const head = curve.prefix.join("-");
+  const tail = `(${curve.cycle.join("-")})`;
+  return head ? `${head}-${tail}` : tail;
+}
+
+/**
+ * Рейтинг уровня `level` (нумерация с единицы).
+ *
+ * Уровень ниже первого не бывает, но значение всё равно определено: иначе
+ * ошибка вызова превращалась бы в `undefined` внутри генератора, а там она
+ * обнаруживается уже пустым экраном.
+ */
+function curveRating(curve, level) {
+  const i = Math.max(0, (Number(level) | 0) - 1);
+  if (i < curve.prefix.length) return curve.prefix[i];
+  const k = (i - curve.prefix.length) % curve.cycle.length;
+  return curve.cycle[k];
+}
+
+/** Первые `count` рейтингов — для превью в админке и в дев-панели. */
+function curvePreview(curve, count = 12) {
+  const out = [];
+  for (let n = 1; n <= count; n++) out.push(curveRating(curve, n));
+  return out;
+}
+
+// ------------------------------------------------------------ разбор
+
+function read(text, opts) {
+  const min = Number.isFinite(opts.min) ? opts.min : 1;
+  const max = Number.isFinite(opts.max) ? opts.max : 10;
+  const maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : MAX_STEPS;
+
+  if (typeof text !== "string") return fail("нужна строка");
+  // Пробелы разрешаем при вводе и убираем при разборе: «1-3-3-6 - (4-4)» это
+  // та же кривая, а требовать от человека точного набора незачем.
+  const s = text.replace(/\s+/g, "");
+  if (!s) return fail("пусто");
+
+  const open = s.indexOf("(");
+  const close = s.indexOf(")");
+  if (open === -1) return fail("нет цикла в скобках — после разгона неизвестно, что играть дальше");
+  if (close === -1) return fail("скобка не закрыта");
+  if (close !== s.length - 1) return fail("после закрывающей скобки ничего быть не должно");
+  if (s.indexOf("(", open + 1) !== -1 || s.indexOf(")", 0) !== close) {
+    return fail("скобок должно быть ровно две — одна пара вокруг цикла");
+  }
+
+  // Разделитель перед скобкой необязателен: «1-3(4-5)» и «1-3-(4-5)» — одно.
+  const headText = s.slice(0, open).replace(/-$/, "");
+  const cycleText = s.slice(open + 1, close);
+
+  const head = headText ? split(headText, min, max) : { list: [] };
+  if (head.error) return fail(`разгон: ${head.error}`);
+
+  // Пустые скобки проверяем ДО разбора: `"".split("-")` даёт один пустой
+  // кусок, и без этой строки человек получал бы «два разделителя подряд» там,
+  // где он просто не написал в скобках ничего.
+  if (!cycleText) return fail("цикл пустой — в скобках должен быть хотя бы один уровень");
+
+  const cycle = split(cycleText, min, max);
+  if (cycle.error) return fail(`цикл: ${cycle.error}`);
+
+  if (head.list.length + cycle.list.length > maxSteps) {
+    return fail(`слишком длинно: уровней в строке ${head.list.length + cycle.list.length}, разрешено ${maxSteps}`);
+  }
+
+  return { curve: { prefix: head.list, cycle: cycle.list }, error: null };
+}
+
+function split(text, min, max) {
+  const parts = text.split("-");
+  const list = [];
+  for (const part of parts) {
+    if (part === "") return { error: "два разделителя подряд или разделитель с краю" };
+    // Строгая проверка записи, а не `Number()`: тот принимает «1e1», «0x3» и
+    // « 7 » — в кривой сложности это опечатки, и молча принять их значило бы
+    // выдать игроку не тот уровень, который написан в поле.
+    if (!/^\d+$/.test(part)) return { error: `«${part}» — не целое число` };
+    const n = Number(part);
+    if (n < min || n > max) return { error: `«${part}» вне диапазона ${min}..${max}` };
+    list.push(n);
+  }
+  return { list };
+}
+
+const fail = (error) => ({ curve: null, error });
 
 
 // ===== remoteConfig.js =====
@@ -600,6 +744,15 @@ function rcCohorts() {
 function coerce(key, value) {
   const range = ranges[key];
   if (!range) return undefined;
+
+  // Кривая сложности — единственное значение-строка. Проверяется тем же
+  // разбором, что и в поле ввода админки (`client/curve.js`), и возвращается
+  // НОРМАЛИЗОВАННОЙ: в бакете может лежать «1-3 - (4-5)», а игра и админка
+  // обязаны видеть одну запись, иначе «поменялось ли» решается по пробелам.
+  if (range.kind === "curve") {
+    const curve = parseCurve(value, range);
+    return curve ? formatCurve(curve) : undefined;
+  }
 
   if (range.oneOf) return range.oneOf.includes(value) ? value : undefined;
 
@@ -881,6 +1034,10 @@ const CSS = `
 [data-rc-params] .rcp-row input,[data-rc-params] .rcp-row select{
   flex:0 0 92px;width:92px;background:#1b1b21;color:#fff;border:1px solid #3a3a42;border-radius:6px;padding:3px 6px;font:inherit}
 [data-rc-params] .rcp-row.rcp-over input,[data-rc-params] .rcp-row.rcp-over select{border-color:#f0b429}
+/* Кривая сложности — строка, и в 92 пикселя она не видна вовсе. Строка стоит
+   под подписью, а не рядом: на телефоне рядом остаётся сантиметр. */
+[data-rc-params] .rcp-row.rcp-curve{display:block}
+[data-rc-params] .rcp-row.rcp-curve input{flex:none;width:100%;margin-top:4px;font-family:ui-monospace,monospace}
 [data-rc-params] .rcp-x{flex:0 0 auto;width:22px;background:transparent;border:0;color:#8a8a94;cursor:pointer;font:inherit}
 [data-rc-params] .rcp-head{display:flex;align-items:center;gap:8px;padding:4px 0 6px;color:#8a8a94}
 [data-rc-params] .rcp-head button{background:#2f2f38;color:#fff;border:1px solid #3a3a42;border-radius:6px;padding:3px 8px;font:inherit;cursor:pointer}
@@ -976,28 +1133,52 @@ function row(key, decl, values, over) {
     // показывало бы одно, а игра работала бы по другому.
     if (applied === undefined && raw !== undefined) {
       input.style.borderColor = "#e5484d";
-      input.title = `не в рамках: ${rangeText(range)}`;
+      // У кривой причина словами: «не в рамках» ничего не объясняет там, где
+      // ошибиться можно десятком способов — забыть скобку, написать 12, влепить
+      // два дефиса подряд.
+      input.title = range.kind === "curve"
+        ? (curveError(raw, range) ?? rangeText(range))
+        : `не в рамках: ${rangeText(range)}`;
     }
   };
 
-  const input = range.oneOf
-    ? mk("select", { onchange: (e) => apply(coerceOneOf(range, e.target.value)) },
-        ...range.oneOf.map((o) =>
-          mk("option", { value: String(o), selected: String(o) === String(value) ? "" : null }, String(o))))
-    : mk("input", {
-        type: "number", value: String(value ?? ""),
-        min: range.min, max: range.max, step: range.step ?? 1,
-        onchange: (e) => apply(e.target.value === "" ? undefined : Number(e.target.value)),
-      });
+  const input = range.kind === "curve"
+    ? mk("input", {
+        type: "text", value: String(value ?? ""), spellcheck: "false",
+        onchange: (e) => apply(e.target.value.trim() === "" ? undefined : e.target.value),
+      })
+    : range.oneOf
+      ? mk("select", { onchange: (e) => apply(coerceOneOf(range, e.target.value)) },
+          ...range.oneOf.map((o) =>
+            mk("option", { value: String(o), selected: String(o) === String(value) ? "" : null }, String(o))))
+      : mk("input", {
+          type: "number", value: String(value ?? ""),
+          min: range.min, max: range.max, step: range.step ?? 1,
+          onchange: (e) => apply(e.target.value === "" ? undefined : Number(e.target.value)),
+        });
 
-  return mk("div", { class: mine ? "rcp-row rcp-over" : "rcp-row" },
+  const classes = ["rcp-row"];
+  if (mine) classes.push("rcp-over");
+  if (range.kind === "curve") classes.push("rcp-curve");
+
+  return mk("div", { class: classes.join(" ") },
     mk("div", { class: "rcp-key" },
       label ?? key,
-      mk("small", {}, `${key} · ${rangeText(range)} · в сборке ${decl.defaults[key]}`)),
+      mk("small", {}, `${key} · ${rangeText(range)} · в сборке ${decl.defaults[key]}`),
+      // Превью читается быстрее записи: «какой уровень получится пятым» по
+      // строке со скобкой в уме считает не каждый.
+      range.kind === "curve" ? mk("small", {}, previewText(value, range)) : null),
     input,
     mine
       ? mk("button", { class: "rcp-x", type: "button", title: "снять подмену", onclick: () => setOverride(key, undefined) }, "×")
       : mk("span", { class: "rcp-x" }, sourceMark(key)));
+}
+
+/** Первые уровни кривой словами: «уровни 1-10: 1 3 3 6 4 4 7 4 4 10». */
+function previewText(value, range) {
+  const curve = parseCurve(value, range);
+  if (!curve) return "строку разобрать не удалось";
+  return `уровни 1-10: ${curvePreview(curve, 10).join(" ")}`;
 }
 
 /** `oneOf` бывает и строковым (`"rotational"`), и числовым — из select приходит строка. */
@@ -1527,5 +1708,5 @@ const safe = (fn) => {
 };
 
 
-  global.RemoteConfig = { initRemoteConfig, rc, rcAll, rcReady, rcCohorts, rcSource, rcDeclaration, installId, configure, pickGroups, groupLabel, progressParams, cohortLabel, paramGroups, unlockOverrides, rcOverrides, setOverride, clearOverrides, onRcChange, mountRcParams, installTestBridge, registerTestActions };
+  global.RemoteConfig = { initRemoteConfig, rc, rcAll, rcReady, rcCohorts, rcSource, rcDeclaration, installId, configure, pickGroups, groupLabel, progressParams, cohortLabel, paramGroups, unlockOverrides, rcOverrides, setOverride, clearOverrides, onRcChange, mountRcParams, installTestBridge, registerTestActions, parseCurve, formatCurve, curveError, curveRating, curvePreview };
 })(typeof window !== "undefined" ? window : globalThis);
