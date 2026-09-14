@@ -14,16 +14,25 @@
 (function () {
   document.addEventListener('DOMContentLoaded', init);
 
-  // URL политики конфиденциальности на Cloud.Mail.ru. Указывает на
-  // актуальный Store_Info/PRIVACY_POLICY.pdf, залитый на облако.
-  // (Cloud-аккаунт хостинга остался на terekh-spb@mail.ru — это internal,
-  // public support email юзерам теперь terekhsupport@atomicmail.io.)
-  // При обновлении .pdf файл перезаливается на тот же URL — ссылка не меняется.
+  // URL политики конфиденциальности — ОБЩИЙ САЙТ ПОЛИТИК, а не чьё-то личное
+  // облако. Прежний адрес на cloud.mail.ru требовал ручной перезаливки PDF
+  // через личный кабинет (аккаунт terekh-spb@mail.ru): пока текст лежал там,
+  // действующая редакция зависела от того, вспомнил ли кто-то залить файл.
+  // Здесь источник — Store_Info/PRIVACY_POLICY.md в git, выкладка одной
+  // командой, а адрес строится из appId, который после первой публикации
+  // менять нельзя, — значит ссылка стабильна по построению. Старую ссылку НЕ
+  // удалять: на неё смотрят уже опубликованные сборки. См. admin/docs/LEGAL.md.
   //
   // Эта константа должна быть в синхроне с `privacyUrl` в
   // Store_Info/STORE_LISTING.md. Пайплайн `prepare-release-candidate`
   // проверяет это (шаг 4.5d/e/f).
-  const PRIVACY_URL = 'https://cloud.mail.ru/public/WA8V/yWzV4VV7n';
+  const PRIVACY_URL = 'https://games-legal-b1g8r9eo.website.yandexcloud.net/sudoku/privacy.html';
+
+  // Запасная копия В САМОМ APK на случай, когда сети нет. Судоку решают в
+  // метро и в очереди, и отправлять игрока за юридическим текстом в интернет
+  // там значит показать пустой экран. Копию кладёт
+  // `node ../admin/tools/make-privacy.mjs` из того же .md.
+  const PRIVACY_URL_OFFLINE = './privacy.html';
 
   // Сохраняем выбор сложности/режима между показами экрана
   let selectedDifficulty = 'medium';
@@ -608,17 +617,18 @@
     // будут только через автоматическую rate-modal между уровнями (см.
     // shouldShowRateModal в этом файле).
 
-    // Политика конфиденциальности — внешняя ссылка на PDF в облаке.
-    // URL единственная константа PRIVACY_URL ниже; меняется при обновлении
-    // PDF на Cloud.Mail.ru. Пайплайн `prepare-release-candidate` проверяет
+    // Политика конфиденциальности. Единственные константы — PRIVACY_URL и
+    // PRIVACY_URL_OFFLINE выше. Пайплайн `prepare-release-candidate` проверяет,
     // что URL не содержит TODO/placeholder перед release-сборкой.
     //
     // В Capacitor WebView target='_blank' → Intent.ACTION_VIEW, открывается
-    // в системном браузере (или приложении Mail.ru Cloud если установлено).
-    // В browser dev — обычная новая вкладка.
+    // в системном браузере. В browser dev — обычная новая вкладка.
     document.getElementById('btn-privacy-policy').addEventListener('click', function () {
+      // Адрес выбираем В МОМЕНТ НАЖАТИЯ, а не при загрузке: сеть появляется и
+      // пропадает, а партию решают по двадцать минут.
+      var url = navigator.onLine === false ? PRIVACY_URL_OFFLINE : PRIVACY_URL;
       try {
-        window.open(PRIVACY_URL, '_blank', 'noopener,noreferrer');
+        window.open(url, '_blank', 'noopener,noreferrer');
       } catch (e) {
         console.warn('[settings] privacy open failed', e);
       }

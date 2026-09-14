@@ -7,8 +7,8 @@
 - **Название**: Судоку Классик
 - **Категория**: Игры → Головоломки / Логические
 - **Возрастная категория**: 0+
-- **Поддержка**: terekh-spb@mail.ru
-- **Политика конфиденциальности (URL)**: https://cloud.mail.ru/public/WA8V/yWzV4VV7n  
+- **Поддержка**: terekhsupport@atomicmail.io
+- **Политика конфиденциальности (URL)**: https://games-legal-b1g8r9eo.website.yandexcloud.net/sudoku/privacy.html — общий сайт политик. Без сети кнопка в игре открывает копию из APK. Прежний PDF на `cloud.mail.ru/public/WA8V/yWzV4VV7n` **не удалять**: на него смотрят уже опубликованные сборки.  
   _(зеркало [PRIVACY_POLICY.pdf](PRIVACY_POLICY.pdf) на Cloud.Mail.ru. Эта же ссылка зашита в `main.js` → `PRIVACY_URL`. При обновлении политики — перезалей .pdf на тот же URL, ссылка не меняется.)_
 
 ## Короткое описание (до 80 символов)
