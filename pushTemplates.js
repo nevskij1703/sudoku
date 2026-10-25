@@ -1,11 +1,17 @@
 /**
  * pushTemplates.js — шаблоны push-уведомлений для Судоку.
  *
- * Тон: вызов, провокация (как у топового Sudoku-app — это работает),
- * утром бодро, обед — челлендж, вечер — релакс.
+ * Тон: утром бодро, вечером — релакс.
  *
  * Каждый шаблон:
- *   id (уник), slot, weekdays, title, body, cooldownDays, requires?, weight?
+ *   id (уник), slot, weekdays, title, body, cooldownDays, tail?, requires?, weight?
+ *
+ * Слоты — утро и вечер (расписание — в pushScheduler.js). `tail: true` —
+ * неизменная фраза последнего в очереди: его мост повторяет раз в сутки, пока
+ * человек не зайдёт, поэтому в ней нет дня, даты и обещаний.
+ *
+ * Тексты не обещают того, чего в игре нет: ни джекпотов, ни скрытых наград в
+ * сетке в ней нет — значит, нет их и в напоминаниях.
  *
  * Подключается через `<script src="pushTemplates.js">` ПЕРЕД `pushScheduler.js`,
  * чтобы window.PUSH_TEMPLATES существовал до configure(). Далее main.js:
@@ -42,43 +48,14 @@ window.PUSH_TEMPLATES = [
     cooldownDays: 7
   },
 
-  // ===== Обед (13:00-14:00) — провокация, челлендж =====
-  {
-    id: 'lunch-too-easy',
-    slot: 'lunch', weekdays: 'any',
-    title: '😎 Слишком легко для тебя?',
-    body: 'Вот настоящий вызов — попробуй сложный уровень',
-    cooldownDays: 3
-  },
-  {
-    id: 'lunch-giving-up',
-    slot: 'lunch', weekdays: 'any',
-    title: '😮 Ты сдаёшься?',
-    body: 'Докажи обратное — решай за 5 минут',
-    cooldownDays: 4
-  },
-  {
-    id: 'lunch-record',
-    slot: 'lunch', weekdays: 'any',
-    title: '🏅 Побей сегодняшний рекорд',
-    body: 'Время — твой соперник. Решай быстрее',
-    cooldownDays: 3
-  },
-  {
-    id: 'lunch-jackpot',
-    slot: 'lunch', weekdays: 'any',
-    title: '🚨 Оповещение о джекпоте',
-    body: 'Реши судоку — сорви бонус',
-    cooldownDays: 5
-  },
-
   // ===== Вечер (19:30-21:00) — релакс =====
   {
     id: 'evening-bliss',
     slot: 'evening', weekdays: 'any',
     title: '🧘 Вечернее блаженство',
     body: 'Сними стресс одной партией судоку',
-    cooldownDays: 3
+    cooldownDays: 3,
+    tail: true
   },
   {
     id: 'evening-relax-tea',
@@ -88,33 +65,10 @@ window.PUSH_TEMPLATES = [
     cooldownDays: 3
   },
   {
-    id: 'evening-hidden-rewards',
-    slot: 'evening', weekdays: 'any',
-    title: '💎 Что в сетке сегодня?',
-    body: 'Играй — найди скрытые награды',
-    cooldownDays: 5
-  },
-  {
     id: 'evening-feeling-stuck',
     slot: 'evening', weekdays: 'weekday',
     title: 'Чувствуешь себя заблокированным❓',
     body: 'Отойди от экрана — реши пару задач судоку',
     cooldownDays: 4
-  },
-
-  // ===== Ночь (22:30-23:00) — короткая партия перед сном =====
-  {
-    id: 'night-late-logic',
-    slot: 'night', weekdays: 'any',
-    title: '🌙 Логика поздней ночи',
-    body: 'Короткая партия перед сном',
-    cooldownDays: 4
-  },
-  {
-    id: 'night-dream-sudoku',
-    slot: 'night', weekdays: 'any',
-    title: '🌙 Судоку Мечты',
-    body: 'Разблокируй ночную партию прямо сейчас',
-    cooldownDays: 5
   }
 ];

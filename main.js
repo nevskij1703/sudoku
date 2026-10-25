@@ -284,14 +284,21 @@
       setTimeout(function () {
         window.PushScheduler.requestPermission().then(function (result) {
           console.log('[push] permission result:', result);
-          if (result === 'granted') window.PushScheduler.refresh();
+          window.PushScheduler.refresh();
         });
       }, 800);
-    } else if (window.PushScheduler.getPermissionState() === 'granted'
-               && window.Storage.getPushEnabled()) {
-      // Уже спрашивали и granted — сразу планируем.
+    } else {
+      // При любом тумблере и разрешении: выключенному и без разрешения
+      // refresh только снимает очередь, в которой может лежать дописанное мостом.
       window.PushScheduler.refresh();
     }
+    // Вход из фона — очередь заново от этого момента. Без этого вернувшийся
+    // без нового запуска получал бы напоминания, рассчитанные на того, кто не
+    // заходит. На уходе не переставляем: дни расписания календарные, а дев-тест
+    // ниже ждёт ухода в фон, чтобы показать своё уведомление.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') window.PushScheduler.refresh();
+    });
 
     // HTML2APK:DEV_ONLY_BEGIN
     // Тест push attribution: через 30 сек после старта запланировать тестовый
@@ -673,11 +680,9 @@
             window.PushScheduler.refresh();
           }
         } else {
-          // Выключили — pushScheduler.setEnabled(false) внутри сам вызовет
-          // cancelAll, но у нас источник правды Storage — поэтому дублируем.
-          if (window.LocalNotifications && window.LocalNotifications.cancelAll) {
-            try { window.LocalNotifications.cancelAll(); } catch (e) {}
-          }
+          // Выключили — refresh при выключенном только снимает очередь,
+          // вместе с тем, что мост дописал сам.
+          window.PushScheduler.refresh();
         }
       });
     }
